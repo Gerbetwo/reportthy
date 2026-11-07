@@ -1,0 +1,128 @@
+import { Translations } from './en';
+
+export const es: Translations = {
+  nav: {
+    overview: 'Resumen',
+    importData: '1. Importar y Limpiar',
+    results: '2. Resultados',
+    lab: '3. Lab Avanzado',
+  },
+  home: {
+    badge: 'Estudio de Evaluación Educativa',
+    title: 'Mide el progreso estudiantil con claridad y precisión.',
+    subtitle: 'Reportthy simplifica el análisis de encuestas pre y post-intervención. Empareja registros, calcula ganancias de aprendizaje y genera reportes académicos sin configuraciones complejas.',
+    startAnalysis: 'Iniciar Nuevo Análisis',
+    viewSample: 'Ver Reporte de Ejemplo',
+    overviewTitle: 'Resumen de Evaluación Benchmark',
+    overviewSubtitle: 'Métricas clave de la última muestra de intervención',
+    startingAvg: 'Promedio Inicial',
+    finalAvg: 'Promedio Final',
+    matchedCohort: 'Cohorte Emparejada',
+    dataStatus: 'Estado de Datos',
+    verified: 'Verificado',
+    howItWorks: 'Cómo Funciona Reportthy',
+    steps: [
+      { id: '01', title: 'Importar y Limpiar', desc: 'Empareja automáticamente estudiantes pre y post-test, corrige errores tipográficos y filtra entradas corruptas o inválidas.', action: 'Subir Encuestas', href: '/upload' },
+      { id: '02', title: 'Resumen de Impacto y Resultados', desc: 'Visualiza instantáneamente el crecimiento de puntajes, cambios de distribución, tasas de deserción y métricas clave en lenguaje claro.', action: 'Ver Resultados', href: '/report' },
+      { id: '03', title: 'Laboratorio de Análisis Interactivo', desc: 'Ejecuta pruebas de hipótesis y exporta scripts de Jupyter Notebook para personalización y análisis avanzados.', action: 'Abrir Lab', href: '/lab' },
+      { id: '04', title: 'Exportación Lista para Revista', desc: 'Genera tablas LaTeX limpias con estándar booktabs y resúmenes en PDF listos para envío académico.', action: 'Exportar Documentos', href: '/report' }
+    ]
+  },
+  upload: {
+    phase: 'Fase 01 • Ingesta de Datos y Sanitización',
+    title: 'Importar Datos de Encuesta',
+    subtitle: 'Sube tus archivos CSV de Pretest y Posttest o comienza con datos de ejemplo.',
+    demoBtn: 'Cargar Encuesta Cuántica de Benchmark (1 Clic)',
+    pretest: 'Evaluación Pre-Intervención (Pretest)',
+    posttest: 'Evaluación Post-Intervención (Posttest)',
+    verified: 'Verificado',
+    clean: 'Limpios',
+    fingerprintPre: 'Huella: Score, Nombre y apellido, Listado',
+    fingerprintPost: 'Huella: Puntuación, Marca temporal, Listado',
+    dropPre: 'Arrastra o selecciona el CSV de Pretest',
+    dropPost: 'Arrastra o selecciona el CSV de Posttest',
+    quarantineTitle: 'Respuesta Inusual Aislada',
+    quarantineBadge: 'Filtro Automatizado: Fila 27 Atrapada',
+    quarantineDesc: 'Una presentación contenía respuestas de examen en lugar del nombre. Fue excluida automáticamente para mantener limpios tus resultados.',
+    reason: 'Razón',
+    matchTitle: 'Emparejar Respuestas de Estudiantes',
+    matchDesc: 'Empareja automáticamente los puntajes pre y post-test incluso si hubo pequeños errores en los nombres.',
+    realign: 'Realinear Cohortes',
+    generateReport: 'Generar Reporte Springer',
+    tableTitle: 'Reconciliación Longitudinal de Cohorte',
+    tableSub: 'Matriz de verificación que muestra la alineación de participantes entre evaluaciones pretest y posttest',
+    pairingSuccess: 'Éxito de Emparejamiento',
+    headers: {
+      preParticipant: 'Participante Pretest',
+      postParticipant: 'Participante Posttest',
+      group: 'Grupo de Cohorte',
+      confidence: 'Confianza',
+      preScore: 'Puntaje Pre',
+      postScore: 'Puntaje Post',
+      delta: 'Diferencia (Δ)'
+    },
+    displayingFirst: 'Mostrando los primeros 10 de'
+  },
+  report: {
+    title: 'Resultados de Evaluación y Resumen de Aprendizaje',
+    subtitle: 'Análisis del crecimiento de puntajes entre pre y post-test',
+    bottomLineBadge: 'Conclusión Principal',
+    bottomLineTitle: 'Los estudiantes demostraron un progreso de aprendizaje significativo.',
+    bottomLineDesc: 'Los puntajes promedio aumentaron de',
+    toOnPost: 'en el pre-test a',
+    onPost: 'en el post-test. Los puntajes se agruparon fuertemente hacia el rango superior, confirmando un resultado sólido.',
+    preAvg: 'Promedio Pretest',
+    postAvg: 'Promedio Posttest',
+    scoreShift: 'Cambio de Puntaje',
+    attritionRate: 'Tasa de Deserción',
+    overallImprovement: 'Mejora general',
+    respondentsUnmatched: 'encuestados no emparejados',
+    detailedTable: 'Tabla Estadística Detallada',
+    showAdvanced: 'Mostrar Estadística Avanzada',
+    hideAdvanced: 'Ocultar Vista de Estadístico',
+    tableTitle: 'Diagnósticos de Métricas Estándar Springer Nature',
+    tableSub: 'Métricas detalladas de muestra y pruebas de normalidad de distribución (Shapiro-Wilk)',
+    copyLatex: 'Copiar LaTeX',
+    copied: 'Copiado',
+    downloadTex: '.tex',
+    compilingPdf: 'Compilando PDF...',
+    downloadPdf: 'Descargar Reporte PDF',
+    insufficientTitle: 'Tamaño de Subconjunto Insuficiente',
+    insufficientDesc: 'Por favor ajusta los filtros para incluir al menos 3 participantes.',
+    resetFilters: 'Restablecer Filtros',
+    tableHeaders: {
+      phase: 'Fase de Evaluación',
+      n: 'N',
+      mean: 'Media (x̄)',
+      variance: 'Varianza (s²)',
+      stdDev: 'Desv. Est. (s)',
+      median: 'Mediana',
+      iqr: 'RCI',
+      skewness: 'Asimetría',
+      shapiro: 'Shapiro-Wilk (p)'
+    }
+  },
+  lab: {
+    badge: 'Etapa Ágil 3: Módulo WIP',
+    subtitle: 'Estación de Trabajo Interactiva HU-05',
+    title: 'Espacio de Trabajo de Prueba de Hipótesis (Entorno Jupyter)',
+    downloadIpynb: 'Descargar .ipynb',
+    terminalIn: 'In [1]: non_parametric_verification.py',
+    reset: 'Restablecer',
+    executing: 'Ejecutando...',
+    runCell: 'Ejecutar Celda',
+    outputLabel: '# Output [1]:',
+    validatedMsg: 'Hipótesis longitudinal validada: p < 0.001. Ganancia de conocimiento estadísticamente significativa.'
+  },
+  error: {
+    title: 'Ocurrió una Excepción Inesperada',
+    desc: 'El canal de análisis científico encontró una excepción de tiempo de ejecución no manejada.',
+    retry: 'Reintentar Operación',
+    portal: 'Volver al Portal'
+  },
+  notFound: {
+    title: 'Ruta No Encontrada (404)',
+    desc: 'El espacio de trabajo científico o módulo de análisis solicitado no existe.',
+    portal: 'Volver al Resumen del Portal'
+  }
+};

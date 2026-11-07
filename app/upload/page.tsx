@@ -1,11 +1,11 @@
 'use client';
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import HeaderNav from '@/components/HeaderNav';
 import { parseSurveyCSV, pairPreAndPost } from '@/lib/csvCleaner';
 import { RawSurveyRow, CleanedParticipant, PairedParticipant } from '@/types/dataset';
+import { useTranslation } from '@/lib/LanguageContext';
 import { 
   Upload, 
   AlertTriangle, 
@@ -13,13 +13,12 @@ import {
   ArrowRight, 
   ShieldCheck, 
   FileCheck, 
-  Sparkles,
-  Info,
-  Database
+  Sparkles 
 } from 'lucide-react';
 
 export default function UploadPage() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [preClean, setPreClean] = useState<CleanedParticipant[]>([]);
   const [postClean, setPostClean] = useState<CleanedParticipant[]>([]);
@@ -29,7 +28,6 @@ export default function UploadPage() {
   const [postFilename, setPostFilename] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // 1-Click Demo Loader: loads the exact verified Quantum Computing Survey baseline
   const handleLoadBenchmarkDemo = () => {
     setIsProcessing(true);
 
@@ -50,7 +48,6 @@ export default function UploadPage() {
       { id: 'pre-13', originalName: 'David Armando Enriquez', normalizedName: 'david armando enriquez', group: 'Listado 2', score: 3, timestamp: '9/19/2026 9:03:15', isFlaggedCorrupted: false }
     ];
 
-    // Simulate remaining 26 to reach N=40 benchmark
     for (let i = 14; i < 40; i++) {
       demoPre.push({
         id: `pre-${i}`,
@@ -139,14 +136,9 @@ export default function UploadPage() {
       },
       complete: (results) => {
         const { clean, quarantined: badRows } = parseSurveyCSV(results.data, role);
-        if (role === 'pre') {
-          setPreClean(clean);
-        } else {
-          setPostClean(clean);
-        }
-        if (badRows.length > 0) {
-          setQuarantined((prev) => [...prev, ...badRows]);
-        }
+        if (role === 'pre') setPreClean(clean);
+        else setPostClean(clean);
+        if (badRows.length > 0) setQuarantined((prev) => [...prev, ...badRows]);
       },
     });
   };
@@ -176,16 +168,16 @@ export default function UploadPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-[11px] uppercase font-bold text-[#C0392B] font-mono tracking-wider">
-                Phase 01 • Data Ingestion & Sanitization
+                {t.upload.phase}
               </span>
               <span className="text-slate-300">•</span>
               <span className="text-xs font-mono text-[#57606A]">HU-02 Pipeline</span>
             </div>
             <h1 className="text-3xl font-serif font-bold text-[#002B49] tracking-tight">
-              Import Survey Data
+              {t.upload.title}
             </h1>
             <p className="text-xs text-[#57606A] mt-1">
-              Upload your Pretest and Posttest CSV files or start with sample data.
+              {t.upload.subtitle}
             </p>
           </div>
 
@@ -194,7 +186,7 @@ export default function UploadPage() {
             className="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 rounded-md text-xs font-semibold flex items-center gap-2 transition-all shadow-xs shrink-0"
           >
             <Sparkles className="w-4 h-4 text-emerald-200" />
-            <span>Load Benchmark Quantum Survey (1-Click)</span>
+            <span>{t.upload.demoBtn}</span>
           </button>
         </header>
 
@@ -206,23 +198,23 @@ export default function UploadPage() {
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-serif font-bold text-base text-[#002B49] flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-[#002B49] text-white flex items-center justify-center text-xs font-mono">1</span>
-                  Pre-Intervention Test (Pretest)
+                  {t.upload.pretest}
                 </h2>
                 {preClean.length > 0 && (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-300 font-mono">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> N = {preClean.length} Verified
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> N = {preClean.length} {t.upload.verified}
                   </span>
                 )}
               </div>
               <p className="text-xs text-[#57606A] mb-4 font-mono">
-                Fingerprint: Score, Nombre y apellido, Listado
+                {t.upload.fingerprintPre}
               </p>
             </div>
             <div>
               <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#CBD5E1] hover:border-[#002B49] rounded-lg p-6 cursor-pointer bg-[#F8F9FA] hover:bg-white transition group">
                 <Upload className="w-8 h-8 text-slate-400 group-hover:text-[#002B49] mb-2 transition-colors" />
                 <span className="text-xs font-medium text-slate-700 font-mono text-center">
-                  {preFilename || 'Drop or select Pretest CSV'}
+                  {preFilename || t.upload.dropPre}
                 </span>
                 <input
                   type="file"
@@ -240,23 +232,23 @@ export default function UploadPage() {
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-serif font-bold text-base text-[#002B49] flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-[#002B49] text-white flex items-center justify-center text-xs font-mono">2</span>
-                  Post-Intervention Test (Posttest)
+                  {t.upload.posttest}
                 </h2>
                 {postClean.length > 0 && (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-300 font-mono">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> N = {postClean.length} Clean
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> N = {postClean.length} {t.upload.clean}
                   </span>
                 )}
               </div>
               <p className="text-xs text-[#57606A] mb-4 font-mono">
-                Fingerprint: Puntuación, Marca temporal, Listado
+                {t.upload.fingerprintPost}
               </p>
             </div>
             <div>
               <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#CBD5E1] hover:border-[#002B49] rounded-lg p-6 cursor-pointer bg-[#F8F9FA] hover:bg-white transition group">
                 <Upload className="w-8 h-8 text-slate-400 group-hover:text-[#002B49] mb-2 transition-colors" />
                 <span className="text-xs font-medium text-slate-700 font-mono text-center">
-                  {postFilename || 'Drop or select Posttest CSV'}
+                  {postFilename || t.upload.dropPost}
                 </span>
                 <input
                   type="file"
@@ -269,7 +261,7 @@ export default function UploadPage() {
           </div>
         </div>
 
-        {/* Quarantine Callout: Traps Row 27 Algorithm Code Dump */}
+        {/* Quarantine Callout */}
         {quarantined.length > 0 && (
           <section className="bg-amber-50 border border-amber-300 rounded-lg p-5 mb-8 shadow-xs">
             <div className="flex items-start gap-3">
@@ -277,20 +269,20 @@ export default function UploadPage() {
               <div className="w-full">
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="font-serif font-bold text-sm text-amber-900">
-                    {quarantined.length} Unusual Response Set Aside
+                    {quarantined.length} {t.upload.quarantineTitle}
                   </h3>
                   <span className="text-[11px] font-mono bg-amber-200 text-amber-950 px-2 py-0.5 rounded font-bold border border-amber-300">
-                    Automated Filter: Row 27 Trapped
+                    {t.upload.quarantineBadge}
                   </span>
                 </div>
                 <p className="text-xs text-amber-800 mb-3 leading-relaxed">
-                  One submission contained non-name test answers pasted into the name field. It was automatically excluded to keep your results clean.
+                  {t.upload.quarantineDesc}
                 </p>
                 <div className="bg-white border border-amber-200 rounded p-3 text-xs font-mono text-slate-700 max-h-36 overflow-y-auto">
                   {quarantined.map((item) => (
                     <div key={item.id} className="border-b last:border-0 border-slate-100 pb-2 mb-2 last:mb-0">
                       <div className="font-bold text-[#C0392B]">
-                        [{item.id}] Reason: {item.corruptionReason}
+                        [{item.id}] {t.upload.reason}: {item.corruptionReason}
                       </div>
                       <pre className="text-[11px] text-slate-500 mt-1 whitespace-pre-wrap truncate bg-[#F8F9FA] p-2 rounded">
                         {item.originalName.substring(0, 200)}...
@@ -308,10 +300,10 @@ export default function UploadPage() {
           <div className="bg-white border border-[#D0D7DE] rounded-lg p-6 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
             <div>
               <h3 className="font-serif font-bold text-base text-[#002B49]">
-                Match Student Responses
+                {t.upload.matchTitle}
               </h3>
               <p className="text-xs text-[#57606A] mt-0.5">
-                Automatically matches pre- and post-test scores even if students had minor typos in their names.
+                {t.upload.matchDesc}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -321,7 +313,7 @@ export default function UploadPage() {
                 className="bg-[#002B49] hover:bg-[#001A2C] text-white px-5 py-2.5 rounded-md text-xs font-semibold flex items-center gap-2 transition"
               >
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>Re-align Cohorts</span>
+                <span>{t.upload.realign}</span>
               </button>
               {paired.length > 0 && (
                 <button
@@ -329,7 +321,7 @@ export default function UploadPage() {
                   className="bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-2.5 rounded-md text-xs font-semibold flex items-center gap-2 transition shadow-xs"
                 >
                   <FileCheck className="w-4 h-4" />
-                  <span>Generate Springer Report</span>
+                  <span>{t.upload.generateReport}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               )}
@@ -343,27 +335,27 @@ export default function UploadPage() {
             <div className="flex items-center justify-between mb-4 border-b border-[#EDF2F7] pb-3">
               <div>
                 <h3 className="font-serif font-bold text-base text-[#002B49]">
-                  Longitudinal Cohort Reconciliation ({paired.length} Matched Subjects)
+                  {t.upload.tableTitle} ({paired.length} Matched Subjects)
                 </h3>
                 <p className="text-xs text-[#57606A]">
-                  Verification matrix showing participant alignment between pretest and posttest evaluations
+                  {t.upload.tableSub}
                 </p>
               </div>
               <span className="text-xs font-mono text-emerald-800 bg-emerald-50 border border-emerald-300 px-2.5 py-1 rounded font-bold">
-                Pairing Success: {((paired.length / preClean.length) * 100).toFixed(1)}%
+                {t.upload.pairingSuccess}: {((paired.length / preClean.length) * 100).toFixed(1)}%
               </span>
             </div>
             <div className="overflow-x-auto">
               <table className="table-booktabs text-xs">
                 <thead>
                   <tr>
-                    <th>Pretest Participant</th>
-                    <th>Posttest Participant</th>
-                    <th>Cohort Group</th>
-                    <th>Confidence</th>
-                    <th>Pre Score</th>
-                    <th>Post Score</th>
-                    <th>Score Delta (Δ)</th>
+                    <th>{t.upload.headers.preParticipant}</th>
+                    <th>{t.upload.headers.postParticipant}</th>
+                    <th>{t.upload.headers.group}</th>
+                    <th>{t.upload.headers.confidence}</th>
+                    <th>{t.upload.headers.preScore}</th>
+                    <th>{t.upload.headers.postScore}</th>
+                    <th>{t.upload.headers.delta}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -389,7 +381,7 @@ export default function UploadPage() {
             </div>
             {paired.length > 10 && (
               <p className="text-xs text-slate-400 text-right mt-3 font-mono">
-                Displaying first 10 of {paired.length} matched pairs...
+                {t.upload.displayingFirst} 10 of {paired.length} matched pairs...
               </p>
             )}
           </section>

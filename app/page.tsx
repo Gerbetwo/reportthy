@@ -1,3 +1,4 @@
+'use client';
 import Link from 'next/link';
 import HeaderNav from '@/components/HeaderNav';
 import { 
@@ -6,45 +7,19 @@ import {
   BarChart3, 
   Binary, 
   FileText, 
-  CheckCircle2, 
-  TrendingUp 
+  CheckCircle2 
 } from 'lucide-react';
+import { useTranslation } from '@/lib/LanguageContext';
 
 export default function HomePage() {
-  const steps = [
-    {
-      id: '01',
-      title: 'Import & Smart Clean',
-      icon: Upload,
-      desc: 'Automatically pairs pre- and post-test students, corrects typos in names, and filters out invalid or corrupt entries.',
-      href: '/upload',
-      action: 'Upload Surveys'
-    },
-    {
-      id: '02',
-      title: 'Impact & Results Summary',
-      icon: BarChart3,
-      desc: 'Instantly view score growth, score distribution shifts, attrition rates, and key learning metrics in clear, human language.',
-      href: '/report',
-      action: 'View Results'
-    },
-    {
-      id: '03',
-      title: 'Interactive Analysis Lab',
-      icon: Binary,
-      desc: 'Run hypothesis tests and export python notebook scripts for further customization and research deep dives.',
-      href: '/lab',
-      action: 'Open Lab'
-    },
-    {
-      id: '04',
-      title: 'Journal-Ready Export',
-      icon: FileText,
-      desc: 'Generate clean, publication-grade LaTeX tables and formatted PDF summaries ready for academic submission.',
-      href: '/report',
-      action: 'Export Documents'
-    }
-  ];
+  const { t } = useTranslation();
+
+  const iconMap: Record<string, any> = {
+    '01': Upload,
+    '02': BarChart3,
+    '03': Binary,
+    '04': FileText,
+  };
 
   return (
     <div className="min-h-screen bg-white text-[#1F2328] flex flex-col">
@@ -55,27 +30,27 @@ export default function HomePage() {
         <section className="bg-slate-50 border border-[#D0D7DE] rounded-xl p-8 mb-10 shadow-xs relative overflow-hidden">
           <div className="max-w-3xl">
             <span className="text-xs font-bold uppercase tracking-wider text-[#C0392B] bg-rose-50 px-2.5 py-1 rounded border border-rose-200">
-              Educational Assessment Studio
+              {t.home.badge}
             </span>
             <h1 className="text-3xl sm:text-4xl font-serif font-bold text-[#002B49] mt-3 tracking-tight leading-tight">
-              Measure student progress with clarity and precision.
+              {t.home.title}
             </h1>
             <p className="text-sm text-[#57606A] mt-3 leading-relaxed">
-              Reportthy simplifies pre- and post-intervention survey analysis. Automatically match student records, calculate learning gains, and produce clean academic reports—without complex setup.
+              {t.home.subtitle}
             </p>
             <div className="flex flex-wrap items-center gap-3 mt-6">
               <Link
                 href="/upload"
                 className="inline-flex items-center gap-2 bg-[#002B49] hover:bg-[#001A2C] text-white px-5 py-2.5 rounded-md text-xs font-semibold shadow-xs transition"
               >
-                <span>Start New Analysis</span>
+                <span>{t.home.startAnalysis}</span>
                 <ArrowRight className="w-4 h-4 text-[#F8FAFC]" />
               </Link>
               <Link
                 href="/report"
                 className="inline-flex items-center gap-2 bg-white hover:bg-[#F8F9FA] text-[#002B49] border border-[#CBD5E1] px-5 py-2.5 rounded-md text-xs font-semibold transition"
               >
-                <span>View Sample Report</span>
+                <span>{t.home.viewSample}</span>
               </Link>
             </div>
           </div>
@@ -86,17 +61,17 @@ export default function HomePage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-lg font-serif font-bold text-[#002B49]">
-                Benchmark Evaluation Overview
+                {t.home.overviewTitle}
               </h2>
               <p className="text-xs text-[#57606A]">
-                Key metrics from the latest intervention sample
+                {t.home.overviewSubtitle}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
-              <span className="text-xs font-mono uppercase text-[#57606A]">Starting Average</span>
+              <span className="text-xs font-mono uppercase text-[#57606A]">{t.home.startingAvg}</span>
               <div className="text-2xl font-serif font-bold text-[#002B49] mt-1">
                 1.93 <span className="text-xs font-sans text-slate-500 font-normal">/ 10</span>
               </div>
@@ -104,26 +79,26 @@ export default function HomePage() {
             </div>
 
             <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
-              <span className="text-xs font-mono uppercase text-[#57606A]">Final Average</span>
+              <span className="text-xs font-mono uppercase text-[#57606A]">{t.home.finalAvg}</span>
               <div className="text-2xl font-serif font-bold text-emerald-700 mt-1">
                 8.32 <span className="text-xs font-sans text-slate-500 font-normal">/ 10</span>
               </div>
-              <div className="text-xs font-semibold text-emerald-800 mt-1">+332% knowledge gain</div>
+              <div className="text-xs font-semibold text-emerald-800 mt-1">{t.report.overallImprovement.toLowerCase()}</div>
             </div>
 
             <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
-              <span className="text-xs font-mono uppercase text-[#57606A]">Matched Cohort</span>
+              <span className="text-xs font-mono uppercase text-[#57606A]">{t.home.matchedCohort}</span>
               <div className="text-2xl font-serif font-bold text-[#002B49] mt-1">
-                31 Students
+                31 {t.report.tableHeaders.phase === 'Fase de Evaluación' ? 'Estudiantes' : 'Students'}
               </div>
-              <div className="text-xs text-[#57606A] mt-1">20% attrition rate</div>
+              <div className="text-xs text-[#57606A] mt-1">20% {t.report.attritionRate.toLowerCase()}</div>
             </div>
 
             <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
-              <span className="text-xs font-mono uppercase text-[#57606A]">Data Status</span>
+              <span className="text-xs font-mono uppercase text-[#57606A]">{t.home.dataStatus}</span>
               <div className="text-2xl font-serif font-bold text-emerald-700 mt-1 flex items-center gap-1.5">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <span>Verified</span>
+                <span>{t.home.verified}</span>
               </div>
               <div className="text-xs text-[#57606A] mt-1">1 bad entry filtered</div>
             </div>
@@ -134,13 +109,13 @@ export default function HomePage() {
         <section className="mb-12">
           <div className="border-b border-[#D0D7DE] pb-2 mb-6">
             <h2 className="text-xl font-serif font-bold text-[#002B49]">
-              How Reportthy Works
+              {t.home.howItWorks}
             </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {steps.map((step) => {
-              const Icon = step.icon;
+            {t.home.steps.map((step) => {
+              const Icon = iconMap[step.id] || Upload;
               return (
                 <div
                   key={step.id}

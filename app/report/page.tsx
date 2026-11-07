@@ -1,10 +1,10 @@
 'use client';
-
 import { useState, useEffect, useMemo } from 'react';
 import HeaderNav from '@/components/HeaderNav';
 import { computeDescriptiveStats } from '@/lib/statsEngine';
 import { generateSpringerNatureLatex } from '@/lib/latexTemplate';
 import { DescriptiveMetrics, CleanedParticipant } from '@/types/dataset';
+import { useTranslation } from '@/lib/LanguageContext';
 import { 
   Download, 
   Copy, 
@@ -18,13 +18,13 @@ import {
 } from 'lucide-react';
 
 export default function QualityReportPage() {
+  const { lang, t } = useTranslation();
   const [preData, setPreData] = useState<CleanedParticipant[]>([]);
   const [postData, setPostData] = useState<CleanedParticipant[]>([]);
   const [copied, setCopied] = useState(false);
   const [isCompilingPdf, setIsCompilingPdf] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Filter States
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [minScore, setMinScore] = useState<number>(0);
 
@@ -86,15 +86,15 @@ export default function QualityReportPage() {
         <HeaderNav />
         <main className="max-w-6xl mx-auto px-6 py-16 text-center">
           <div className="bg-amber-50 border border-amber-300 rounded-lg p-6 max-w-md mx-auto">
-            <h2 className="font-serif font-bold text-amber-900 text-base mb-2">Insufficient Subset Size</h2>
+            <h2 className="font-serif font-bold text-amber-900 text-base mb-2">{t.report.insufficientTitle}</h2>
             <p className="text-xs text-amber-800 mb-4">
-              Please adjust filters to include at least 3 participants.
+              {t.report.insufficientDesc}
             </p>
             <button
               onClick={() => { setSelectedGroup('all'); setMinScore(0); }}
               className="bg-[#002B49] text-white text-xs font-semibold px-4 py-2 rounded"
             >
-              Reset Filters
+              {t.report.resetFilters}
             </button>
           </div>
         </main>
@@ -107,7 +107,7 @@ export default function QualityReportPage() {
 
   const attritionCount = Math.max(0, preMetrics.n - postMetrics.n);
   const attritionRate = preMetrics.n > 0 ? (attritionCount / preMetrics.n) * 100 : 0;
-  const latexCode = generateSpringerNatureLatex(preMetrics, postMetrics, attritionCount, attritionRate);
+  const latexCode = generateSpringerNatureLatex(preMetrics, postMetrics, attritionCount, attritionRate, lang);
 
   const handleCopyLatex = () => {
     navigator.clipboard.writeText(latexCode);
@@ -158,10 +158,10 @@ export default function QualityReportPage() {
         <header className="bg-white border border-[#D0D7DE] rounded-lg p-6 mb-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-serif font-bold text-[#002B49] tracking-tight">
-              Evaluation Results & Learning Summary
+              {t.report.title}
             </h1>
             <p className="text-xs text-[#57606A] mt-1">
-              Analysis of student score growth between pre- and post-tests
+              {t.report.subtitle}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 print:hidden">
@@ -170,14 +170,14 @@ export default function QualityReportPage() {
               className="px-3 py-2 rounded-md text-xs font-semibold border border-[#CBD5E1] bg-white hover:bg-[#F8F9FA] text-[#002B49] flex items-center gap-1.5 transition"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Copied' : 'Copy LaTeX'}</span>
+              <span>{copied ? t.report.copied : t.report.copyLatex}</span>
             </button>
             <button
               onClick={handleDownloadLatex}
               className="px-3 py-2 rounded-md text-xs font-semibold border border-[#CBD5E1] bg-white hover:bg-[#F8F9FA] text-[#002B49] flex items-center gap-1.5 transition"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>.tex</span>
+              <span>{t.report.downloadTex}</span>
             </button>
             <button
               onClick={handleCompileServerPdf}
@@ -185,7 +185,7 @@ export default function QualityReportPage() {
               className="px-3.5 py-2 rounded-md text-xs font-semibold bg-[#002B49] hover:bg-[#001A2C] text-white flex items-center gap-1.5 transition disabled:opacity-50"
             >
               {isCompilingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileCheck className="w-3.5 h-3.5 text-emerald-400" />}
-              <span>{isCompilingPdf ? 'Compiling PDF...' : 'Download PDF Report'}</span>
+              <span>{isCompilingPdf ? t.report.compilingPdf : t.report.downloadPdf}</span>
             </button>
             <button
               onClick={() => window.print()}
@@ -196,18 +196,18 @@ export default function QualityReportPage() {
           </div>
         </header>
 
-        {/* Level 1: Human-First Bottom Line Card */}
+        {/* Bottom Line Card */}
         <section className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-6 mb-8 shadow-xs">
           <div className="flex items-start justify-between gap-4">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded">
-                The Bottom Line
+                {t.report.bottomLineBadge}
               </span>
               <h2 className="text-xl font-serif font-bold text-[#002B49] mt-2">
-                Students demonstrated significant learning progress (+332% score gain).
+                {t.report.bottomLineTitle}
               </h2>
               <p className="text-xs text-slate-700 mt-2 leading-relaxed max-w-3xl">
-                Average scores rose from <strong>{preMetrics.mean} / 10</strong> on the pre-test to <strong>{postMetrics.mean} / 10</strong> on the post-test. Scores clustered strongly towards the higher end, confirming a solid intervention outcome.
+                {t.report.bottomLineDesc} <strong>{preMetrics.mean} / 10</strong> {t.report.toOnPost} <strong>{postMetrics.mean} / 10</strong> {t.report.onPost}
               </p>
             </div>
             <TrendingUp className="w-8 h-8 text-emerald-600 shrink-0" />
@@ -217,70 +217,70 @@ export default function QualityReportPage() {
         {/* Quick KPI Cards */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
-            <div className="text-xs font-mono text-[#57606A] uppercase font-semibold">Pretest Average</div>
+            <div className="text-xs font-mono text-[#57606A] uppercase font-semibold">{t.report.preAvg}</div>
             <div className="text-2xl font-serif font-bold text-[#002B49] mt-1">{preMetrics.mean} <span className="text-xs font-sans text-slate-400">/ 10</span></div>
-            <div className="text-xs text-[#57606A] mt-1">N = {preMetrics.n} students</div>
+            <div className="text-xs text-[#57606A] mt-1">N = {preMetrics.n} {t.report.tableHeaders.phase === 'Fase de Evaluación' ? 'estudiantes' : 'students'}</div>
           </div>
           <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
-            <div className="text-xs font-mono text-[#57606A] uppercase font-semibold">Posttest Average</div>
+            <div className="text-xs font-mono text-[#57606A] uppercase font-semibold">{t.report.postAvg}</div>
             <div className="text-2xl font-serif font-bold text-emerald-700 mt-1">{postMetrics.mean} <span className="text-xs font-sans text-slate-400">/ 10</span></div>
-            <div className="text-xs text-[#57606A] mt-1">N = {postMetrics.n} students</div>
+            <div className="text-xs text-[#57606A] mt-1">N = {postMetrics.n} {t.report.tableHeaders.phase === 'Fase de Evaluación' ? 'estudiantes' : 'students'}</div>
           </div>
           <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
-            <div className="text-xs font-mono text-[#57606A] uppercase font-semibold">Score Shift</div>
+            <div className="text-xs font-mono text-[#57606A] uppercase font-semibold">{t.report.scoreShift}</div>
             <div className="text-2xl font-serif font-bold text-emerald-700 mt-1">+{(postMetrics.mean - preMetrics.mean).toFixed(2)}</div>
-            <div className="text-xs text-[#57606A] mt-1">Overall improvement</div>
+            <div className="text-xs text-[#57606A] mt-1">{t.report.overallImprovement}</div>
           </div>
           <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
-            <div className="text-xs font-mono text-[#57606A] uppercase font-semibold">Attrition Rate</div>
+            <div className="text-xs font-mono text-[#57606A] uppercase font-semibold">{t.report.attritionRate}</div>
             <div className="text-2xl font-serif font-bold text-slate-700 mt-1">{attritionRate.toFixed(1)}%</div>
-            <div className="text-xs text-[#57606A] mt-1">{attritionCount} respondents un-matched</div>
+            <div className="text-xs text-[#57606A] mt-1">{attritionCount} {t.report.respondentsUnmatched}</div>
           </div>
         </section>
 
         {/* Progressive Disclosure Toggle */}
         <div className="flex items-center justify-between border-t border-[#D0D7DE] pt-6 mb-6">
           <h3 className="font-serif font-bold text-lg text-[#002B49]">
-            Detailed Statistical Table
+            {t.report.detailedTable}
           </h3>
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
             className="flex items-center gap-1.5 text-xs font-semibold text-[#002B49] hover:text-[#C0392B] transition"
           >
-            <span>{showAdvanced ? 'Hide Statistician View' : 'Show Advanced Statistics'}</span>
+            <span>{showAdvanced ? t.report.hideAdvanced : t.report.showAdvanced}</span>
             {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
         </div>
 
-        {/* Level 3: Advanced Academic Table & Normality Diagnostics (Hidden by Default) */}
+        {/* Advanced Academic Table */}
         {showAdvanced && (
           <section className="bg-white p-6 rounded-lg border border-[#D0D7DE] shadow-xs mb-8">
             <div className="mb-4">
               <h4 className="font-serif font-bold text-sm text-[#002B49] mb-1">
-                Springer Nature Standard Metric Diagnostics
+                {t.report.tableTitle}
               </h4>
               <p className="text-xs text-[#57606A]">
-                Detailed sample metrics and distribution normality tests (Shapiro-Wilk)
+                {t.report.tableSub}
               </p>
             </div>
             <div className="overflow-x-auto">
               <table className="table-booktabs text-xs">
                 <thead>
                   <tr>
-                    <th>Evaluation Phase</th>
-                    <th>N</th>
-                    <th>Mean (x)</th>
-                    <th>Variance (s²)</th>
-                    <th>Std Dev (s)</th>
-                    <th>Median</th>
-                    <th>IQR</th>
-                    <th>Skewness</th>
-                    <th>Shapiro-Wilk (p)</th>
+                    <th>{t.report.tableHeaders.phase}</th>
+                    <th>{t.report.tableHeaders.n}</th>
+                    <th>{t.report.tableHeaders.mean}</th>
+                    <th>{t.report.tableHeaders.variance}</th>
+                    <th>{t.report.tableHeaders.stdDev}</th>
+                    <th>{t.report.tableHeaders.median}</th>
+                    <th>{t.report.tableHeaders.iqr}</th>
+                    <th>{t.report.tableHeaders.skewness}</th>
+                    <th>{t.report.tableHeaders.shapiro}</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td className="font-medium text-[#002B49]">Pretest</td>
+                    <td className="font-medium text-[#002B49]">{preMetrics.n > 0 ? (t.report.tableHeaders.phase === 'Fase de Evaluación' ? 'Pretest' : 'Pretest') : ''}</td>
                     <td>{preMetrics.n}</td>
                     <td>{preMetrics.mean}</td>
                     <td>{preMetrics.variance}</td>
@@ -291,7 +291,7 @@ export default function QualityReportPage() {
                     <td className="font-mono text-[#C0392B] font-bold">{preMetrics.shapiroWilk.pValue}</td>
                   </tr>
                   <tr>
-                    <td className="font-medium text-[#002B49]">Posttest</td>
+                    <td className="font-medium text-[#002B49]">{postMetrics.n > 0 ? (t.report.tableHeaders.phase === 'Fase de Evaluación' ? 'Posttest' : 'Posttest') : ''}</td>
                     <td>{postMetrics.n}</td>
                     <td>{postMetrics.mean}</td>
                     <td>{postMetrics.variance}</td>

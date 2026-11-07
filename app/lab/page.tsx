@@ -1,10 +1,11 @@
 'use client';
-
 import { useState } from 'react';
 import HeaderNav from '@/components/HeaderNav';
+import { useTranslation } from '@/lib/LanguageContext';
 import { Download, Play, Terminal, CheckCircle2, RotateCcw } from 'lucide-react';
 
 export default function LabPage() {
+  const { t } = useTranslation();
   const [isRunning, setIsRunning] = useState(false);
   const [executed, setExecuted] = useState(false);
 
@@ -86,13 +87,13 @@ print(f"Mann-Whitney p-value : {p_val_u:.4e}")`;
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] uppercase font-mono text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded font-bold">
-                Agile Stage 3: WIP Modular Stub
+                {t.lab.badge}
               </span>
               <span className="text-slate-300">•</span>
-              <span className="text-xs text-[#57606A] font-mono">HU-05 Interactive Workstation</span>
+              <span className="text-xs text-[#57606A] font-mono">{t.lab.subtitle}</span>
             </div>
             <h1 className="text-3xl font-serif font-bold text-[#002B49] mt-1 tracking-tight">
-              Hypothesis Testing Workspace (Jupyter Environment)
+              {t.lab.title}
             </h1>
           </div>
           <button
@@ -100,7 +101,7 @@ print(f"Mann-Whitney p-value : {p_val_u:.4e}")`;
             className="bg-[#002B49] hover:bg-[#001A2C] text-white px-4 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition shadow-xs self-start sm:self-auto"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Download .ipynb</span>
+            <span>{t.lab.downloadIpynb}</span>
           </button>
         </header>
 
@@ -109,7 +110,7 @@ print(f"Mann-Whitney p-value : {p_val_u:.4e}")`;
           <div className="bg-[#002B49] px-4 py-2.5 flex items-center justify-between border-b border-slate-700">
             <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
               <Terminal className="w-4 h-4 text-emerald-400" />
-              <span>In [1]: non_parametric_verification.py</span>
+              <span>{t.lab.terminalIn}</span>
             </div>
             <div className="flex items-center gap-2">
               {executed && (
@@ -117,7 +118,7 @@ print(f"Mann-Whitney p-value : {p_val_u:.4e}")`;
                   onClick={() => setExecuted(false)}
                   className="text-xs text-slate-400 hover:text-white px-2 py-1 font-mono flex items-center gap-1"
                 >
-                  <RotateCcw className="w-3 h-3" /> Reset
+                  <RotateCcw className="w-3 h-3" /> {t.lab.reset}
                 </button>
               )}
               <button
@@ -126,7 +127,7 @@ print(f"Mann-Whitney p-value : {p_val_u:.4e}")`;
                 className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3.5 py-1 rounded flex items-center gap-1.5 font-mono font-semibold transition"
               >
                 <Play className="w-3 h-3 fill-white" />
-                {isRunning ? 'Executing...' : 'Run Cell'}
+                {isRunning ? t.lab.executing : t.lab.runCell}
               </button>
             </div>
           </div>
@@ -137,14 +138,14 @@ print(f"Mann-Whitney p-value : {p_val_u:.4e}")`;
 
           {executed && (
             <div className="bg-black/75 p-5 border-t border-slate-800 font-mono text-xs text-slate-200">
-              <div className="text-slate-500 mb-1"># Output [1]:</div>
+              <div className="text-slate-500 mb-1">{t.lab.outputLabel}</div>
               <div className="text-emerald-400">Wilcoxon W Statistic : 0.0000</div>
               <div className="text-emerald-400">Wilcoxon p-value     : 1.8626e-09</div>
               <div className="text-cyan-300 mt-2">Mann-Whitney U Stat  : 162.5000</div>
               <div className="text-cyan-300">Mann-Whitney p-value : 0.1142</div>
               <div className="mt-3 text-emerald-300 font-bold flex items-center gap-2 bg-emerald-950/60 border border-emerald-800 p-2.5 rounded">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Longitudinal hypothesis validated: p &lt; 0.001. Statistically significant knowledge gain.</span>
+                <span>{t.lab.validatedMsg}</span>
               </div>
             </div>
           )}

@@ -37,3 +37,16 @@ You are an Elite Principal Full-Stack Engineer and Computational Statistician. Y
 - `/report` -> Statistical Quality Dashboard, Booktabs Table & LaTeX/PDF Export (HU-03, HU-04)
 - `/lab` -> [WIP Module] Embedded Jupyter Notebook Viewer & .ipynb Downloader (HU-05)
 - `/paper` -> [WIP Module] Academic Manuscript Synthesizer
+
+## 5. Internationalization & Localization (i18n) Mandate
+- **Bilingual Architecture Requirement**: The application supports full real-time bilingual switching (**English & Spanish**) managed client-side via `@/lib/LanguageContext.tsx`.
+- **Zero Hardcoded Strings in Components**:
+  - NEVER hardcode user-facing UI text inside components (`.tsx`).
+  - ALWAYS consume translations using the `useTranslation()` hook: `const { lang, t } = useTranslation();`.
+  - ALWAYS declare new text keys symmetrically in both `@/locales/en.ts` and `@/locales/es.ts`.
+  - `@/locales/en.ts` serves as the TypeScript contract (`export type Translations = typeof en;`). `@/locales/es.ts` must strictly conform to this interface type.
+- **Dynamic Springer Nature LaTeX Translation**:
+  - The LaTeX compilation function (`generateSpringerNatureLatex` in `@/lib/latexTemplate.ts`) MUST accept a `lang: 'en' | 'es'` parameter[cite: 3].
+  - LaTeX section headings, abstracts, captions, methodology notes, and non-parametric rejection mandates must render dynamically in the active document language[cite: 3].
+- **Template Literal Escaping in Automation Scripts**:
+  - When writing Node.js / TypeScript code generator scripts that emit TypeScript files containing template literals (e.g., `${variable}`), ALWAYS escape runtime interpolations as `\${variable}` to prevent premature script-time evaluation.

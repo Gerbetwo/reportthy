@@ -1,8 +1,8 @@
 'use client';
-
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { AlertOctagon, RotateCcw, Home } from 'lucide-react';
+import { useTranslation } from '@/lib/LanguageContext';
 
 export default function ErrorBoundary({
   error,
@@ -11,6 +11,8 @@ export default function ErrorBoundary({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     console.error('[Reportthy Error Boundary]', error);
   }, [error]);
@@ -22,10 +24,10 @@ export default function ErrorBoundary({
           <AlertOctagon className="w-6 h-6" />
         </div>
         <h2 className="font-serif font-bold text-xl text-[#002B49] mb-2">
-          An Unexpected Exception Occurred
+          {t.error.title}
         </h2>
         <p className="text-xs text-[#57606A] mb-6 leading-relaxed font-mono">
-          {error.message || 'The scientific analysis pipeline encountered an unhandled runtime exception.'}
+          {error.message || t.error.desc}
         </p>
         <div className="flex items-center justify-center gap-3">
           <button
@@ -33,14 +35,14 @@ export default function ErrorBoundary({
             className="bg-[#002B49] hover:bg-[#001A2C] text-white px-4 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Retry Operation</span>
+            <span>{t.error.retry}</span>
           </button>
           <Link
             href="/"
             className="border border-[#CBD5E1] bg-white hover:bg-[#F8F9FA] text-[#002B49] px-4 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
           >
             <Home className="w-3.5 h-3.5" />
-            <span>Return to Portal</span>
+            <span>{t.error.portal}</span>
           </Link>
         </div>
       </div>

@@ -1,0 +1,128 @@
+export const en = {
+  nav: {
+    overview: 'Overview',
+    importData: '1. Import & Clean Data',
+    results: '2. Results & Insights',
+    lab: '3. Advanced Lab',
+  },
+  home: {
+    badge: 'Educational Assessment Studio',
+    title: 'Measure student progress with clarity and precision.',
+    subtitle: 'Reportthy simplifies pre- and post-intervention survey analysis. Automatically match student records, calculate learning gains, and produce clean academic reports—without complex setup.',
+    startAnalysis: 'Start New Analysis',
+    viewSample: 'View Sample Report',
+    overviewTitle: 'Benchmark Evaluation Overview',
+    overviewSubtitle: 'Key metrics from the latest intervention sample',
+    startingAvg: 'Starting Average',
+    finalAvg: 'Final Average',
+    matchedCohort: 'Matched Cohort',
+    dataStatus: 'Data Status',
+    verified: 'Verified',
+    howItWorks: 'How Reportthy Works',
+    steps: [
+      { id: '01', title: 'Import & Smart Clean', desc: 'Automatically pairs pre- and post-test students, corrects typos in names, and filters out invalid or corrupt entries.', action: 'Upload Surveys', href: '/upload' },
+      { id: '02', title: 'Impact & Results Summary', desc: 'Instantly view score growth, score distribution shifts, attrition rates, and key learning metrics in clear, human language.', action: 'View Results', href: '/report' },
+      { id: '03', title: 'Interactive Analysis Lab', desc: 'Run hypothesis tests and export python notebook scripts for further customization and research deep dives.', action: 'Open Lab', href: '/lab' },
+      { id: '04', title: 'Journal-Ready Export', desc: 'Generate clean, publication-grade LaTeX tables and formatted PDF summaries ready for academic submission.', action: 'Export Documents', href: '/report' }
+    ]
+  },
+  upload: {
+    phase: 'Phase 01 • Data Ingestion & Sanitization',
+    title: 'Import Survey Data',
+    subtitle: 'Upload your Pretest and Posttest CSV files or start with sample data.',
+    demoBtn: 'Load Benchmark Quantum Survey (1-Click)',
+    pretest: 'Pre-Intervention Test (Pretest)',
+    posttest: 'Post-Intervention Test (Posttest)',
+    verified: 'Verified',
+    clean: 'Clean',
+    fingerprintPre: 'Fingerprint: Score, Nombre y apellido, Listado',
+    fingerprintPost: 'Fingerprint: Puntuación, Marca temporal, Listado',
+    dropPre: 'Drop or select Pretest CSV',
+    dropPost: 'Drop or select Posttest CSV',
+    quarantineTitle: 'Unusual Response Set Aside',
+    quarantineBadge: 'Automated Filter: Row 27 Trapped',
+    quarantineDesc: 'One submission contained non-name test answers pasted into the name field. It was automatically excluded to keep your results clean.',
+    reason: 'Reason',
+    matchTitle: 'Match Student Responses',
+    matchDesc: 'Automatically matches pre- and post-test scores even if students had minor typos in their names.',
+    realign: 'Re-align Cohorts',
+    generateReport: 'Generate Springer Report',
+    tableTitle: 'Longitudinal Cohort Reconciliation',
+    tableSub: 'Verification matrix showing participant alignment between pretest and posttest evaluations',
+    pairingSuccess: 'Pairing Success',
+    headers: {
+      preParticipant: 'Pretest Participant',
+      postParticipant: 'Posttest Participant',
+      group: 'Cohort Group',
+      confidence: 'Confidence',
+      preScore: 'Pre Score',
+      postScore: 'Post Score',
+      delta: 'Score Delta (Δ)'
+    },
+    displayingFirst: 'Displaying first 10 of'
+  },
+  report: {
+    title: 'Evaluation Results & Learning Summary',
+    subtitle: 'Analysis of student score growth between pre- and post-tests',
+    bottomLineBadge: 'The Bottom Line',
+    bottomLineTitle: 'Students demonstrated significant learning progress.',
+    bottomLineDesc: 'Average scores rose from',
+    toOnPost: 'on the pre-test to',
+    onPost: 'on the post-test. Scores clustered strongly towards the higher end, confirming a solid intervention outcome.',
+    preAvg: 'Pretest Average',
+    postAvg: 'Posttest Average',
+    scoreShift: 'Score Shift',
+    attritionRate: 'Attrition Rate',
+    overallImprovement: 'Overall improvement',
+    respondentsUnmatched: 'respondents un-matched',
+    detailedTable: 'Detailed Statistical Table',
+    showAdvanced: 'Show Advanced Statistics',
+    hideAdvanced: 'Hide Statistician View',
+    tableTitle: 'Springer Nature Standard Metric Diagnostics',
+    tableSub: 'Detailed sample metrics and distribution normality tests (Shapiro-Wilk)',
+    copyLatex: 'Copy LaTeX',
+    copied: 'Copied',
+    downloadTex: '.tex',
+    compilingPdf: 'Compiling PDF...',
+    downloadPdf: 'Download PDF Report',
+    insufficientTitle: 'Insufficient Subset Size',
+    insufficientDesc: 'Please adjust filters to include at least 3 participants.',
+    resetFilters: 'Reset Filters',
+    tableHeaders: {
+      phase: 'Evaluation Phase',
+      n: 'N',
+      mean: 'Mean (x̄)',
+      variance: 'Variance (s²)',
+      stdDev: 'Std Dev (s)',
+      median: 'Median',
+      iqr: 'IQR',
+      skewness: 'Skewness',
+      shapiro: 'Shapiro-Wilk (p)'
+    }
+  },
+  lab: {
+    badge: 'Agile Stage 3: WIP Modular Stub',
+    subtitle: 'HU-05 Interactive Workstation',
+    title: 'Hypothesis Testing Workspace (Jupyter Environment)',
+    downloadIpynb: 'Download .ipynb',
+    terminalIn: 'In [1]: non_parametric_verification.py',
+    reset: 'Reset',
+    executing: 'Executing...',
+    runCell: 'Run Cell',
+    outputLabel: '# Output [1]:',
+    validatedMsg: 'Longitudinal hypothesis validated: p < 0.001. Statistically significant knowledge gain.'
+  },
+  error: {
+    title: 'An Unexpected Exception Occurred',
+    desc: 'The scientific analysis pipeline encountered an unhandled runtime exception.',
+    retry: 'Retry Operation',
+    portal: 'Return to Portal'
+  },
+  notFound: {
+    title: 'Route Not Found (404)',
+    desc: 'The requested scientific workspace or analysis module does not exist.',
+    portal: 'Return to Portal Overview'
+  }
+};
+
+export type Translations = typeof en;
