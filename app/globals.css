@@ -1,26 +1,52 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --springer-navy: #002B49;
+  --springer-crimson: #C0392B;
+  --springer-slate: #2C3E50;
+  --springer-paper: #FBFBFB;
+  --springer-border: #D0D7DE;
+  --springer-muted: #656D76;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #F8F9FA;
+  color: #1F2328;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'tnum' on, 'lnum' on;
+}
+
+.text-springer-navy { color: var(--springer-navy); }
+.bg-springer-navy { background-color: var(--springer-navy); }
+.border-springer-navy { border-color: var(--springer-navy); }
+.text-springer-crimson { color: var(--springer-crimson); }
+.text-springer-muted { color: var(--springer-muted); }
+.border-springer-border { border-color: var(--springer-border); }
+
+/* Academic Booktabs Table Rules */
+.table-booktabs {
+  border-top: 2px solid var(--springer-navy);
+  border-bottom: 2px solid var(--springer-navy);
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.table-booktabs thead tr {
+  border-bottom: 1px solid var(--springer-navy);
+}
+
+.table-booktabs th {
+  font-family: Georgia, serif;
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 14px;
+  color: var(--springer-navy);
+}
+
+.table-booktabs td {
+  padding: 10px 14px;
+  border: none;
+  font-variant-numeric: tabular-nums;
 }
