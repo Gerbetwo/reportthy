@@ -1,24 +1,24 @@
-'use client';
-import Link from 'next/link';
-import HeaderNav from '@/components/HeaderNav';
-import { 
-  ArrowRight, 
-  Upload, 
-  BarChart3, 
-  Binary, 
-  FileText, 
-  CheckCircle2 
-} from 'lucide-react';
-import { useTranslation } from '@/lib/LanguageContext';
+"use client";
+import Link from "next/link";
+import HeaderNav from "@/components/HeaderNav";
+import {
+  ArrowRight,
+  Upload,
+  BarChart3,
+  Binary,
+  FileText,
+  LucideIcon,
+} from "lucide-react";
+import { useTranslation } from "@/lib/LanguageContext";
 
 export default function HomePage() {
   const { t } = useTranslation();
 
-  const iconMap: Record<string, any> = {
-    '01': Upload,
-    '02': BarChart3,
-    '03': Binary,
-    '04': FileText,
+  const iconMap: Record<string, LucideIcon> = {
+    "01": Upload,
+    "02": BarChart3,
+    "03": Binary,
+    "04": FileText,
   };
 
   return (
@@ -52,55 +52,6 @@ export default function HomePage() {
               >
                 <span>{t.home.viewSample}</span>
               </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* Intuitive Impact Snapshot */}
-        <section className="mb-10">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-serif font-bold text-[#002B49]">
-                {t.home.overviewTitle}
-              </h2>
-              <p className="text-xs text-[#57606A]">
-                {t.home.overviewSubtitle}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
-              <span className="text-xs font-mono uppercase text-[#57606A]">{t.home.startingAvg}</span>
-              <div className="text-2xl font-serif font-bold text-[#002B49] mt-1">
-                1.93 <span className="text-xs font-sans text-slate-500 font-normal">/ 10</span>
-              </div>
-              <div className="text-xs text-[#57606A] mt-1">Pre-test (N = 40)</div>
-            </div>
-
-            <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
-              <span className="text-xs font-mono uppercase text-[#57606A]">{t.home.finalAvg}</span>
-              <div className="text-2xl font-serif font-bold text-emerald-700 mt-1">
-                8.32 <span className="text-xs font-sans text-slate-500 font-normal">/ 10</span>
-              </div>
-              <div className="text-xs font-semibold text-emerald-800 mt-1">{t.report.overallImprovement.toLowerCase()}</div>
-            </div>
-
-            <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
-              <span className="text-xs font-mono uppercase text-[#57606A]">{t.home.matchedCohort}</span>
-              <div className="text-2xl font-serif font-bold text-[#002B49] mt-1">
-                31 {t.report.tableHeaders.phase === 'Fase de Evaluación' ? 'Estudiantes' : 'Students'}
-              </div>
-              <div className="text-xs text-[#57606A] mt-1">20% {t.report.attritionRate.toLowerCase()}</div>
-            </div>
-
-            <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
-              <span className="text-xs font-mono uppercase text-[#57606A]">{t.home.dataStatus}</span>
-              <div className="text-2xl font-serif font-bold text-emerald-700 mt-1 flex items-center gap-1.5">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <span>{t.home.verified}</span>
-              </div>
-              <div className="text-xs text-[#57606A] mt-1">1 bad entry filtered</div>
             </div>
           </div>
         </section>

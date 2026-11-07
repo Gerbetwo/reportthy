@@ -2,6 +2,14 @@ export interface RawSurveyRow {
   [key: string]: string;
 }
 
+export interface AttendanceRecord {
+  officialName: string;
+  normalizedName: string;
+  preAttendance: '✓' | 'X';
+  postAttendance: '✓' | 'X';
+  isOfficialDropout: boolean;
+}
+
 export interface CleanedParticipant {
   id: string;
   originalName: string;
@@ -11,6 +19,9 @@ export interface CleanedParticipant {
   timestamp: string;
   isFlaggedCorrupted: boolean;
   corruptionReason?: string;
+  officialPreAttendance?: '✓' | 'X';
+  officialPostAttendance?: '✓' | 'X';
+  isOfficialDropout?: boolean;
 }
 
 export interface DescriptiveMetrics {
@@ -29,6 +40,16 @@ export interface DescriptiveMetrics {
   };
 }
 
+export interface AttritionAnalysis {
+  masterRosterCount: number;
+  officialPreCount: number;
+  officialPostCount: number;
+  officialDesertionCount: number;
+  officialDesertionRate: number;
+  unmatchedSurveysCount: number;
+  officialDropouts: AttendanceRecord[];
+}
+
 export interface PairedParticipant {
   preName: string;
   postName: string;
@@ -37,4 +58,5 @@ export interface PairedParticipant {
   preScore: number;
   postScore: number;
   delta: number;
+  isOfficialDropout?: boolean;
 }

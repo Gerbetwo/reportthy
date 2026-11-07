@@ -4,16 +4,16 @@ import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import HeaderNav from '@/components/HeaderNav';
 import { parseSurveyCSV, pairPreAndPost } from '@/lib/csvCleaner';
-import { RawSurveyRow, CleanedParticipant, PairedParticipant } from '@/types/dataset';
+import { RawSurveyRow, CleanedParticipant, PairedParticipant, AttritionAnalysis } from '@/types/dataset';
 import { useTranslation } from '@/lib/LanguageContext';
-import { 
-  Upload, 
-  AlertTriangle, 
-  CheckCircle, 
-  ArrowRight, 
-  ShieldCheck, 
-  FileCheck, 
-  Sparkles 
+import {
+  Upload,
+  AlertTriangle,
+  CheckCircle,
+  ArrowRight,
+  ShieldCheck,
+  FileCheck,
+  Sparkles
 } from 'lucide-react';
 
 export default function UploadPage() {
@@ -24,8 +24,10 @@ export default function UploadPage() {
   const [postClean, setPostClean] = useState<CleanedParticipant[]>([]);
   const [quarantined, setQuarantined] = useState<CleanedParticipant[]>([]);
   const [paired, setPaired] = useState<PairedParticipant[]>([]);
-  const [preFilename, setPreFilename] = useState<string>('');
-  const [postFilename, setPostFilename] = useState<string>('');
+  const [attritionAnalysis, setAttritionAnalysis] = useState<AttritionAnalysis | null>(null);
+
+  const [preFilename, setPreFilename] = useState('');
+  const [postFilename, setPostFilename] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleLoadBenchmarkDemo = () => {
@@ -90,7 +92,7 @@ export default function UploadPage() {
     const demoQuarantined: CleanedParticipant[] = [
       {
         id: 'post-27',
-        originalName: 'El siguiente algoritmo: def es_primer_numero_par(numeros): if numeros[0] % 2 == 0: return True... [CORRUPTED SUBMISSION DUMP]',
+        originalName: 'El siguiente algoritmo: def es_primer_numero_par(numeros): if numeros[0] % 2 == 0: return True...',
         normalizedName: 'corrupted code block',
         group: 'Listado 1',
         score: 10,
@@ -108,6 +110,7 @@ export default function UploadPage() {
 
     const result = pairPreAndPost(demoPre, demoPost);
     setPaired(result.paired);
+    setAttritionAnalysis(result.attritionAnalysis);
 
     localStorage.setItem('reportthy_pre_scores', JSON.stringify(demoPre.map(p => p.score)));
     localStorage.setItem('reportthy_post_scores', JSON.stringify(demoPost.map(p => p.score)));
@@ -115,6 +118,7 @@ export default function UploadPage() {
     localStorage.setItem('reportthy_post_data', JSON.stringify(demoPost));
     localStorage.setItem('reportthy_quarantined', JSON.stringify(demoQuarantined));
     localStorage.setItem('reportthy_paired', JSON.stringify(result.paired));
+    localStorage.setItem('reportthy_attrition', JSON.stringify(result.attritionAnalysis));
 
     setIsProcessing(false);
   };
@@ -129,15 +133,23 @@ export default function UploadPage() {
     Papa.parse<RawSurveyRow>(file, {
       header: true,
       skipEmptyLines: true,
-      error: (error) => {
-        console.error('[CSV Ingestion] PapaParse error:', error);
-        setIsProcessing(false);
-        alert('Failed to parse CSV file: ' + error.message);
-      },
       complete: (results) => {
         const { clean, quarantined: badRows } = parseSurveyCSV(results.data, role);
-        if (role === 'pre') setPreClean(clean);
-        else setPostClean(clean);
+        if (role === 'pre') {
+          setPreClean(clean);
+          if (postClean.length > 0) {
+            const result = pairPreAndPost(clean, postClean);
+            setPaired(result.paired);
+            setAttritionAnalysis(result.attritionAnalysis);
+          }
+        } else {
+          setPostClean(clean);
+          if (preClean.length > 0) {
+            const result = pairPreAndPost(preClean, clean);
+            setPaired(result.paired);
+            setAttritionAnalysis(result.attritionAnalysis);
+          }
+        }
         if (badRows.length > 0) setQuarantined((prev) => [...prev, ...badRows]);
       },
     });
@@ -147,6 +159,7 @@ export default function UploadPage() {
     setIsProcessing(true);
     const result = pairPreAndPost(preClean, postClean);
     setPaired(result.paired);
+    setAttritionAnalysis(result.attritionAnalysis);
 
     localStorage.setItem('reportthy_pre_scores', JSON.stringify(preClean.map((p) => p.score)));
     localStorage.setItem('reportthy_post_scores', JSON.stringify(postClean.map((p) => p.score)));
@@ -154,6 +167,7 @@ export default function UploadPage() {
     localStorage.setItem('reportthy_post_data', JSON.stringify(postClean));
     localStorage.setItem('reportthy_quarantined', JSON.stringify(quarantined));
     localStorage.setItem('reportthy_paired', JSON.stringify(result.paired));
+    localStorage.setItem('reportthy_attrition', JSON.stringify(result.attritionAnalysis));
 
     setIsProcessing(false);
   };
@@ -161,22 +175,22 @@ export default function UploadPage() {
   const isReadyToProceed = preClean.length > 0 && postClean.length > 0;
 
   return (
-    <div className="min-h-screen bg-scientific-grid text-[#1F2328]">
+    <div className="min-h-screen bg-[#F8F9FA]">
       <HeaderNav />
-      <main className="max-w-6xl mx-auto px-6 pb-20">
-        <header className="border-b border-[#D0D7DE] pb-6 mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <main className="max-w-7xl mx-auto px-6 py-10">
+        <header className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[11px] uppercase font-bold text-[#C0392B] font-mono tracking-wider">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[11px] font-mono text-[#57606A] uppercase tracking-wide">
                 {t.upload.phase}
               </span>
-              <span className="text-slate-300">•</span>
-              <span className="text-xs font-mono text-[#57606A]">HU-02 Pipeline</span>
+              <span className="text-[#CBD5E1]">•</span>
+              <span className="text-[11px] font-mono text-[#57606A]">HU-02 Pipeline</span>
             </div>
-            <h1 className="text-3xl font-serif font-bold text-[#002B49] tracking-tight">
+            <h1 className="font-serif font-bold text-2xl text-[#002B49]">
               {t.upload.title}
             </h1>
-            <p className="text-xs text-[#57606A] mt-1">
+            <p className="text-sm text-[#57606A] mt-1 max-w-2xl">
               {t.upload.subtitle}
             </p>
           </div>
@@ -190,19 +204,19 @@ export default function UploadPage() {
           </button>
         </header>
 
-        {/* Upload Cards Grid */}
+        {/* 2 Upload Cards Grid (Direct Pre & Post CSV Ingestion) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* Pretest Dropzone */}
           <div className="bg-white p-6 rounded-lg border border-[#D0D7DE] shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <h2 className="font-serif font-bold text-base text-[#002B49] flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-[#002B49] text-white flex items-center justify-center text-xs font-mono">1</span>
                   {t.upload.pretest}
                 </h2>
                 {preClean.length > 0 && (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-300 font-mono">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> N = {preClean.length} {t.upload.verified}
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-300 font-mono">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> N = {preClean.length}
                   </span>
                 )}
               </div>
@@ -210,33 +224,26 @@ export default function UploadPage() {
                 {t.upload.fingerprintPre}
               </p>
             </div>
-            <div>
-              <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#CBD5E1] hover:border-[#002B49] rounded-lg p-6 cursor-pointer bg-[#F8F9FA] hover:bg-white transition group">
-                <Upload className="w-8 h-8 text-slate-400 group-hover:text-[#002B49] mb-2 transition-colors" />
-                <span className="text-xs font-medium text-slate-700 font-mono text-center">
-                  {preFilename || t.upload.dropPre}
-                </span>
-                <input
-                  type="file"
-                  accept=".csv"
-                  className="hidden"
-                  onChange={(e) => handleFileUpload(e, 'pre')}
-                />
-              </label>
-            </div>
+            <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#CBD5E1] hover:border-[#002B49] rounded-lg p-6 cursor-pointer bg-[#F8F9FA] hover:bg-white transition group">
+              <Upload className="w-8 h-8 text-slate-400 group-hover:text-[#002B49] mb-2 transition-colors" />
+              <span className="text-xs font-medium text-slate-700 font-mono text-center truncate w-full">
+                {preFilename || t.upload.dropPre}
+              </span>
+              <input type="file" accept=".csv" className="hidden" onChange={(e) => handleFileUpload(e, 'pre')} />
+            </label>
           </div>
 
           {/* Posttest Dropzone */}
           <div className="bg-white p-6 rounded-lg border border-[#D0D7DE] shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <h2 className="font-serif font-bold text-base text-[#002B49] flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-[#002B49] text-white flex items-center justify-center text-xs font-mono">2</span>
                   {t.upload.posttest}
                 </h2>
                 {postClean.length > 0 && (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-300 font-mono">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> N = {postClean.length} {t.upload.clean}
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-300 font-mono">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> N = {postClean.length}
                   </span>
                 )}
               </div>
@@ -244,20 +251,13 @@ export default function UploadPage() {
                 {t.upload.fingerprintPost}
               </p>
             </div>
-            <div>
-              <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#CBD5E1] hover:border-[#002B49] rounded-lg p-6 cursor-pointer bg-[#F8F9FA] hover:bg-white transition group">
-                <Upload className="w-8 h-8 text-slate-400 group-hover:text-[#002B49] mb-2 transition-colors" />
-                <span className="text-xs font-medium text-slate-700 font-mono text-center">
-                  {postFilename || t.upload.dropPost}
-                </span>
-                <input
-                  type="file"
-                  accept=".csv"
-                  className="hidden"
-                  onChange={(e) => handleFileUpload(e, 'post')}
-                />
-              </label>
-            </div>
+            <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#CBD5E1] hover:border-[#002B49] rounded-lg p-6 cursor-pointer bg-[#F8F9FA] hover:bg-white transition group">
+              <Upload className="w-8 h-8 text-slate-400 group-hover:text-[#002B49] mb-2 transition-colors" />
+              <span className="text-xs font-medium text-slate-700 font-mono text-center truncate w-full">
+                {postFilename || t.upload.dropPost}
+              </span>
+              <input type="file" accept=".csv" className="hidden" onChange={(e) => handleFileUpload(e, 'post')} />
+            </label>
           </div>
         </div>
 
@@ -379,11 +379,6 @@ export default function UploadPage() {
                 </tbody>
               </table>
             </div>
-            {paired.length > 10 && (
-              <p className="text-xs text-slate-400 text-right mt-3 font-mono">
-                {t.upload.displayingFirst} 10 of {paired.length} matched pairs...
-              </p>
-            )}
           </section>
         )}
       </main>

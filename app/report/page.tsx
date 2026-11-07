@@ -3,7 +3,8 @@ import { useState, useEffect, useMemo } from 'react';
 import HeaderNav from '@/components/HeaderNav';
 import { computeDescriptiveStats } from '@/lib/statsEngine';
 import { generateSpringerNatureLatex } from '@/lib/latexTemplate';
-import { DescriptiveMetrics, CleanedParticipant } from '@/types/dataset';
+import { pairPreAndPost } from '@/lib/csvCleaner';
+import { DescriptiveMetrics, CleanedParticipant, PairedParticipant, AttritionAnalysis } from '@/types/dataset';
 import { useTranslation } from '@/lib/LanguageContext';
 import { 
   Download, 
@@ -21,6 +22,9 @@ export default function QualityReportPage() {
   const { lang, t } = useTranslation();
   const [preData, setPreData] = useState<CleanedParticipant[]>([]);
   const [postData, setPostData] = useState<CleanedParticipant[]>([]);
+  const [pairedData, setPairedData] = useState<PairedParticipant[]>([]);
+  const [attrition, setAttrition] = useState<AttritionAnalysis | null>(null);
+
   const [copied, setCopied] = useState(false);
   const [isCompilingPdf, setIsCompilingPdf] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -32,10 +36,25 @@ export default function QualityReportPage() {
     try {
       const savedPreData = localStorage.getItem('reportthy_pre_data');
       const savedPostData = localStorage.getItem('reportthy_post_data');
+      const savedPairedData = localStorage.getItem('reportthy_paired');
+      const savedAttritionData = localStorage.getItem('reportthy_attrition');
 
       if (savedPreData && savedPostData) {
-        setPreData(JSON.parse(savedPreData));
-        setPostData(JSON.parse(savedPostData));
+        const parsedPre = JSON.parse(savedPreData);
+        const parsedPost = JSON.parse(savedPostData);
+        setPreData(parsedPre);
+        setPostData(parsedPost);
+
+        if (savedPairedData) {
+          setPairedData(JSON.parse(savedPairedData));
+        } else {
+          const reconciliation = pairPreAndPost(parsedPre, parsedPost);
+          setPairedData(reconciliation.paired);
+        }
+
+        if (savedAttritionData) {
+          setAttrition(JSON.parse(savedAttritionData));
+        }
       } else {
         throw new Error('No dataset cache found.');
       }
@@ -62,6 +81,10 @@ export default function QualityReportPage() {
 
       setPreData(benchmarkPre);
       setPostData(benchmarkPost);
+
+      const reconciliation = pairPreAndPost(benchmarkPre, benchmarkPost);
+      setPairedData(reconciliation.paired);
+      setAttrition(reconciliation.attritionAnalysis);
     }
   }, []);
 
@@ -107,7 +130,15 @@ export default function QualityReportPage() {
 
   const attritionCount = Math.max(0, preMetrics.n - postMetrics.n);
   const attritionRate = preMetrics.n > 0 ? (attritionCount / preMetrics.n) * 100 : 0;
-  const latexCode = generateSpringerNatureLatex(preMetrics, postMetrics, attritionCount, attritionRate, lang);
+  const latexCode = generateSpringerNatureLatex(
+    preMetrics, 
+    postMetrics, 
+    attritionCount, 
+    attritionRate, 
+    lang, 
+    attrition || undefined,
+    pairedData
+  );
 
   const handleCopyLatex = () => {
     navigator.clipboard.writeText(latexCode);
@@ -237,6 +268,58 @@ export default function QualityReportPage() {
             <div className="text-xs text-[#57606A] mt-1">{attritionCount} {t.report.respondentsUnmatched}</div>
           </div>
         </section>
+
+        {/* Student Validation Matrix Spreadsheet Table */}
+        {pairedData.length > 0 && (
+          <section className="bg-white p-6 rounded-lg border border-[#D0D7DE] shadow-xs mb-8">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="font-serif font-bold text-base text-[#002B49]">
+                  {t.report.studentMatrixTitle}
+                </h3>
+                <p className="text-xs text-[#57606A]">
+                  {t.report.studentMatrixSub} ({pairedData.length} {t.home.matchedCohort})
+                </p>
+              </div>
+            </div>
+            <div className="overflow-x-auto max-h-96">
+              <table className="table-booktabs text-xs">
+                <thead className="sticky top-0 bg-white">
+                  <tr>
+                    <th>#</th>
+                    <th>{t.report.colStudent}</th>
+                    <th>{t.report.colGroup}</th>
+                    <th>{t.report.colPreScore}</th>
+                    <th>{t.report.colPostScore}</th>
+                    <th>{t.report.colDelta}</th>
+                    <th>{t.report.colMatchConfidence}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pairedData.map((student, idx) => (
+                    <tr key={idx}>
+                      <td className="font-mono text-slate-400">{idx + 1}</td>
+                      <td className="font-medium text-slate-800">{student.preName}</td>
+                      <td>
+                        <span className="bg-[#F1F5F9] text-[#002B49] px-2 py-0.5 rounded font-mono text-[11px] font-semibold border border-[#E2E8F0]">
+                          {student.group}
+                        </span>
+                      </td>
+                      <td className="font-semibold">{student.preScore} / 10</td>
+                      <td className="font-semibold text-[#002B49]">{student.postScore} / 10</td>
+                      <td className={`font-bold ${student.delta >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                        {student.delta >= 0 ? `+${student.delta}` : student.delta}
+                      </td>
+                      <td className="font-mono text-emerald-700 font-bold">
+                        {(student.similarity * 100).toFixed(0)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* Progressive Disclosure Toggle */}
         <div className="flex items-center justify-between border-t border-[#D0D7DE] pt-6 mb-6">

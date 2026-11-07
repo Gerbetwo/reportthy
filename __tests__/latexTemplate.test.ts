@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateSpringerNatureLatex } from '@/lib/latexTemplate';
-import { DescriptiveMetrics } from '@/types/dataset';
+import { DescriptiveMetrics, PairedParticipant } from '@/types/dataset';
 
 describe('Springer Nature LaTeX Template Engine (lib/latexTemplate.ts)', () => {
   it('generates compliant sn-jnl LaTeX output with booktabs and non-parametric mandate', () => {
@@ -38,5 +38,29 @@ describe('Springer Nature LaTeX Template Engine (lib/latexTemplate.ts)', () => {
     expect(tex).toContain('8.323');
     expect(tex).toContain('Wilcoxon');
     expect(tex).toContain('Mann-Whitney');
+  });
+
+  it('generates student score validation matrix with longtable and delta values', () => {
+    const mockPre: DescriptiveMetrics = {
+      n: 2, mean: 2.0, variance: 0.5, stdDev: 0.707, median: 2.0, iqr: 1.0, skewness: 0, kurtosis: 0,
+      shapiroWilk: { statistic: 0.9, pValue: 0.2, isNormal: true }
+    };
+    const mockPost: DescriptiveMetrics = {
+      n: 2, mean: 9.0, variance: 0.5, stdDev: 0.707, median: 9.0, iqr: 1.0, skewness: 0, kurtosis: 0,
+      shapiroWilk: { statistic: 0.9, pValue: 0.2, isNormal: true }
+    };
+
+    const mockPaired: PairedParticipant[] = [
+      { preName: 'Alexander Yama', postName: 'Alexander Yama', similarity: 1.0, group: 'Listado 1', preScore: 3, postScore: 8, delta: 5 },
+      { preName: 'Darwin Meneses', postName: 'Darwin Meneses', similarity: 1.0, group: 'Listado 1', preScore: 2, postScore: 10, delta: 8 }
+    ];
+
+    const tex = generateSpringerNatureLatex(mockPre, mockPost, 0, 0, 'en', undefined, mockPaired);
+
+    expect(tex).toContain('\\usepackage{longtable}');
+    expect(tex).toContain('Alexander Yama');
+    expect(tex).toContain('+5');
+    expect(tex).toContain('+8');
+    expect(tex).toContain('\\begin{longtable}');
   });
 });
