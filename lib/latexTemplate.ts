@@ -20,7 +20,7 @@ export function generateSpringerNatureLatex(
 \\author*[1]{\\fnm{Automated} \\sur{Analytics System}}\\email{researcher@university.edu}
 \\affil*[1]{\\orgname{Department of Computer Science and Educational Technology}, \\orgaddress{\\country{Colombia}}}
 
-\\abstract{This preliminary data quality report establishes the empirical baseline for the quantum computing foundational evaluation. Sample sizes ($N_{\\text{pre}}=${preMetrics.n}, $N_{\\text{post}}=${postMetrics.n}), sample attrition (${attritionRate.toFixed(1)}\\%, $n_{\\text{lost}}=${attritionCount}$), dispersion metrics, and distributional normality assumptions are formally verified under Springer Nature standards.}
+\\abstract{This preliminary data quality report establishes the empirical baseline for the quantum computing foundational evaluation. Sample sizes ($N_{\\text{pre}}=${preMetrics.n}$, $N_{\\text{post}}=${postMetrics.n}$), sample attrition (${attritionRate.toFixed(1)}\\%, $n_{\\text{lost}}=${attritionCount}$), dispersion metrics, and distributional normality assumptions are formally verified under Springer Nature standards.}
 
 \\keywords{Quantum Computing Education, Normality Testing, Data Quality, Attrition Analysis, Non-Parametric Modeling}
 

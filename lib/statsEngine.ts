@@ -17,9 +17,11 @@ export function computeDescriptiveStats(scores: number[]): DescriptiveMetrics {
   const iqr = q3 - q1;
   const skewness = ss.sampleSkewness(scores);
 
+  // Sample Kurtosis calculation
   const meanDiff4 = scores.reduce((acc, x) => acc + Math.pow(x - mean, 4), 0);
   const kurtosis = (meanDiff4 / n) / Math.pow(variance, 2) - 3;
 
+  // Jarque-Bera proxy for distributional normality
   const jbStat = (n / 6) * (Math.pow(skewness, 2) + (1 / 4) * Math.pow(kurtosis, 2));
   const pValue = 1 - jStat.chisquare.cdf(jbStat, 2);
 
@@ -35,7 +37,7 @@ export function computeDescriptiveStats(scores: number[]): DescriptiveMetrics {
     shapiroWilk: {
       statistic: Number((1 / (1 + jbStat * 0.1)).toFixed(4)),
       pValue: Number(pValue.toFixed(5)),
-      isNormal: pValue >= 0.05
-    }
+      isNormal: pValue >= 0.05,
+    },
   };
 }
