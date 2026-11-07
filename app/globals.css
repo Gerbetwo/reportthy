@@ -80,3 +80,21 @@ body {
 .table-booktabs tbody tr:hover {
   background-color: #F1F5F9;
 }
+
+/* Print Styles for Unclipped Table PDF Generation */
+@media print {
+  .overflow-x-auto,
+  .max-h-96 {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .table-booktabs tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  header {
+    position: static !important;
+  }
+}

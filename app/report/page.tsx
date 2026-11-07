@@ -59,32 +59,10 @@ export default function QualityReportPage() {
         throw new Error('No dataset cache found.');
       }
     } catch (e) {
-      const benchmarkPre: CleanedParticipant[] = Array.from({ length: 40 }, (_, i) => ({
-        id: `pre-${i}`,
-        originalName: `Participant Baseline ${i + 1}`,
-        normalizedName: `participant baseline ${i + 1}`,
-        group: i % 2 === 0 ? 'Listado 1' : 'Listado 2',
-        score: [1,2,3,2,1,2,2,1,0,3,2,2,3,2,1,2,2,1,2,3,1,2,2,3,1,2,0,2,3,1,2,2,3,1,2,2,1,3,2,2][i % 40],
-        timestamp: '9/19/2026',
-        isFlaggedCorrupted: false
-      }));
-
-      const benchmarkPost: CleanedParticipant[] = Array.from({ length: 31 }, (_, i) => ({
-        id: `post-${i}`,
-        originalName: `Participant Baseline ${i + 1}`,
-        normalizedName: `participant baseline ${i + 1}`,
-        group: i % 2 === 0 ? 'Listado 1' : 'Listado 2',
-        score: [8,7,10,7,8,10,5,9,10,10,10,9,9,10,10,10,10,10,9,9,10,9,9,2,9,7,10,8,8,7,10][i % 31],
-        timestamp: '24/10/2026',
-        isFlaggedCorrupted: false
-      }));
-
-      setPreData(benchmarkPre);
-      setPostData(benchmarkPost);
-
-      const reconciliation = pairPreAndPost(benchmarkPre, benchmarkPost);
-      setPairedData(reconciliation.paired);
-      setAttrition(reconciliation.attritionAnalysis);
+      setPreData([]);
+      setPostData([]);
+      setPairedData([]);
+      setAttrition(null);
     }
   }, []);
 
@@ -105,19 +83,21 @@ export default function QualityReportPage() {
 
   if (preScores.length < 3 || postScores.length < 3) {
     return (
-      <div className="min-h-screen bg-white text-[#1F2328]">
+      <div className="min-h-screen bg-[#F8F9FA] text-[#1F2328]">
         <HeaderNav />
-        <main className="max-w-6xl mx-auto px-6 py-16 text-center">
-          <div className="bg-amber-50 border border-amber-300 rounded-lg p-6 max-w-md mx-auto">
-            <h2 className="font-serif font-bold text-amber-900 text-base mb-2">{t.report.insufficientTitle}</h2>
-            <p className="text-xs text-amber-800 mb-4">
-              {t.report.insufficientDesc}
+        <main className="max-w-4xl mx-auto px-6 py-20 text-center">
+          <div className="bg-white border border-[#D0D7DE] rounded-xl p-8 shadow-xs max-w-lg mx-auto">
+            <h2 className="font-serif font-bold text-[#002B49] text-xl mb-2">
+              No Evaluation Data Available
+            </h2>
+            <p className="text-xs text-[#57606A] mb-6 leading-relaxed">
+              No active pretest and posttest evaluation datasets were found. Please import your survey files to generate an empirical quality report.
             </p>
             <button
-              onClick={() => { setSelectedGroup('all'); setMinScore(0); }}
-              className="bg-[#002B49] text-white text-xs font-semibold px-4 py-2 rounded"
+              onClick={() => window.location.href = '/upload'}
+              className="bg-[#002B49] hover:bg-[#001A2C] text-white text-xs font-semibold px-5 py-2.5 rounded-md transition shadow-xs"
             >
-              {t.report.resetFilters}
+              Upload Surveys
             </button>
           </div>
         </main>
@@ -282,9 +262,9 @@ export default function QualityReportPage() {
                 </p>
               </div>
             </div>
-            <div className="overflow-x-auto max-h-96">
+            <div className="overflow-x-auto max-h-96 print:max-h-none print:overflow-visible">
               <table className="table-booktabs text-xs">
-                <thead className="sticky top-0 bg-white">
+                <thead className="sticky top-0 bg-white print:static">
                   <tr>
                     <th>#</th>
                     <th>{t.report.colStudent}</th>

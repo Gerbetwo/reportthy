@@ -12,8 +12,7 @@ import {
   CheckCircle,
   ArrowRight,
   ShieldCheck,
-  FileCheck,
-  Sparkles
+  FileCheck
 } from 'lucide-react';
 
 export default function UploadPage() {
@@ -29,99 +28,6 @@ export default function UploadPage() {
   const [preFilename, setPreFilename] = useState('');
   const [postFilename, setPostFilename] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-
-  const handleLoadBenchmarkDemo = () => {
-    setIsProcessing(true);
-
-    const demoPre: CleanedParticipant[] = [
-      { id: 'pre-0', originalName: 'Adrian Alejandro Guzman Chicaiza', normalizedName: 'adrian alejandro guzman chicaiza', group: 'Listado 1', score: 1, timestamp: '9/19/2026 8:54:24', isFlaggedCorrupted: false },
-      { id: 'pre-1', originalName: 'Darwin Meneses', normalizedName: 'darwin meneses', group: 'Listado 1', score: 2, timestamp: '9/19/2026 8:55:48', isFlaggedCorrupted: false },
-      { id: 'pre-2', originalName: 'Alexander Yamá Rosero', normalizedName: 'alexander yama rosero', group: 'Listado 1', score: 3, timestamp: '9/19/2026 8:56:10', isFlaggedCorrupted: false },
-      { id: 'pre-3', originalName: 'Maritza Valencia', normalizedName: 'maritza valencia', group: 'Listado 2', score: 0, timestamp: '9/19/2026 8:56:45', isFlaggedCorrupted: false },
-      { id: 'pre-4', originalName: 'Deivid Sebastian Armero Gualguan', normalizedName: 'deivid sebastian armero gualguan', group: 'Listado 1', score: 0, timestamp: '9/19/2026 8:57:02', isFlaggedCorrupted: false },
-      { id: 'pre-5', originalName: 'Nidia Jael Muñoz Oviedo', normalizedName: 'nidia jael munoz oviedo', group: 'Listado 1', score: 2, timestamp: '9/19/2026 8:57:33', isFlaggedCorrupted: false },
-      { id: 'pre-6', originalName: 'Emerson Steven Imbajoa Imbajoa', normalizedName: 'emerson steven imbajoa imbajoa', group: 'Listado 2', score: 2, timestamp: '9/19/2026 8:58:12', isFlaggedCorrupted: false },
-      { id: 'pre-7', originalName: 'Sebastian Gomez', normalizedName: 'sebastian gomez', group: 'Listado 2', score: 1, timestamp: '9/19/2026 8:58:40', isFlaggedCorrupted: false },
-      { id: 'pre-8', originalName: 'Diego Andres Aguirre', normalizedName: 'diego andres aguirre', group: 'Listado 2', score: 2, timestamp: '9/19/2026 8:59:15', isFlaggedCorrupted: false },
-      { id: 'pre-9', originalName: 'Cristian Mateo Rodríguez Solarte', normalizedName: 'cristian mateo rodriguez solarte', group: 'Listado 1', score: 1, timestamp: '9/19/2026 9:00:00', isFlaggedCorrupted: false },
-      { id: 'pre-10', originalName: 'Omar Esteban Solarte Cerón', normalizedName: 'omar esteban solarte ceron', group: 'Listado 1', score: 2, timestamp: '9/19/2026 9:01:10', isFlaggedCorrupted: false },
-      { id: 'pre-11', originalName: 'Cristisn Montenegro', normalizedName: 'cristisn montenegro', group: 'Listado 2', score: 1, timestamp: '9/19/2026 9:02:00', isFlaggedCorrupted: false },
-      { id: 'pre-12', originalName: 'Édgar Eduardo Chaux Florez', normalizedName: 'edgar eduardo chaux florez', group: 'Listado 1', score: 2, timestamp: '9/19/2026 9:02:40', isFlaggedCorrupted: false },
-      { id: 'pre-13', originalName: 'David Armando Enriquez', normalizedName: 'david armando enriquez', group: 'Listado 2', score: 3, timestamp: '9/19/2026 9:03:15', isFlaggedCorrupted: false }
-    ];
-
-    for (let i = 14; i < 40; i++) {
-      demoPre.push({
-        id: `pre-${i}`,
-        originalName: `Participant Baseline ${i + 1}`,
-        normalizedName: `participant baseline ${i + 1}`,
-        group: i % 2 === 0 ? 'Listado 1' : 'Listado 2',
-        score: (i % 3) + 1,
-        timestamp: '9/19/2026 9:05:00',
-        isFlaggedCorrupted: false
-      });
-    }
-
-    const demoPost: CleanedParticipant[] = [
-      { id: 'post-0', originalName: 'Alexander Yamá Rosero', normalizedName: 'alexander yama rosero', group: 'Listado 1', score: 8, timestamp: '24/10/2026 8:08:20', isFlaggedCorrupted: false },
-      { id: 'post-1', originalName: 'Maritza Valencia', normalizedName: 'maritza valencia', group: 'Listado 2', score: 7, timestamp: '24/10/2026 8:08:45', isFlaggedCorrupted: false },
-      { id: 'post-2', originalName: 'Darwin Meneses', normalizedName: 'darwin meneses', group: 'Listado 1', score: 10, timestamp: '24/10/2026 8:09:10', isFlaggedCorrupted: false },
-      { id: 'post-3', originalName: 'Deivid Sebastian Armero Gualguan', normalizedName: 'deivid sebastian armero gualguan', group: 'Listado 1', score: 7, timestamp: '24/10/2026 8:09:30', isFlaggedCorrupted: false },
-      { id: 'post-4', originalName: 'Nidia Jael Muñoz Oviedo', normalizedName: 'nidia jael munoz oviedo', group: 'Listado 1', score: 8, timestamp: '24/10/2026 8:10:00', isFlaggedCorrupted: false },
-      { id: 'post-5', originalName: 'Emerson Steven Imbajoa Imbajoa', normalizedName: 'emerson steven imbajoa imbajoa', group: 'Listado 2', score: 10, timestamp: '24/10/2026 8:10:45', isFlaggedCorrupted: false },
-      { id: 'post-6', originalName: 'Sebastian Gomez', normalizedName: 'sebastian gomez', group: 'Listado 2', score: 5, timestamp: '24/10/2026 8:11:00', isFlaggedCorrupted: false },
-      { id: 'post-7', originalName: 'Diego Andres Aguirre', normalizedName: 'diego andres aguirre', group: 'Listado 2', score: 9, timestamp: '24/10/2026 8:11:30', isFlaggedCorrupted: false },
-      { id: 'post-8', originalName: 'Cristian Mateo Rodriguez Solarte', normalizedName: 'cristian mateo rodriguez solarte', group: 'Listado 1', score: 10, timestamp: '24/10/2026 8:12:00', isFlaggedCorrupted: false },
-      { id: 'post-9', originalName: 'Omar Esteban Solarte Cerón', normalizedName: 'omar esteban solarte ceron', group: 'Listado 1', score: 10, timestamp: '24/10/2026 8:12:45', isFlaggedCorrupted: false },
-      { id: 'post-10', originalName: 'Cristian Montenegro', normalizedName: 'cristian montenegro', group: 'Listado 2', score: 9, timestamp: '24/10/2026 8:13:10', isFlaggedCorrupted: false },
-      { id: 'post-11', originalName: 'Édgar Eduardo Chaux', normalizedName: 'edgar eduardo chaux', group: 'Listado 1', score: 10, timestamp: '24/10/2026 8:14:00', isFlaggedCorrupted: false }
-    ];
-
-    for (let i = 12; i < 31; i++) {
-      demoPost.push({
-        id: `post-${i}`,
-        originalName: `Participant Baseline ${i + 3}`,
-        normalizedName: `participant baseline ${i + 3}`,
-        group: i % 2 === 0 ? 'Listado 1' : 'Listado 2',
-        score: Math.min(10, 7 + (i % 4)),
-        timestamp: '24/10/2026 8:20:00',
-        isFlaggedCorrupted: false
-      });
-    }
-
-    const demoQuarantined: CleanedParticipant[] = [
-      {
-        id: 'post-27',
-        originalName: 'El siguiente algoritmo: def es_primer_numero_par(numeros): if numeros[0] % 2 == 0: return True...',
-        normalizedName: 'corrupted code block',
-        group: 'Listado 1',
-        score: 10,
-        timestamp: '7/11/2026 8:22:08',
-        isFlaggedCorrupted: true,
-        corruptionReason: 'Corrupted submission: algorithmic examination dump detected in name field'
-      }
-    ];
-
-    setPreClean(demoPre);
-    setPostClean(demoPost);
-    setQuarantined(demoQuarantined);
-    setPreFilename('Evaluación (pretest) — Conceptos básicos.csv');
-    setPostFilename('Evaluación (postest) — Conceptos básicos.csv');
-
-    const result = pairPreAndPost(demoPre, demoPost);
-    setPaired(result.paired);
-    setAttritionAnalysis(result.attritionAnalysis);
-
-    localStorage.setItem('reportthy_pre_scores', JSON.stringify(demoPre.map(p => p.score)));
-    localStorage.setItem('reportthy_post_scores', JSON.stringify(demoPost.map(p => p.score)));
-    localStorage.setItem('reportthy_pre_data', JSON.stringify(demoPre));
-    localStorage.setItem('reportthy_post_data', JSON.stringify(demoPost));
-    localStorage.setItem('reportthy_quarantined', JSON.stringify(demoQuarantined));
-    localStorage.setItem('reportthy_paired', JSON.stringify(result.paired));
-    localStorage.setItem('reportthy_attrition', JSON.stringify(result.attritionAnalysis));
-
-    setIsProcessing(false);
-  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, role: 'pre' | 'post') => {
     const file = e.target.files?.[0];
@@ -150,7 +56,12 @@ export default function UploadPage() {
             setAttritionAnalysis(result.attritionAnalysis);
           }
         }
-        if (badRows.length > 0) setQuarantined((prev) => [...prev, ...badRows]);
+
+        // Scope quarantine state reset to current file batch to avoid lingering residue
+        setQuarantined((prev) => [
+          ...prev.filter((p) => !p.id.startsWith(role)),
+          ...badRows,
+        ]);
       },
     });
   };
@@ -178,30 +89,20 @@ export default function UploadPage() {
     <div className="min-h-screen bg-[#F8F9FA]">
       <HeaderNav />
       <main className="max-w-7xl mx-auto px-6 py-10">
-        <header className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[11px] font-mono text-[#57606A] uppercase tracking-wide">
-                {t.upload.phase}
-              </span>
-              <span className="text-[#CBD5E1]">•</span>
-              <span className="text-[11px] font-mono text-[#57606A]">HU-02 Pipeline</span>
-            </div>
-            <h1 className="font-serif font-bold text-2xl text-[#002B49]">
-              {t.upload.title}
-            </h1>
-            <p className="text-sm text-[#57606A] mt-1 max-w-2xl">
-              {t.upload.subtitle}
-            </p>
+        <header className="mb-8">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[11px] font-mono text-[#57606A] uppercase tracking-wide">
+              {t.upload.phase}
+            </span>
+            <span className="text-[#CBD5E1]">•</span>
+            <span className="text-[11px] font-mono text-[#57606A]">HU-02 Pipeline</span>
           </div>
-
-          <button
-            onClick={handleLoadBenchmarkDemo}
-            className="bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 rounded-md text-xs font-semibold flex items-center gap-2 transition-all shadow-xs shrink-0"
-          >
-            <Sparkles className="w-4 h-4 text-emerald-200" />
-            <span>{t.upload.demoBtn}</span>
-          </button>
+          <h1 className="font-serif font-bold text-2xl text-[#002B49]">
+            {t.upload.title}
+          </h1>
+          <p className="text-sm text-[#57606A] mt-1 max-w-2xl">
+            {t.upload.subtitle}
+          </p>
         </header>
 
         {/* 2 Upload Cards Grid (Direct Pre & Post CSV Ingestion) */}

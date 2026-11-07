@@ -111,17 +111,29 @@ export function parseSurveyCSV(
     const rawGroup = row["A que listado Pertenece"] || "Unknown";
     const timestamp = row["Timestamp"] || row["Marca temporal"] || "";
 
-    const isCorrupted =
-      rawName.length > 80 ||
+    const hasCodeKeywords =
       rawName.includes("def ") ||
       rawName.includes("return ") ||
+      rawName.includes("import ") ||
       rawName.includes("\n");
+    const isTooLong = rawName.length > 80;
+    const isCorrupted = isTooLong || hasCodeKeywords;
 
     const scoreMatch = rawScore.match(/(\d+)/);
     const numericScore = scoreMatch ? parseInt(scoreMatch[1], 10) : NaN;
+    const isInvalidScore = isNaN(numericScore);
+
+    let corruptionReason: string | undefined = undefined;
+    if (hasCodeKeywords) {
+      corruptionReason = "Code injection / algorithm questionnaire dump detected";
+    } else if (isTooLong) {
+      corruptionReason = "Excessive string length (>80 chars)";
+    } else if (isInvalidScore) {
+      corruptionReason = "Invalid score format";
+    }
 
     const participant: CleanedParticipant = {
-      id: `${source}-${index}`,
+      id: `${source}-${index + 1}`,
       originalName: rawName,
       normalizedName: normalizeName(rawName),
       group: rawGroup.includes("Listado 1")
@@ -131,12 +143,8 @@ export function parseSurveyCSV(
           : "Unknown",
       score: numericScore,
       timestamp,
-      isFlaggedCorrupted: isCorrupted || isNaN(numericScore),
-      corruptionReason: isCorrupted
-        ? "Field length / algorithm questionnaire dump detected"
-        : isNaN(numericScore)
-          ? "Invalid score format"
-          : undefined,
+      isFlaggedCorrupted: isCorrupted || isInvalidScore,
+      corruptionReason,
     };
 
     if (participant.isFlaggedCorrupted) {
@@ -195,7 +203,7 @@ export function pairPreAndPost(
   const unmatchedPre = preClean.filter((pre) => !usedPreIds.has(pre.id));
 
   let officialDropouts: AttendanceRecord[] = [];
-  let masterRosterCount = 43;
+  let masterRosterCount = preClean.length;
   let officialPreCount = preClean.length;
   let officialPostCount = postClean.length;
 

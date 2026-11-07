@@ -36,7 +36,7 @@ describe('Data Ingestion & Pre-flight Sanitization Engine (lib/csvCleaner.ts)', 
     expect(clean[0].group).toBe('Listado 1');
   });
 
-  it('QUARANTINE TRAP: detects and quarantines code block algorithm dumps (Row 27)', () => {
+  it('QUARANTINE TRAP: detects and quarantines code block algorithm dumps', () => {
     const corruptedRows: RawSurveyRow[] = [
       {
         'Marca temporal': '7/11/2026 8:22:08',
