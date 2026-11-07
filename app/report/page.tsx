@@ -1,21 +1,23 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import HeaderNav from '@/components/HeaderNav';
+import DistributionChart from '@/components/DistributionChart';
 import { computeDescriptiveStats } from '@/lib/statsEngine';
 import { generateSpringerNatureLatex } from '@/lib/latexTemplate';
 import { pairPreAndPost } from '@/lib/csvCleaner';
 import { DescriptiveMetrics, CleanedParticipant, PairedParticipant, AttritionAnalysis } from '@/types/dataset';
 import { useTranslation } from '@/lib/LanguageContext';
-import { 
-  Download, 
-  Copy, 
-  Check, 
+import {
+  Download,
+  Copy,
+  Check,
   Printer,
   Loader2,
   FileCheck,
   ChevronDown,
   ChevronUp,
-  TrendingUp
+  TrendingUp,
+  AlertOctagon
 } from 'lucide-react';
 
 export default function QualityReportPage() {
@@ -28,9 +30,6 @@ export default function QualityReportPage() {
   const [copied, setCopied] = useState(false);
   const [isCompilingPdf, setIsCompilingPdf] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-
-  const [selectedGroup, setSelectedGroup] = useState<string>('all');
-  const [minScore, setMinScore] = useState<number>(0);
 
   useEffect(() => {
     try {
@@ -55,8 +54,6 @@ export default function QualityReportPage() {
         if (savedAttritionData) {
           setAttrition(JSON.parse(savedAttritionData));
         }
-      } else {
-        throw new Error('No dataset cache found.');
       }
     } catch (e) {
       setPreData([]);
@@ -66,20 +63,8 @@ export default function QualityReportPage() {
     }
   }, []);
 
-  const filteredPreData = useMemo(() => {
-    return preData.filter((p) => 
-      (selectedGroup === 'all' || p.group === selectedGroup) && p.score >= minScore
-    );
-  }, [preData, selectedGroup, minScore]);
-
-  const filteredPostData = useMemo(() => {
-    return postData.filter((p) => 
-      (selectedGroup === 'all' || p.group === selectedGroup) && p.score >= minScore
-    );
-  }, [postData, selectedGroup, minScore]);
-
-  const preScores = useMemo(() => filteredPreData.map((p) => p.score), [filteredPreData]);
-  const postScores = useMemo(() => filteredPostData.map((p) => p.score), [filteredPostData]);
+  const preScores = useMemo(() => preData.map((p) => p.score), [preData]);
+  const postScores = useMemo(() => postData.map((p) => p.score), [postData]);
 
   if (preScores.length < 3 || postScores.length < 3) {
     return (
@@ -111,14 +96,16 @@ export default function QualityReportPage() {
   const attritionCount = Math.max(0, preMetrics.n - postMetrics.n);
   const attritionRate = preMetrics.n > 0 ? (attritionCount / preMetrics.n) * 100 : 0;
   const latexCode = generateSpringerNatureLatex(
-    preMetrics, 
-    postMetrics, 
-    attritionCount, 
-    attritionRate, 
-    lang, 
+    preMetrics,
+    postMetrics,
+    attritionCount,
+    attritionRate,
+    lang,
     attrition || undefined,
     pairedData
   );
+
+  const isNonNormal = preMetrics.shapiroWilk.pValue < 0.05 || postMetrics.shapiroWilk.pValue < 0.05;
 
   const handleCopyLatex = () => {
     navigator.clipboard.writeText(latexCode);
@@ -207,6 +194,28 @@ export default function QualityReportPage() {
           </div>
         </header>
 
+        {/* Normality Rejection Directive Callout Banner */}
+        {isNonNormal && (
+          <div className="bg-rose-50 border-2 border-[#C0392B] rounded-xl p-5 mb-8 shadow-xs flex items-start gap-4">
+            <div className="w-10 h-10 rounded-full bg-[#C0392B] text-white flex items-center justify-center shrink-0 shadow-xs">
+              <AlertOctagon className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-white bg-[#C0392B] px-2.5 py-0.5 rounded">
+                  {t.report.normalityTitle || 'Distribution: Non-Normal'}
+                </span>
+                <span className="text-xs font-mono text-[#C0392B] font-bold">
+                  (Shapiro-Wilk p &lt; 0.05)
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-[#002B49] mt-2 font-mono leading-relaxed">
+                {t.report.normalityDirective || "Parametric Student's t-test invalid; Wilcoxon Signed-Rank / Mann-Whitney U mandatory."}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Bottom Line Card */}
         <section className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-6 mb-8 shadow-xs">
           <div className="flex items-start justify-between gap-4">
@@ -225,17 +234,20 @@ export default function QualityReportPage() {
           </div>
         </section>
 
+        {/* Score Distribution Density Histogram */}
+        <DistributionChart preData={preData} postData={postData} />
+
         {/* Quick KPI Cards */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
             <div className="text-xs font-mono text-[#57606A] uppercase font-semibold">{t.report.preAvg}</div>
             <div className="text-2xl font-serif font-bold text-[#002B49] mt-1">{preMetrics.mean} <span className="text-xs font-sans text-slate-400">/ 10</span></div>
-            <div className="text-xs text-[#57606A] mt-1">N = {preMetrics.n} {t.report.tableHeaders.phase === 'Fase de Evaluación' ? 'estudiantes' : 'students'}</div>
+            <div className="text-xs text-[#57606A] mt-1">N = {preMetrics.n} students</div>
           </div>
           <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
             <div className="text-xs font-mono text-[#57606A] uppercase font-semibold">{t.report.postAvg}</div>
             <div className="text-2xl font-serif font-bold text-emerald-700 mt-1">{postMetrics.mean} <span className="text-xs font-sans text-slate-400">/ 10</span></div>
-            <div className="text-xs text-[#57606A] mt-1">N = {postMetrics.n} {t.report.tableHeaders.phase === 'Fase de Evaluación' ? 'estudiantes' : 'students'}</div>
+            <div className="text-xs text-[#57606A] mt-1">N = {postMetrics.n} students</div>
           </div>
           <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
             <div className="text-xs font-mono text-[#57606A] uppercase font-semibold">{t.report.scoreShift}</div>
@@ -343,7 +355,7 @@ export default function QualityReportPage() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td className="font-medium text-[#002B49]">{preMetrics.n > 0 ? (t.report.tableHeaders.phase === 'Fase de Evaluación' ? 'Pretest' : 'Pretest') : ''}</td>
+                    <td className="font-medium text-[#002B49]">Pretest</td>
                     <td>{preMetrics.n}</td>
                     <td>{preMetrics.mean}</td>
                     <td>{preMetrics.variance}</td>
@@ -354,7 +366,7 @@ export default function QualityReportPage() {
                     <td className="font-mono text-[#C0392B] font-bold">{preMetrics.shapiroWilk.pValue}</td>
                   </tr>
                   <tr>
-                    <td className="font-medium text-[#002B49]">{postMetrics.n > 0 ? (t.report.tableHeaders.phase === 'Fase de Evaluación' ? 'Posttest' : 'Posttest') : ''}</td>
+                    <td className="font-medium text-[#002B49]">Posttest</td>
                     <td>{postMetrics.n}</td>
                     <td>{postMetrics.mean}</td>
                     <td>{postMetrics.variance}</td>

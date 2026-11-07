@@ -1,9 +1,10 @@
 export const en = {
   nav: {
     overview: 'Overview',
-    importData: '1. Import & Clean Data',
+    importData: 'Import & Clean Data',
     results: '2. Results & Insights',
     lab: '3. Advanced Lab',
+    paper: '4. Paper Synthesizer',
   },
   home: {
     badge: 'Educational Assessment Studio',
@@ -23,18 +24,18 @@ export const en = {
       { id: '01', title: 'Import & Smart Clean', desc: 'Automatically pairs pre- and post-test students, corrects typos in names, and filters out invalid or corrupt entries.', action: 'Upload Surveys', href: '/upload' },
       { id: '02', title: 'Impact & Results Summary', desc: 'Instantly view score growth, score distribution shifts, attrition rates, and key learning metrics in clear, human language.', action: 'View Results', href: '/report' },
       { id: '03', title: 'Interactive Analysis Lab', desc: 'Run hypothesis tests and export python notebook scripts for further customization and research deep dives.', action: 'Open Lab', href: '/lab' },
-      { id: '04', title: 'Journal-Ready Export', desc: 'Generate clean, publication-grade LaTeX tables and formatted PDF summaries ready for academic submission.', action: 'Export Documents', href: '/report' }
+      { id: '04', title: 'Journal-Ready Export', desc: 'Generate clean, publication-grade LaTeX tables and formatted PDF summaries ready for academic submission.', action: 'Export Documents', href: '/paper' }
     ]
   },
   upload: {
     phase: 'Phase 01 • Data Ingestion & Sanitization',
     title: 'Import Survey Data',
-    subtitle: 'Upload your Pretest and Posttest CSV files to analyze student learning progress.',
-        pretest: 'Pre-Intervention Test (Pretest)',
+    subtitle: 'Upload your Pretest and Posttest CSV files or Master Excel Roster to analyze student learning progress.',
+    pretest: 'Pre-Intervention Test (Pretest)',
     posttest: 'Post-Intervention Test (Posttest)',
     excelAttendance: 'Master Attendance Ledger (.xlsx)',
     dropExcel: 'Drop or select Attendance Excel (Listado_Asistencia_Pre_Post.xlsx)',
-    fingerprintExcel: 'Master Roster (43 Enrolled Students • Official Attendance)',
+    fingerprintExcel: 'Master Roster (Official Attendance & Dropout Cross-Check)',
     officialDesertion: 'Official Master Attrition / Desertion',
     officialDropoutsCount: 'Official Dropouts Detected',
     verified: 'Verified',
@@ -43,6 +44,7 @@ export const en = {
     fingerprintPost: 'Fingerprint: Puntuación, Marca temporal, Listado',
     dropPre: 'Drop or select Pretest CSV',
     dropPost: 'Drop or select Posttest CSV',
+    autoDetectSuccess: 'Files automatically assigned based on header schema!',
     quarantineTitle: 'Unusual Response Set Aside',
     quarantineBadge: 'Automated Anomaly Filter',
     quarantineDesc: 'Submissions containing script/code blocks, invalid names, or non-conforming field lengths were automatically quarantined to preserve dataset integrity.',
@@ -54,6 +56,8 @@ export const en = {
     tableTitle: 'Longitudinal Cohort Reconciliation',
     tableSub: 'Verification matrix showing participant alignment between pretest and posttest evaluations',
     pairingSuccess: 'Pairing Success',
+    manualOverride: 'Manual Pair Override',
+    unlink: 'Unlink Pair',
     headers: {
       preParticipant: 'Pretest Participant',
       postParticipant: 'Posttest Participant',
@@ -61,7 +65,8 @@ export const en = {
       confidence: 'Confidence',
       preScore: 'Pre Score',
       postScore: 'Post Score',
-      delta: 'Score Delta (Δ)'
+      delta: 'Score Delta (Δ)',
+      actions: 'Actions'
     },
     displayingFirst: 'Displaying first 10 of'
   },
@@ -73,6 +78,8 @@ export const en = {
     bottomLineDesc: 'Average scores rose from',
     toOnPost: 'on the pre-test to',
     onPost: 'on the post-test. Scores clustered strongly towards the higher end, confirming a solid intervention outcome.',
+    normalityTitle: 'Distribution: Non-Normal',
+    normalityDirective: "Parametric Student's t-test invalid; Wilcoxon Signed-Rank / Mann-Whitney U mandatory.",
     preAvg: 'Pretest Average',
     postAvg: 'Posttest Average',
     scoreShift: 'Score Shift',
@@ -113,16 +120,26 @@ export const en = {
     }
   },
   lab: {
-    badge: 'Agile Stage 3: WIP Modular Stub',
-    subtitle: 'HU-05 Interactive Workstation',
-    title: 'Hypothesis Testing Workspace (Jupyter Environment)',
+    badge: 'Interactive Hypothesis Workstation',
+    subtitle: 'HU-05 Dynamic Jupyter Notebook',
+    title: 'Hypothesis Verification Lab (Jupyter Python Environment)',
     downloadIpynb: 'Download .ipynb',
-    terminalIn: 'In [1]: non_parametric_verification.py',
-    reset: 'Reset',
-    executing: 'Executing...',
+    terminalIn: 'In [1]: live_hypothesis_test.py',
+    reset: 'Reset Output',
+    executing: 'Executing Engine...',
     runCell: 'Run Cell',
     outputLabel: '# Output [1]:',
     validatedMsg: 'Longitudinal hypothesis validated: p < 0.001. Statistically significant knowledge gain.'
+  },
+  paper: {
+    badge: 'Springer Nature Synthesizer',
+    title: 'Academic Manuscript Synthesizer',
+    subtitle: 'Compile full sn-jnl LaTeX paper markup and formatted PDFs matching Springer Nature standards.',
+    copyLatex: 'Copy Paper LaTeX',
+    downloadTex: 'Download paper.tex',
+    compilingPdf: 'Compiling Manuscript...',
+    downloadPdf: 'Download Manuscript PDF',
+    previewTitle: 'LaTeX Source Code & Manuscript Markup'
   },
   error: {
     title: 'An Unexpected Exception Occurred',

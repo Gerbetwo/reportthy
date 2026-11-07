@@ -6,6 +6,7 @@ export const es: Translations = {
     importData: '1. Importar y Limpiar',
     results: '2. Resultados',
     lab: '3. Lab Avanzado',
+    paper: '4. Sintetizador Artículo',
   },
   home: {
     badge: 'Estudio de Evaluación Educativa',
@@ -25,18 +26,18 @@ export const es: Translations = {
       { id: '01', title: 'Importar y Limpiar', desc: 'Empareja automáticamente estudiantes pre y post-test, corrige errores tipográficos y filtra entradas corruptas o inválidas.', action: 'Subir Encuestas', href: '/upload' },
       { id: '02', title: 'Resumen de Impacto y Resultados', desc: 'Visualiza instantáneamente el crecimiento de puntajes, cambios de distribución, tasas de deserción y métricas clave en lenguaje claro.', action: 'Ver Resultados', href: '/report' },
       { id: '03', title: 'Laboratorio de Análisis Interactivo', desc: 'Ejecuta pruebas de hipótesis y exporta scripts de Jupyter Notebook para personalización y análisis avanzados.', action: 'Abrir Lab', href: '/lab' },
-      { id: '04', title: 'Exportación Lista para Revista', desc: 'Genera tablas LaTeX limpias con estándar booktabs y resúmenes en PDF listos para envío académico.', action: 'Exportar Documentos', href: '/report' }
+      { id: '04', title: 'Exportación Lista para Revista', desc: 'Genera tablas LaTeX limpias con estándar booktabs y resúmenes en PDF listos para envío académico.', action: 'Exportar Documentos', href: '/paper' }
     ]
   },
   upload: {
     phase: 'Fase 01 • Ingesta de Datos y Sanitización',
     title: 'Importar Datos de Encuesta',
-    subtitle: 'Sube tus archivos CSV de Pretest y Posttest para analizar el progreso de aprendizaje.',
-        pretest: 'Evaluación Pre-Intervención (Pretest)',
+    subtitle: 'Sube tus archivos CSV de Pretest y Posttest o el Listado Oficial de Asistencia en Excel para analizar el progreso de aprendizaje.',
+    pretest: 'Evaluación Pre-Intervención (Pretest)',
     posttest: 'Evaluación Post-Intervención (Posttest)',
     excelAttendance: 'Listado Oficial de Asistencia (.xlsx)',
     dropExcel: 'Arrastra o selecciona el Excel de Asistencia (Listado_Asistencia_Pre_Post.xlsx)',
-    fingerprintExcel: 'Matrícula Oficial (43 Estudiantes Registrados • Control de Asistencia)',
+    fingerprintExcel: 'Matrícula Oficial (Control de Asistencia y Verificación de Deserción)',
     officialDesertion: 'Deserción Oficial Confirmada',
     officialDropoutsCount: 'Estudiantes Desertores Confirmados',
     verified: 'Verificado',
@@ -45,6 +46,7 @@ export const es: Translations = {
     fingerprintPost: 'Huella: Puntuación, Marca temporal, Listado',
     dropPre: 'Arrastra o selecciona el CSV de Pretest',
     dropPost: 'Arrastra o selecciona el CSV de Posttest',
+    autoDetectSuccess: '¡Archivos asignados automáticamente según el esquema de encabezados!',
     quarantineTitle: 'Respuesta Inusual Aislada',
     quarantineBadge: 'Filtro Automatizado de Anomalías',
     quarantineDesc: 'Las entregas que contienen bloques de código, nombres inválidos o longitudes no conformes fueron aisladas automáticamente para mantener la integridad de los datos.',
@@ -56,6 +58,8 @@ export const es: Translations = {
     tableTitle: 'Reconciliación Longitudinal de Cohorte',
     tableSub: 'Matriz de verificación que muestra la alineación de participantes entre evaluaciones pretest y posttest',
     pairingSuccess: 'Éxito de Emparejamiento',
+    manualOverride: 'Ajuste Manual de Par',
+    unlink: 'Desvincular Par',
     headers: {
       preParticipant: 'Participante Pretest',
       postParticipant: 'Participante Posttest',
@@ -63,7 +67,8 @@ export const es: Translations = {
       confidence: 'Confianza',
       preScore: 'Puntaje Pre',
       postScore: 'Puntaje Post',
-      delta: 'Diferencia (Δ)'
+      delta: 'Diferencia (Δ)',
+      actions: 'Acciones'
     },
     displayingFirst: 'Mostrando los primeros 10 de'
   },
@@ -75,6 +80,8 @@ export const es: Translations = {
     bottomLineDesc: 'Los puntajes promedio aumentaron de',
     toOnPost: 'en el pre-test a',
     onPost: 'en el post-test. Los puntajes se agruparon fuertemente hacia el rango superior, confirmando un resultado sólido.',
+    normalityTitle: 'Distribución: No Normal',
+    normalityDirective: 'Prueba t de Student paramétrica inválida; Wilcoxon Signed-Rank / Mann-Whitney U obligatorio.',
     preAvg: 'Promedio Pretest',
     postAvg: 'Promedio Posttest',
     scoreShift: 'Cambio de Puntaje',
@@ -115,16 +122,26 @@ export const es: Translations = {
     }
   },
   lab: {
-    badge: 'Etapa Ágil 3: Módulo WIP',
-    subtitle: 'Estación de Trabajo Interactiva HU-05',
-    title: 'Espacio de Trabajo de Prueba de Hipótesis (Entorno Jupyter)',
+    badge: 'Estación de Prueba de Hipótesis Interactivas',
+    subtitle: 'Jupyter Notebook Dinámico HU-05',
+    title: 'Laboratorio de Verificación de Hipótesis (Entorno Python Jupyter)',
     downloadIpynb: 'Descargar .ipynb',
-    terminalIn: 'In [1]: non_parametric_verification.py',
-    reset: 'Restablecer',
-    executing: 'Ejecutando...',
+    terminalIn: 'In [1]: live_hypothesis_test.py',
+    reset: 'Restablecer Salida',
+    executing: 'Ejecutando Motor...',
     runCell: 'Ejecutar Celda',
-    outputLabel: '# Output [1]:',
+    outputLabel: '# Salida [1]:',
     validatedMsg: 'Hipótesis longitudinal validada: p < 0.001. Ganancia de conocimiento estadísticamente significativa.'
+  },
+  paper: {
+    badge: 'Sintetizador Springer Nature',
+    title: 'Sintetizador de Artículo Académico',
+    subtitle: 'Compila el marcado LaTeX completo del artículo sn-jnl y PDFs formateados según los estándares de Springer Nature.',
+    copyLatex: 'Copiar LaTeX del Artículo',
+    downloadTex: 'Descargar paper.tex',
+    compilingPdf: 'Compilando Manuscrito...',
+    downloadPdf: 'Descargar PDF del Manuscrito',
+    previewTitle: 'Código Fuente LaTeX y Marcado del Manuscrito'
   },
   error: {
     title: 'Ocurrió una Excepción Inesperada',

@@ -60,3 +60,27 @@ export interface PairedParticipant {
   delta: number;
   isOfficialDropout?: boolean;
 }
+
+export interface HypothesisTestResult {
+  testName: string;
+  statisticName: string;
+  statisticValue: number;
+  zValue: number;
+  pValue: number;
+  effectSize: number;
+  interpretation: string;
+  isSignificant: boolean;
+  alternative: 'two-sided' | 'greater' | 'less';
+  n1: number;
+  n2?: number;
+}
+
+export interface DistributionBin {
+  score: number;
+  preCount: number;
+  postCount: number;
+  g1PreCount: number;
+  g1PostCount: number;
+  g2PreCount: number;
+  g2PostCount: number;
+}

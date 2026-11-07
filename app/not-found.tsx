@@ -1,3 +1,4 @@
+'use client';
 import Link from 'next/link';
 import { FileQuestion, Home } from 'lucide-react';
 import { useTranslation } from '@/lib/LanguageContext';

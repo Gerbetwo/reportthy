@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Upload, BarChart3, Binary, Home } from 'lucide-react';
+import { Upload, BarChart3, Binary, Home, FileText } from 'lucide-react';
 import { useTranslation } from '@/lib/LanguageContext';
 
 export default function HeaderNav() {
@@ -14,6 +14,7 @@ export default function HeaderNav() {
     { href: '/upload', label: t.nav.importData, icon: Upload },
     { href: '/report', label: t.nav.results, icon: BarChart3 },
     { href: '/lab', label: t.nav.lab, icon: Binary },
+    { href: '/paper', label: t.nav.paper || '4. Paper', icon: FileText },
   ];
 
   return (
@@ -59,7 +60,7 @@ export default function HeaderNav() {
               );
             })}
           </nav>
-          
+
           <button
             onClick={() => setLang(lang === 'en' ? 'es' : 'en')}
             className="px-2.5 py-1.5 rounded-md border border-[#CBD5E1] text-xs font-mono font-semibold bg-[#F8F9FA] hover:bg-white text-[#002B49] transition shadow-xs flex items-center gap-1"

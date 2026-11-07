@@ -1,3 +1,4 @@
+'use client';
 import {
   CleanedParticipant,
   RawSurveyRow,
@@ -49,7 +50,7 @@ export function computeNameSimilarity(nameA: string, nameB: string): number {
 }
 
 export function parseAttendanceExcel(
-  arrayBuffer: ArrayBuffer,
+  arrayBuffer: ArrayBuffer
 ): AttendanceRecord[] {
   const workbook = XLSX.read(arrayBuffer, { type: "array" });
   const sheetName =
@@ -59,37 +60,47 @@ export function parseAttendanceExcel(
   const rawRows: Record<string, string>[] = XLSX.utils.sheet_to_json(sheet);
 
   return rawRows.map((row) => {
-  const rawName = (row['Nombre del estudiante'] || row['Nombre'] || '').toString().trim();
+    const rawName = (row['Nombre del estudiante'] || row['Nombre'] || '').toString().trim();
+    const preAttRaw = (row['Asistencia preprueba'] || '').toString().trim();
+    const postAttRaw = (row['Asistencia postprueba'] || '').toString().trim();
 
-  const preAttRaw = (row['Asistencia preprueba'] || '').toString().trim();
-  const postAttRaw = (row['Asistencia postprueba'] || '').toString().trim();
+    const isPrePresent =
+      preAttRaw === '✓' ||
+      preAttRaw.toLowerCase() === 'v' ||
+      preAttRaw === '1';
 
-  const isPrePresent =
-    preAttRaw === '✓' ||
-    preAttRaw.toLowerCase() === 'v' ||
-    preAttRaw === '1';
+    const isPostPresent =
+      postAttRaw === '✓' ||
+      postAttRaw.toLowerCase() === 'v' ||
+      postAttRaw === '1';
 
-  const isPostPresent =
-    postAttRaw === '✓' ||
-    postAttRaw.toLowerCase() === 'v' ||
-    postAttRaw === '1';
+    const preAttendance: '✓' | 'X' = isPrePresent ? '✓' : 'X';
+    const postAttendance: '✓' | 'X' = isPostPresent ? '✓' : 'X';
 
-  const preAttendance: '✓' | 'X' = isPrePresent ? '✓' : 'X';
-  const postAttendance: '✓' | 'X' = isPostPresent ? '✓' : 'X';
+    return {
+      officialName: rawName,
+      normalizedName: normalizeName(rawName),
+      preAttendance,
+      postAttendance,
+      isOfficialDropout: isPrePresent && !isPostPresent,
+    };
+  });
+}
 
-  return {
-    officialName: rawName,
-    normalizedName: normalizeName(rawName),
-    preAttendance,
-    postAttendance,
-    isOfficialDropout: isPrePresent && !isPostPresent,
-  };
-});
+export function detectCSVRole(headers: string[]): 'pre' | 'post' | 'unknown' {
+  const headerStr = headers.join(' ').toLowerCase();
+  if (headerStr.includes('puntuación') || headerStr.includes('marca temporal')) {
+    return 'post';
+  }
+  if (headerStr.includes('score') || headerStr.includes('timestamp')) {
+    return 'pre';
+  }
+  return 'unknown';
 }
 
 export function parseSurveyCSV(
   rows: RawSurveyRow[],
-  source: "pre" | "post",
+  source: "pre" | "post"
 ): {
   clean: CleanedParticipant[];
   quarantined: CleanedParticipant[];
@@ -161,6 +172,7 @@ export function pairPreAndPost(
   preClean: CleanedParticipant[],
   postClean: CleanedParticipant[],
   attendanceRoster?: AttendanceRecord[],
+  threshold = 0.85
 ): {
   paired: PairedParticipant[];
   unmatchedPre: CleanedParticipant[];
@@ -184,7 +196,7 @@ export function pairPreAndPost(
       }
     });
 
-    if (bestMatch && bestSim >= 0.78) {
+    if (bestMatch && bestSim >= threshold) {
       usedPreIds.add((bestMatch as CleanedParticipant).id);
       paired.push({
         preName: (bestMatch as CleanedParticipant).originalName,
