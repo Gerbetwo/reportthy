@@ -1,52 +1,86 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-springer-navy: #002B49;
+  --color-springer-crimson: #C0392B;
+  --color-springer-gold: #B8860B;
+  --color-springer-dark: #001A2C;
+  --color-springer-slate: #2C3E50;
+  --color-springer-paper: #F8F9FA;
+  --color-springer-border: #D0D7DE;
+  --color-springer-muted: #57606A;
+  --font-serif: Georgia, "Times New Roman", Cambria, serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+}
 
 :root {
   --springer-navy: #002B49;
   --springer-crimson: #C0392B;
+  --springer-gold: #B8860B;
   --springer-slate: #2C3E50;
-  --springer-paper: #FBFBFB;
+  --springer-paper: #F8F9FA;
   --springer-border: #D0D7DE;
-  --springer-muted: #656D76;
+  --springer-muted: #57606A;
 }
 
 body {
   background-color: #F8F9FA;
   color: #1F2328;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-feature-settings: 'tnum' on, 'lnum' on;
 }
 
-.text-springer-navy { color: var(--springer-navy); }
-.bg-springer-navy { background-color: var(--springer-navy); }
-.border-springer-navy { border-color: var(--springer-navy); }
-.text-springer-crimson { color: var(--springer-crimson); }
-.text-springer-muted { color: var(--springer-muted); }
-.border-springer-border { border-color: var(--springer-border); }
+/* Scientific Dot-Matrix Blueprint Pattern */
+.bg-scientific-grid {
+  background-color: #F8F9FA;
+  background-image: radial-gradient(#CBD5E1 0.75px, transparent 0.75px);
+  background-size: 20px 20px;
+}
 
-/* Academic Booktabs Table Rules */
+/* Fallback Utility Classes */
+.bg-springer-navy { background-color: #002B49 !important; }
+.text-springer-navy { color: #002B49 !important; }
+.border-springer-navy { border-color: #002B49 !important; }
+.bg-springer-crimson { background-color: #C0392B !important; }
+.text-springer-crimson { color: #C0392B !important; }
+.border-springer-crimson { border-color: #C0392B !important; }
+.text-springer-muted { color: #57606A !important; }
+.border-springer-border { border-color: #D0D7DE !important; }
+
+/* Springer Nature Publication Booktabs Table */
 .table-booktabs {
-  border-top: 2px solid var(--springer-navy);
-  border-bottom: 2px solid var(--springer-navy);
+  border-top: 2.5px solid #002B49;
+  border-bottom: 2.5px solid #002B49;
   border-collapse: collapse;
   width: 100%;
 }
 
 .table-booktabs thead tr {
-  border-bottom: 1px solid var(--springer-navy);
+  border-bottom: 1.25px solid #002B49;
 }
 
 .table-booktabs th {
-  font-family: Georgia, serif;
-  font-weight: 600;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
   text-align: left;
   padding: 10px 14px;
-  color: var(--springer-navy);
+  color: #002B49;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
 }
 
 .table-booktabs td {
   padding: 10px 14px;
   border: none;
   font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+}
+
+.table-booktabs tbody tr {
+  border-bottom: 1px solid #EDF2F7;
+}
+
+.table-booktabs tbody tr:hover {
+  background-color: #F1F5F9;
 }

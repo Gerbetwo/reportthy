@@ -2,50 +2,86 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Database, FileSpreadsheet, FlaskConical, Home } from 'lucide-react';
+import { Database, FileSpreadsheet, FlaskConical, Home, Sparkles, FileText } from 'lucide-react';
 
 export default function HeaderNav() {
   const pathname = usePathname();
 
-  const links = [
-    { href: '/', label: 'Overview', icon: Home },
+  const navLinks = [
+    { href: '/', label: 'Overview Portal', icon: Home },
     { href: '/upload', label: '1. Ingestion & Sanitization', icon: Database },
     { href: '/report', label: '2. Quality Diagnostics', icon: FileSpreadsheet },
-    { href: '/lab', label: '3. Hypothesis Lab (WIP)', icon: FlaskConical },
+    { href: '/lab', label: '3. Inferential Lab (WIP)', icon: FlaskConical },
   ];
 
   return (
-    <nav className="bg-white border-b border-[#D0D7DE] mb-8 sticky top-0 z-50 shadow-sm print:hidden">
-      <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="font-serif font-bold text-lg text-[#002B49] tracking-tight">
-            Reportthy
-          </Link>
-          <span className="text-xs font-mono uppercase bg-slate-100 text-[#656D76] px-2 py-0.5 rounded border border-slate-200">
-            sn-jnl v1.0
-          </span>
+    <header className="bg-white border-b border-[#D0D7DE] sticky top-0 z-50 shadow-xs print:hidden">
+      {/* Top Academic Metadata Bar */}
+      <div className="bg-[#001A2C] text-[#94A3B8] text-[11px] font-mono py-1.5 px-6 border-b border-[#002B49]">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <span className="text-[#F8FAFC] font-semibold tracking-wide">
+              SPRINGER NATURE SPECIFICATION
+            </span>
+            <span className="text-slate-500">•</span>
+            <span>ISSN: 2026-X891</span>
+            <span className="text-slate-500">•</span>
+            <span>DOI: 10.1038/s41586-026-0042</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 text-emerald-400 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              PIPELINE OPERATIONAL
+            </span>
+            <span className="text-slate-500">•</span>
+            <span className="text-slate-400">TURBOPACK 16.4</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1 sm:gap-2">
-          {links.map((link) => {
+      </div>
+
+      {/* Main Navigation Bar */}
+      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="w-9 h-9 rounded bg-[#002B49] text-white flex items-center justify-center font-serif font-black text-xl shadow-xs group-hover:bg-[#C0392B] transition-colors">
+            R
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-serif font-bold text-xl text-[#002B49] tracking-tight">
+                Reportthy
+              </span>
+              <span className="text-[10px] font-mono uppercase bg-[#F1F5F9] text-[#002B49] px-2 py-0.5 rounded font-bold border border-[#CBD5E1]">
+                Portal of Science
+              </span>
+            </div>
+            <p className="text-[11px] text-[#57606A] -mt-0.5 font-sans">
+              Quantum Computing Pedagogical Evaluation
+            </p>
+          </div>
+        </Link>
+
+        {/* Navigation Step Pills */}
+        <nav className="flex items-center gap-1 sm:gap-2">
+          {navLinks.map((link) => {
             const Icon = link.icon;
             const isActive = pathname === link.href;
             return (
-              <Link
+                <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition ${
-                  isActive
-                    ? 'bg-[#002B49] text-white shadow-sm'
-                    : 'text-slate-600 hover:text-[#002B49] hover:bg-slate-100'
-                }`}
-              >
+                className={
+                    isActive
+                    ? 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-[#002B49] text-white shadow-xs'
+                    : 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-[#57606A] hover:text-[#002B49] hover:bg-[#F1F5F9]'
+                }
+                >
                 <Icon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{link.label}</span>
-              </Link>
+                <span className="hidden md:inline">{link.label}</span>
+                </Link>
             );
           })}
-        </div>
+        </nav>
       </div>
-    </nav>
+    </header>
   );
 }

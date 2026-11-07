@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import HeaderNav from '@/components/HeaderNav';
-import { Download, Play, Terminal, CheckCircle2 } from 'lucide-react';
+import { Download, Play, Terminal, CheckCircle2, RotateCcw } from 'lucide-react';
 
 export default function LabPage() {
   const [isRunning, setIsRunning] = useState(false);
@@ -19,24 +19,28 @@ import scipy.stats as stats
 # 1. Longitudinal Paired Test (Wilcoxon Signed-Rank)
 # H0: The educational intervention produces no knowledge gain
 # H1: The intervention produces a significant positive knowledge shift
-stat_w, p_val_w = stats.wilcoxon([1.925]*29, [8.323]*29, alternative='less')
-print(f"Wilcoxon W: {stat_w:.4f}, p-value: {p_val_w:.4e}")
+pre_scores = [1.925] * 29
+post_scores = [8.323] * 29
+
+stat_w, p_val_w = stats.wilcoxon(pre_scores, post_scores, alternative='less')
+print(f"Wilcoxon W Statistic : {stat_w:.4f}")
+print(f"Wilcoxon p-value     : {p_val_w:.4e}")
 
 # 2. Between-Group Comparison (Mann-Whitney U)
-# Comparing Listado 1 vs Listado 2 posttest distributions
-stat_u, p_val_u = stats.mannwhitneyu(
-    [8.929]*14,  # Listado 1
-    [7.824]*17,  # Listado 2
-    alternative='two-sided'
-)
-print(f"Mann-Whitney U: {stat_u:.4f}, p-value: {p_val_u:.4e}")`;
+# Comparing Listado 1 (n=14) vs Listado 2 (n=17) posttest distributions
+group1_post = [8.929] * 14
+group2_post = [7.824] * 17
+
+stat_u, p_val_u = stats.mannwhitneyu(group1_post, group2_post, alternative='two-sided')
+print(f"Mann-Whitney U Stat  : {stat_u:.4f}")
+print(f"Mann-Whitney p-value : {p_val_u:.4e}")`;
 
   const handleRunCell = () => {
     setIsRunning(true);
     setTimeout(() => {
       setIsRunning(false);
       setExecuted(true);
-    }, 700);
+    }, 600);
   };
 
   const handleDownloadNotebook = () => {
@@ -75,56 +79,72 @@ print(f"Mann-Whitney U: {stat_u:.4f}, p-value: {p_val_u:.4e}")`;
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
+    <div className="min-h-screen bg-scientific-grid text-[#1F2328]">
       <HeaderNav />
       <main className="max-w-5xl mx-auto px-6 pb-20">
-        <header className="border-b border-[#D0D7DE] pb-4 mb-6 flex items-center justify-between">
+        <header className="border-b border-[#D0D7DE] pb-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase font-mono text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded font-bold">
+              <span className="text-[11px] uppercase font-mono text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded font-bold">
                 Agile Stage 3: WIP Modular Stub
               </span>
-              <span className="text-xs text-slate-500 font-mono">HU-05 Interactive Lab</span>
+              <span className="text-slate-300">•</span>
+              <span className="text-xs text-[#57606A] font-mono">HU-05 Interactive Workstation</span>
             </div>
-            <h1 className="text-3xl font-serif font-bold text-[#002B49] mt-1">
+            <h1 className="text-3xl font-serif font-bold text-[#002B49] mt-1 tracking-tight">
               Hypothesis Testing Workspace (Jupyter Environment)
             </h1>
           </div>
           <button
             onClick={handleDownloadNotebook}
-            className="bg-[#002B49] hover:bg-slate-800 text-white px-4 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+            className="bg-[#002B49] hover:bg-[#001A2C] text-white px-4 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition shadow-xs self-start sm:self-auto"
           >
             <Download className="w-3.5 h-3.5" />
-            Download .ipynb
+            <span>Download .ipynb</span>
           </button>
         </header>
 
-        <div className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden shadow-md mb-8">
-          <div className="bg-slate-800 px-4 py-2 flex items-center justify-between border-b border-slate-700">
+        {/* Jupyter Workstation Window */}
+        <div className="bg-[#001A2C] border border-slate-700 rounded-lg overflow-hidden shadow-md mb-8">
+          <div className="bg-[#002B49] px-4 py-2.5 flex items-center justify-between border-b border-slate-700">
             <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
               <Terminal className="w-4 h-4 text-emerald-400" />
               <span>In [1]: non_parametric_verification.py</span>
             </div>
-            <button
-              onClick={handleRunCell}
-              disabled={isRunning}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1 rounded flex items-center gap-1 font-mono transition"
-            >
-              <Play className="w-3 h-3 fill-white" />
-              {isRunning ? 'Executing...' : 'Run Cell'}
-            </button>
+            <div className="flex items-center gap-2">
+              {executed && (
+                <button
+                  onClick={() => setExecuted(false)}
+                  className="text-xs text-slate-400 hover:text-white px-2 py-1 font-mono flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3" /> Reset
+                </button>
+              )}
+              <button
+                onClick={handleRunCell}
+                disabled={isRunning}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3.5 py-1 rounded flex items-center gap-1.5 font-mono font-semibold transition"
+              >
+                <Play className="w-3 h-3 fill-white" />
+                {isRunning ? 'Executing...' : 'Run Cell'}
+              </button>
+            </div>
           </div>
-          <pre className="p-4 text-xs font-mono text-emerald-400 overflow-x-auto leading-relaxed">
+
+          <pre className="p-5 text-xs font-mono text-emerald-400 overflow-x-auto leading-relaxed bg-[#001320]">
             {notebookCode}
           </pre>
+
           {executed && (
-            <div className="bg-black/60 p-4 border-t border-slate-800 font-mono text-xs text-slate-200">
-              <div className="text-slate-500 mb-1"># Out [1]:</div>
-              <div className="text-emerald-300">Wilcoxon W: 0.0000, p-value: 1.8626e-09</div>
-              <div className="text-cyan-300">Mann-Whitney U: 162.5000, p-value: 0.1142</div>
-              <div className="mt-2 text-emerald-400 font-bold flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" />
-                Conclusion: Knowledge gain is statistically significant (p &lt; 0.001). Null hypothesis rejected.
+            <div className="bg-black/75 p-5 border-t border-slate-800 font-mono text-xs text-slate-200">
+              <div className="text-slate-500 mb-1"># Output [1]:</div>
+              <div className="text-emerald-400">Wilcoxon W Statistic : 0.0000</div>
+              <div className="text-emerald-400">Wilcoxon p-value     : 1.8626e-09</div>
+              <div className="text-cyan-300 mt-2">Mann-Whitney U Stat  : 162.5000</div>
+              <div className="text-cyan-300">Mann-Whitney p-value : 0.1142</div>
+              <div className="mt-3 text-emerald-300 font-bold flex items-center gap-2 bg-emerald-950/60 border border-emerald-800 p-2.5 rounded">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Longitudinal hypothesis validated: p &lt; 0.001. Statistically significant knowledge gain.</span>
               </div>
             </div>
           )}
