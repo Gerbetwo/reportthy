@@ -182,10 +182,10 @@ export default function UploadPage() {
               <span className="text-xs font-mono text-[#57606A]">HU-02 Pipeline</span>
             </div>
             <h1 className="text-3xl font-serif font-bold text-[#002B49] tracking-tight">
-              Survey CSV Ingestion & Pre-Flight Sanitization
+              Import Survey Data
             </h1>
             <p className="text-xs text-[#57606A] mt-1">
-              Drag and drop pre/post survey files or load the verified benchmark dataset with 1-click.
+              Upload your Pretest and Posttest CSV files or start with sample data.
             </p>
           </div>
 
@@ -277,14 +277,14 @@ export default function UploadPage() {
               <div className="w-full">
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="font-serif font-bold text-sm text-amber-900">
-                    Data Integrity Quarantine ({quarantined.length} Contaminated Record Isolated)
+                    {quarantined.length} Unusual Response Set Aside
                   </h3>
                   <span className="text-[11px] font-mono bg-amber-200 text-amber-950 px-2 py-0.5 rounded font-bold border border-amber-300">
                     Automated Filter: Row 27 Trapped
                   </span>
                 </div>
                 <p className="text-xs text-amber-800 mb-3 leading-relaxed">
-                  The pre-flight engine trapped an algorithmic exam dump pasted inside the participant identity field. This record has been automatically quarantined to protect sample variance and prevent statistical bias.
+                  One submission contained non-name test answers pasted into the name field. It was automatically excluded to keep your results clean.
                 </p>
                 <div className="bg-white border border-amber-200 rounded p-3 text-xs font-mono text-slate-700 max-h-36 overflow-y-auto">
                   {quarantined.map((item) => (
@@ -308,10 +308,10 @@ export default function UploadPage() {
           <div className="bg-white border border-[#D0D7DE] rounded-lg p-6 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
             <div>
               <h3 className="font-serif font-bold text-base text-[#002B49]">
-                Execute Longitudinal Reconciliation & Fuzzy Pairing
+                Match Student Responses
               </h3>
               <p className="text-xs text-[#57606A] mt-0.5">
-                Aligns participants using Levenshtein distance ($ge 0.85$), reconciling accents, diacritics, and missing maternal surnames.
+                Automatically matches pre- and post-test scores even if students had minor typos in their names.
               </p>
             </div>
             <div className="flex items-center gap-3">

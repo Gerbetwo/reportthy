@@ -32,11 +32,7 @@ body {
 }
 
 /* Scientific Dot-Matrix Blueprint Pattern */
-.bg-scientific-grid {
-  background-color: #F8F9FA;
-  background-image: radial-gradient(#CBD5E1 0.75px, transparent 0.75px);
-  background-size: 20px 20px;
-}
+.bg-scientific-grid { background-color: #FFFFFF; }
 
 /* Fallback Utility Classes */
 .bg-springer-navy { background-color: #002B49 !important; }
