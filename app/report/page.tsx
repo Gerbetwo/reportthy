@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import HeaderNav from '@/components/HeaderNav';
 import { computeDescriptiveStats } from '@/lib/statsEngine';
@@ -11,52 +11,95 @@ import {
   Copy, 
   Check, 
   AlertOctagon, 
-  ArrowRight, 
   Printer,
-  FileCode,
-  BookOpen
+  Filter,
+  Loader2,
+  FileCheck
 } from 'lucide-react';
 
 export default function QualityReportPage() {
   const router = useRouter();
 
-  const [preScores, setPreScores] = useState<number[]>([]);
-  const [postScores, setPostScores] = useState<number[]>([]);
   const [preData, setPreData] = useState<CleanedParticipant[]>([]);
   const [postData, setPostData] = useState<CleanedParticipant[]>([]);
   const [copied, setCopied] = useState(false);
+  const [isCompilingPdf, setIsCompilingPdf] = useState(false);
+
+  // Filter States
+  const [selectedGroup, setSelectedGroup] = useState<string>('all');
+  const [minScore, setMinScore] = useState<number>(0);
 
   useEffect(() => {
     try {
-      const savedPre = localStorage.getItem('reportthy_pre_scores');
-      const savedPost = localStorage.getItem('reportthy_post_scores');
       const savedPreData = localStorage.getItem('reportthy_pre_data');
       const savedPostData = localStorage.getItem('reportthy_post_data');
 
-      if (savedPre && savedPost) {
-        setPreScores(JSON.parse(savedPre));
-        setPostScores(JSON.parse(savedPost));
-        if (savedPreData) setPreData(JSON.parse(savedPreData));
-        if (savedPostData) setPostData(JSON.parse(savedPostData));
+      if (savedPreData && savedPostData) {
+        setPreData(JSON.parse(savedPreData));
+        setPostData(JSON.parse(savedPostData));
       } else {
-        throw new Error('No saved scores found in storage');
+        throw new Error('No dataset cache found.');
       }
     } catch (e) {
-      console.warn('[QualityReport] Failed to load cached scores from localStorage. Loading benchmark defaults.', e);
-      // Default verified empirical benchmark: N=40 pretest, N=31 clean posttest
-      const benchmarkPre = [1,2,3,2,1,2,2,1,0,3,2,2,3,2,1,2,2,1,2,3,1,2,2,3,1,2,0,2,3,1,2,2,3,1,2,2,1,3,2,2];
-      const benchmarkPost = [8,7,10,7,8,10,5,9,10,10,10,9,9,10,10,10,10,10,9,9,10,9,9,2,9,7,10,8,8,7,10];
-      setPreScores(benchmarkPre);
-      setPostScores(benchmarkPost);
+      console.warn('[QualityReport] Loading benchmark fallback data.', e);
+      const benchmarkPre: CleanedParticipant[] = Array.from({ length: 40 }, (_, i) => ({
+        id: `pre-${i}`,
+        originalName: `Participant Baseline ${i + 1}`,
+        normalizedName: `participant baseline ${i + 1}`,
+        group: i % 2 === 0 ? 'Listado 1' : 'Listado 2',
+        score: [1,2,3,2,1,2,2,1,0,3,2,2,3,2,1,2,2,1,2,3,1,2,2,3,1,2,0,2,3,1,2,2,3,1,2,2,1,3,2,2][i % 40],
+        timestamp: '9/19/2026',
+        isFlaggedCorrupted: false
+      }));
+
+      const benchmarkPost: CleanedParticipant[] = Array.from({ length: 31 }, (_, i) => ({
+        id: `post-${i}`,
+        originalName: `Participant Baseline ${i + 1}`,
+        normalizedName: `participant baseline ${i + 1}`,
+        group: i % 2 === 0 ? 'Listado 1' : 'Listado 2',
+        score: [8,7,10,7,8,10,5,9,10,10,10,9,9,10,10,10,10,10,9,9,10,9,9,2,9,7,10,8,8,7,10][i % 31],
+        timestamp: '24/10/2026',
+        isFlaggedCorrupted: false
+      }));
+
+      setPreData(benchmarkPre);
+      setPostData(benchmarkPost);
     }
   }, []);
 
-  if (preScores.length === 0 || postScores.length === 0) {
+  // Reactive Sub-Cohort Filtering Logic
+  const filteredPreData = useMemo(() => {
+    return preData.filter((p) => 
+      (selectedGroup === 'all' || p.group === selectedGroup) && p.score >= minScore
+    );
+  }, [preData, selectedGroup, minScore]);
+
+  const filteredPostData = useMemo(() => {
+    return postData.filter((p) => 
+      (selectedGroup === 'all' || p.group === selectedGroup) && p.score >= minScore
+    );
+  }, [postData, selectedGroup, minScore]);
+
+  const preScores = useMemo(() => filteredPreData.map((p) => p.score), [filteredPreData]);
+  const postScores = useMemo(() => filteredPostData.map((p) => p.score), [filteredPostData]);
+
+  if (preScores.length < 3 || postScores.length < 3) {
     return (
-      <div className="min-h-screen bg-scientific-grid">
+      <div className="min-h-screen bg-scientific-grid text-[#1F2328]">
         <HeaderNav />
-        <main className="max-w-6xl mx-auto px-6 py-16 text-center text-slate-500 font-mono">
-          Loading statistical matrices...
+        <main className="max-w-6xl mx-auto px-6 py-16 text-center">
+          <div className="bg-amber-50 border border-amber-300 rounded-lg p-6 max-w-md mx-auto">
+            <h2 className="font-serif font-bold text-amber-900 text-base mb-2">Insufficient Subset Size</h2>
+            <p className="text-xs text-amber-800 mb-4">
+              The selected filters yielded less than 3 participants ($N &lt; 3$). Lower the score threshold or select another group.
+            </p>
+            <button
+              onClick={() => { setSelectedGroup('all'); setMinScore(0); }}
+              className="bg-[#002B49] text-white text-xs font-semibold px-4 py-2 rounded"
+            >
+              Reset Filters
+            </button>
+          </div>
         </main>
       </div>
     );
@@ -75,8 +118,8 @@ export default function QualityReportPage() {
   const mPostG1 = postG1.length >= 3 ? computeDescriptiveStats(postG1) : null;
   const mPostG2 = postG2.length >= 3 ? computeDescriptiveStats(postG2) : null;
 
-  const attritionCount = preMetrics.n - postMetrics.n;
-  const attritionRate = (attritionCount / preMetrics.n) * 100;
+  const attritionCount = Math.max(0, preMetrics.n - postMetrics.n);
+  const attritionRate = preMetrics.n > 0 ? (attritionCount / preMetrics.n) * 100 : 0;
 
   const latexCode = generateSpringerNatureLatex(preMetrics, postMetrics, attritionCount, attritionRate);
 
@@ -96,12 +139,40 @@ export default function QualityReportPage() {
     URL.revokeObjectURL(url);
   };
 
+  const handleCompileServerPdf = async () => {
+    setIsCompilingPdf(true);
+    try {
+      const response = await fetch('/api/compile-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latexContent: latexCode }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Server pdf compilation failed');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'springer_nature_quality_report.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('pdflatex binary is not available on standard serverless execution. Exporting formatted document via browser print render.');
+      window.print();
+    } finally {
+      setIsCompilingPdf(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-scientific-grid text-[#1F2328]">
       <HeaderNav />
       <main className="max-w-6xl mx-auto px-6 pb-20">
-        {/* Article Masthead Header */}
-        <header className="bg-white border border-[#D0D7DE] rounded-lg p-6 mb-8 shadow-xs flex flex-col md:flex-row md:items-end justify-between gap-4">
+        {/* Masthead Header */}
+        <header className="bg-white border border-[#D0D7DE] rounded-lg p-6 mb-6 shadow-xs flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-[11px] font-mono uppercase tracking-widest text-[#C0392B] font-bold">
@@ -115,36 +186,84 @@ export default function QualityReportPage() {
             <h1 className="text-3xl font-serif font-bold text-[#002B49] tracking-tight">
               Data Quality & Distribution Diagnostics
             </h1>
-            <p className="text-xs text-[#57606A] mt-1 font-mono">
-              Empirical Baseline • Normality Assumption Verification • Cohort Attrition Metrics
-            </p>
           </div>
-          <div className="flex items-center gap-2 print:hidden">
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
             <button
               onClick={handleCopyLatex}
-              className="px-3.5 py-2 rounded-md text-xs font-semibold border border-[#CBD5E1] bg-white hover:bg-[#F8F9FA] text-[#002B49] flex items-center gap-1.5 transition shadow-xs"
+              className="px-3 py-2 rounded-md text-xs font-semibold border border-[#CBD5E1] bg-white hover:bg-[#F8F9FA] text-[#002B49] flex items-center gap-1.5 transition shadow-xs"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Copied LaTeX' : 'Copy LaTeX'}</span>
+              <span>{copied ? 'Copied' : 'Copy LaTeX'}</span>
             </button>
             <button
               onClick={handleDownloadLatex}
-              className="px-3.5 py-2 rounded-md text-xs font-semibold bg-[#002B49] hover:bg-[#001A2C] text-white flex items-center gap-1.5 transition shadow-xs"
+              className="px-3 py-2 rounded-md text-xs font-semibold border border-[#CBD5E1] bg-white hover:bg-[#F8F9FA] text-[#002B49] flex items-center gap-1.5 transition shadow-xs"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Download .tex</span>
+              <span>.tex</span>
+            </button>
+            <button
+              onClick={handleCompileServerPdf}
+              disabled={isCompilingPdf}
+              className="px-3.5 py-2 rounded-md text-xs font-semibold bg-[#002B49] hover:bg-[#001A2C] text-white flex items-center gap-1.5 transition shadow-xs disabled:opacity-50"
+            >
+              {isCompilingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileCheck className="w-3.5 h-3.5 text-emerald-400" />}
+              <span>{isCompilingPdf ? 'Compiling TeX...' : 'Compile PDF'}</span>
             </button>
             <button
               onClick={() => window.print()}
-              className="px-3 py-2 rounded-md text-xs font-semibold border border-[#CBD5E1] bg-white hover:bg-[#F8F9FA] text-[#002B49] flex items-center gap-1.5 transition shadow-xs"
-              title="Print to PDF"
+              className="px-3 py-2 rounded-md text-xs font-semibold border border-[#CBD5E1] bg-white hover:bg-[#F8F9FA] text-[#002B49] transition shadow-xs"
+              title="Print view"
             >
               <Printer className="w-3.5 h-3.5" />
             </button>
           </div>
         </header>
 
-        {/* Executive Statistical KPI Grid */}
+        {/* Interactive Sub-Cohort Filtering Control Panel */}
+        <section className="bg-white border border-[#D0D7DE] rounded-lg p-4 mb-6 shadow-xs flex flex-wrap items-center justify-between gap-4 print:hidden">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#002B49]">
+            <Filter className="w-4 h-4 text-[#C0392B]" />
+            <span>Interactive Cohort Filter:</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-4 text-xs">
+            <div className="flex items-center gap-2">
+              <label className="text-[#57606A] font-mono text-[11px]">Sub-Group:</label>
+              <select
+                value={selectedGroup}
+                onChange={(e) => setSelectedGroup(e.target.value)}
+                className="border border-[#CBD5E1] bg-[#F8F9FA] rounded px-2.5 py-1 text-xs text-[#002B49] font-medium focus:outline-none focus:border-[#002B49]"
+              >
+                <option value="all">All Cohorts (Aggregated)</option>
+                <option value="Listado 1">Listado 1 Only</option>
+                <option value="Listado 2">Listado 2 Only</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-[#57606A] font-mono text-[11px]">Min Score Cutoff:</label>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={minScore}
+                onChange={(e) => setMinScore(Number(e.target.value))}
+                className="w-16 border border-[#CBD5E1] bg-[#F8F9FA] rounded px-2 py-1 text-xs text-[#002B49] font-medium focus:outline-none focus:border-[#002B49]"
+              />
+            </div>
+
+            {(selectedGroup !== 'all' || minScore > 0) && (
+              <button
+                onClick={() => { setSelectedGroup('all'); setMinScore(0); }}
+                className="text-[11px] font-mono text-[#C0392B] underline hover:text-[#002B49]"
+              >
+                Reset Filters
+              </button>
+            )}
+          </div>
+        </section>
+
+        {/* KPI Grid */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-5 rounded-lg border border-[#D0D7DE] shadow-xs">
             <div className="text-xs font-mono text-[#57606A] uppercase font-semibold">Pretest Cohort</div>
@@ -170,7 +289,7 @@ export default function QualityReportPage() {
           </div>
         </section>
 
-        {/* Normality Diagnostic Callout */}
+        {/* Normality Diagnostic Alert */}
         <section className="bg-rose-50 border-l-4 border-[#C0392B] p-5 rounded-r-lg mb-8 shadow-xs border border-rose-200">
           <div className="flex items-start gap-3">
             <AlertOctagon className="w-5 h-5 text-[#C0392B] shrink-0 mt-0.5" />
@@ -179,16 +298,10 @@ export default function QualityReportPage() {
                 <h3 className="font-serif font-bold text-sm text-rose-950">
                   Parametric Normality Assumption Formally Rejected (p &lt; 0.05)
                 </h3>
-                <span className="text-[10px] font-mono bg-rose-200 text-rose-900 px-2 py-0.5 rounded font-bold">
-                  Shapiro-Wilk W Test
-                </span>
               </div>
               <p className="text-xs text-rose-900 mt-1.5 leading-relaxed">
                 The empirical distribution exhibits departure from Gaussian normality in both pretest ($W = {preMetrics.shapiroWilk.statistic}$, $p = {preMetrics.shapiroWilk.pValue}$) and posttest ($W = {postMetrics.shapiroWilk.statistic}$, $p = {postMetrics.shapiroWilk.pValue}$).
               </p>
-              <div className="mt-3 bg-white border border-rose-200 rounded p-3 text-xs text-slate-800">
-                <span className="font-bold text-[#C0392B]">Mandatory Statistical Directive:</span> Student&apos;s $t$-tests are strictly invalid. The subsequent hypothesis verification module must prioritize <strong>Wilcoxon Signed-Rank</strong> (within-subject paired gains) and <strong>Mann-Whitney U</strong> (Listado 1 vs Listado 2 comparisons).
-              </div>
             </div>
           </div>
         </section>
@@ -198,15 +311,9 @@ export default function QualityReportPage() {
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#EDF2F7]">
             <div>
               <h2 className="font-serif font-bold text-base text-[#002B49]">
-                Table 1: Descriptive Statistics & Distribution Benchmarks
+                Table 1: Active Filter Baseline Diagnostics
               </h2>
-              <p className="text-xs text-[#57606A]">
-                Parametric and non-parametric parameters for quantum literacy evaluations
-              </p>
             </div>
-            <span className="text-xs font-mono text-[#57606A] bg-[#F1F5F9] px-2.5 py-1 rounded border border-[#CBD5E1]">
-              Standard: sn-basic booktabs
-            </span>
           </div>
           <div className="overflow-x-auto">
             <table className="table-booktabs text-xs">
@@ -214,15 +321,13 @@ export default function QualityReportPage() {
                 <tr>
                   <th>Phase</th>
                   <th>N</th>
-                  <th>{`Mean ($\\bar{x}$)`}</th>
-                  <th>Variance ($s^2$)</th>
-                  <th>Std Dev ($s$)</th>
+                  <th>Mean (x)</th>
+                  <th>Variance (s²)</th>
+                  <th>Std Dev (s)</th>
                   <th>Median</th>
                   <th>IQR</th>
                   <th>Skewness</th>
-                  <th>Kurtosis</th>
-                  <th>Shapiro-Wilk ($p$)</th>
-                  <th>Normality</th>
+                  <th>Shapiro-Wilk (p)</th>
                 </tr>
               </thead>
               <tbody>
@@ -235,9 +340,7 @@ export default function QualityReportPage() {
                   <td>{preMetrics.median}</td>
                   <td>{preMetrics.iqr}</td>
                   <td>{preMetrics.skewness}</td>
-                  <td>{preMetrics.kurtosis}</td>
                   <td className="font-mono text-[#C0392B] font-bold">{preMetrics.shapiroWilk.pValue}</td>
-                  <td className="font-semibold text-rose-700">Rejected ($p&lt;0.05$)</td>
                 </tr>
                 <tr>
                   <td className="font-medium text-[#002B49]">Posttest</td>
@@ -248,112 +351,11 @@ export default function QualityReportPage() {
                   <td>{postMetrics.median}</td>
                   <td>{postMetrics.iqr}</td>
                   <td>{postMetrics.skewness}</td>
-                  <td>{postMetrics.kurtosis}</td>
                   <td className="font-mono text-[#C0392B] font-bold">{postMetrics.shapiroWilk.pValue}</td>
-                  <td className="font-semibold text-rose-700">Rejected ($p&lt;0.05$)</td>
                 </tr>
               </tbody>
             </table>
           </div>
-        </section>
-
-        {/* Table 2: Group Breakdown (Listado 1 vs Listado 2) */}
-        <section className="bg-white p-6 rounded-lg border border-[#D0D7DE] shadow-xs mb-8">
-          <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#EDF2F7]">
-            <div>
-              <h2 className="font-serif font-bold text-base text-[#002B49]">
-                Table 2: Group Segregation (Listado 1 vs Listado 2)
-              </h2>
-              <p className="text-xs text-[#57606A]">
-                Control and experimental cohort comparisons across assessment phases
-              </p>
-            </div>
-            <span className="text-xs font-mono text-[#57606A] bg-[#F1F5F9] px-2.5 py-1 rounded border border-[#CBD5E1]">
-              Subgroup Stratification
-            </span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="table-booktabs text-xs">
-              <thead>
-                <tr>
-                  <th>Cohort Subset</th>
-                  <th>Phase</th>
-                  <th>N</th>
-                  <th>{`Mean ($\\bar{x}$)`}</th>
-                  <th>Variance ($s^2$)</th>
-                  <th>Std Dev ($s$)</th>
-                  <th>Median</th>
-                  <th>Shapiro-Wilk ($p$)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="font-medium text-slate-800">Listado 1</td>
-                  <td>Pretest</td>
-                  <td>{mPreG1 ? mPreG1.n : '20'}</td>
-                  <td>{mPreG1 ? mPreG1.mean : '1.750'}</td>
-                  <td>{mPreG1 ? mPreG1.variance : '0.513'}</td>
-                  <td>{mPreG1 ? mPreG1.stdDev : '0.716'}</td>
-                  <td>{mPreG1 ? mPreG1.median : '2.0'}</td>
-                  <td className="font-mono text-[#C0392B]">{mPreG1 ? mPreG1.shapiroWilk.pValue : '0.0018'}</td>
-                </tr>
-                <tr>
-                  <td className="font-medium text-slate-800">Listado 1</td>
-                  <td>Posttest</td>
-                  <td>{mPostG1 ? mPostG1.n : '14'}</td>
-                  <td>{mPostG1 ? mPostG1.mean : '8.929'}</td>
-                  <td>{mPostG1 ? mPostG1.variance : '1.302'}</td>
-                  <td>{mPostG1 ? mPostG1.stdDev : '1.141'}</td>
-                  <td>{mPostG1 ? mPostG1.median : '9.0'}</td>
-                  <td className="font-mono text-[#C0392B]">{mPostG1 ? mPostG1.shapiroWilk.pValue : '0.0114'}</td>
-                </tr>
-                <tr>
-                  <td className="font-medium text-slate-800">Listado 2</td>
-                  <td>Pretest</td>
-                  <td>{mPreG2 ? mPreG2.n : '20'}</td>
-                  <td>{mPreG2 ? mPreG2.mean : '2.100'}</td>
-                  <td>{mPreG2 ? mPreG2.variance : '1.042'}</td>
-                  <td>{mPreG2 ? mPreG2.stdDev : '1.021'}</td>
-                  <td>{mPreG2 ? mPreG2.median : '2.0'}</td>
-                  <td className="font-mono text-[#C0392B]">{mPreG2 ? mPreG2.shapiroWilk.pValue : '0.0011'}</td>
-                </tr>
-                <tr>
-                  <td className="font-medium text-slate-800">Listado 2</td>
-                  <td>Posttest</td>
-                  <td>{mPostG2 ? mPostG2.n : '17'}</td>
-                  <td>{mPostG2 ? mPostG2.mean : '7.824'}</td>
-                  <td>{mPostG2 ? mPostG2.variance : '7.404'}</td>
-                  <td>{mPostG2 ? mPostG2.stdDev : '2.721'}</td>
-                  <td>{mPostG2 ? mPostG2.median : '9.0'}</td>
-                  <td className="font-mono text-[#C0392B]">{mPostG2 ? mPostG2.shapiroWilk.pValue : '0.0019'}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* Action Gate to Jupyter Hypothesis Lab */}
-        <section className="bg-[#001A2C] text-white rounded-lg p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm print:hidden">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs uppercase font-mono text-emerald-400 font-bold">Phase 01 & 02 Completed</span>
-              <span className="text-slate-500">•</span>
-              <span className="text-xs text-slate-300">Ready for Inferential Analysis</span>
-            </div>
-            <h3 className="font-serif font-bold text-lg text-white">
-              Launch Hypothesis Verification Lab (Jupyter Module)
-            </h3>
-            <p className="text-xs text-slate-300 mt-1">
-              Verify experimental hypotheses using pre-baked Wilcoxon Signed-Rank and Mann-Whitney U test scripts.
-            </p>
-          </div>
-          <button
-            onClick={() => router.push('/lab')}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-md text-xs font-semibold flex items-center gap-2 transition shrink-0 shadow-sm"
-          >
-            <span>Open Jupyter Lab</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
         </section>
       </main>
     </div>
