@@ -14,9 +14,12 @@ describe('Data Ingestion & Pre-flight Sanitization Engine (lib/csvCleaner.ts)', 
     expect(cleaned).toBe('edgar eduardo chaux florez');
   });
 
-  it('computes Levenshtein similarity correctly for participant typos', () => {
+  it('computes token-sorted Levenshtein similarity correctly for participant typos & transposed names', () => {
     const similarity = computeNameSimilarity('cristisn montenegro', 'cristian montenegro');
     expect(similarity).toBeGreaterThan(0.9);
+
+    const transposedSim = computeNameSimilarity('Yama Alexander', 'Alexander Yama');
+    expect(transposedSim).toBeGreaterThan(0.95);
   });
 
   it('parses numeric scores from formatted questionnaire strings', () => {
@@ -60,7 +63,7 @@ describe('Data Ingestion & Pre-flight Sanitization Engine (lib/csvCleaner.ts)', 
     expect(clean[0].originalName).toBe('Alexander Yama Rosero');
   });
 
-  it('longitudinally pairs pretest and posttest respondents and computes score deltas', () => {
+  it('longitudinally pairs pretest and posttest respondents globally and computes score deltas', () => {
     const preClean: CleanedParticipant[] = [
       { id: 'pre-1', originalName: 'Alexander Yamá Rosero', normalizedName: 'alexander yama rosero', group: 'Listado 1', score: 3, timestamp: '', isFlaggedCorrupted: false },
       { id: 'pre-2', originalName: 'Darwin Meneses', normalizedName: 'darwin meneses', group: 'Listado 1', score: 2, timestamp: '', isFlaggedCorrupted: false }

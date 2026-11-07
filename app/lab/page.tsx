@@ -1,49 +1,28 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import HeaderNav from '@/components/HeaderNav';
 import { useTranslation } from '@/lib/LanguageContext';
-import { computeWilcoxonSignedRank, computeMannWhitneyU, generateIpynbJson } from '@/lib/statsEngine';
-import { CleanedParticipant, PairedParticipant } from '@/types/dataset';
+import { useDatasetStats } from '@/lib/useDatasetStats';
+import { generateIpynbJson } from '@/lib/statsEngine';
 import { Download, Play, Terminal, CheckCircle2, RotateCcw } from 'lucide-react';
 
 export default function LabPage() {
   const { t } = useTranslation();
+  const {
+    preClean,
+    postClean,
+    pairedData,
+    preScores,
+    postScores,
+    wilcoxon,
+    mannWhitney
+  } = useDatasetStats();
+
   const [isRunning, setIsRunning] = useState(false);
   const [executed, setExecuted] = useState(false);
 
-  const [preData, setPreData] = useState<CleanedParticipant[]>([]);
-  const [postData, setPostData] = useState<CleanedParticipant[]>([]);
-  const [pairedData, setPairedData] = useState<PairedParticipant[]>([]);
-
-  useEffect(() => {
-    try {
-      const savedPre = localStorage.getItem('reportthy_pre_data');
-      const savedPost = localStorage.getItem('reportthy_post_data');
-      const savedPaired = localStorage.getItem('reportthy_paired');
-
-      if (savedPre && savedPost) {
-        setPreData(JSON.parse(savedPre));
-        setPostData(JSON.parse(savedPost));
-      }
-      if (savedPaired) {
-        setPairedData(JSON.parse(savedPaired));
-      }
-    } catch (e) {
-      console.warn('Failed to load local datasets in lab');
-    }
-  }, []);
-
-  const wilcoxonRes = computeWilcoxonSignedRank(pairedData);
-
   const g1Deltas = pairedData.filter(p => p.group === 'Listado 1').map(p => p.delta);
   const g2Deltas = pairedData.filter(p => p.group === 'Listado 2').map(p => p.delta);
-  const mannWhitneyRes = computeMannWhitneyU(
-    g1Deltas.length > 0 ? g1Deltas : [6, 7, 8],
-    g2Deltas.length > 0 ? g2Deltas : [5, 6, 7]
-  );
-
-  const preScores = pairedData.length > 0 ? pairedData.map(p => p.preScore) : preData.map(p => p.score);
-  const postScores = pairedData.length > 0 ? pairedData.map(p => p.postScore) : postData.map(p => p.score);
 
   const notebookCode = `# ===============================================================
 # Automated Non-Parametric Hypothesis Verification
@@ -81,7 +60,7 @@ print(f"Mann-Whitney p-value : {p_val_u:.4e}")`;
   };
 
   const handleDownloadNotebook = () => {
-    const notebookJsonStr = generateIpynbJson(pairedData, preData, postData);
+    const notebookJsonStr = generateIpynbJson(pairedData, preClean, postClean);
     const blob = new Blob([notebookJsonStr], { type: 'application/x-ipynb+json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -151,10 +130,10 @@ print(f"Mann-Whitney p-value : {p_val_u:.4e}")`;
           {executed && (
             <div className="bg-black/75 p-5 border-t border-slate-800 font-mono text-xs text-slate-200">
               <div className="text-slate-500 mb-1">{t.lab.outputLabel}</div>
-              <div className="text-emerald-400">Wilcoxon W Statistic : {wilcoxonRes.statisticValue.toFixed(4)}</div>
-              <div className="text-emerald-400">Wilcoxon p-value     : {wilcoxonRes.pValue.toExponential(4)}</div>
-              <div className="text-cyan-300 mt-2">Mann-Whitney U Stat  : {mannWhitneyRes.statisticValue.toFixed(4)}</div>
-              <div className="text-cyan-300">Mann-Whitney p-value : {mannWhitneyRes.pValue.toFixed(4)}</div>
+              <div className="text-emerald-400">Wilcoxon W Statistic : {wilcoxon.statisticValue.toFixed(4)}</div>
+              <div className="text-emerald-400">Wilcoxon p-value     : {wilcoxon.pValue.toExponential(4)}</div>
+              <div className="text-cyan-300 mt-2">Mann-Whitney U Stat  : {mannWhitney.statisticValue.toFixed(4)}</div>
+              <div className="text-cyan-300">Mann-Whitney p-value : {mannWhitney.pValue.toFixed(4)}</div>
               <div className="mt-3 text-emerald-300 font-bold flex items-center gap-2 bg-emerald-950/60 border border-emerald-800 p-2.5 rounded">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>{t.lab.validatedMsg}</span>

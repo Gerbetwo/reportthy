@@ -109,6 +109,10 @@ export const es: Translations = {
     insufficientTitle: 'Tamaño de Subconjunto Insuficiente',
     insufficientDesc: 'Por favor ajusta los filtros para incluir al menos 3 participantes.',
     resetFilters: 'Restablecer Filtros',
+    distributionTitle: 'Visualizador de Densidad y Frecuencia de Distribución de Puntajes',
+    distributionSub: 'Comparando la distribución de suelo del pretest con la distribución de techo del posttest',
+    toggleAggregated: 'Pre vs Post',
+    toggleCohorts: 'Desglose por Cohorte',
     tableHeaders: {
       phase: 'Fase de Evaluación',
       n: 'N',

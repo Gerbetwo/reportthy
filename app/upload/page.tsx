@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import HeaderNav from '@/components/HeaderNav';
 import { parseSurveyCSV, pairPreAndPost, parseAttendanceExcel, detectCSVRole } from '@/lib/csvCleaner';
-import { RawSurveyRow, CleanedParticipant, PairedParticipant, AttritionAnalysis, AttendanceRecord } from '@/types/dataset';
+import { RawSurveyRow, CleanedParticipant } from '@/types/dataset';
 import { useTranslation } from '@/lib/LanguageContext';
+import { useDataset } from '@/lib/DatasetContext';
 import {
   Upload,
   AlertTriangle,
@@ -20,13 +21,16 @@ import {
 export default function UploadPage() {
   const router = useRouter();
   const { t } = useTranslation();
-
-  const [preClean, setPreClean] = useState<CleanedParticipant[]>([]);
-  const [postClean, setPostClean] = useState<CleanedParticipant[]>([]);
-  const [quarantined, setQuarantined] = useState<CleanedParticipant[]>([]);
-  const [paired, setPaired] = useState<PairedParticipant[]>([]);
-  const [attritionAnalysis, setAttritionAnalysis] = useState<AttritionAnalysis | null>(null);
-  const [attendanceRoster, setAttendanceRoster] = useState<AttendanceRecord[]>([]);
+  const {
+    preClean,
+    postClean,
+    pairedData,
+    quarantined,
+    attendanceRoster,
+    setDatasets,
+    unlinkPair,
+    reconcileCohorts
+  } = useDataset();
 
   const [preFilename, setPreFilename] = useState('');
   const [postFilename, setPostFilename] = useState('');
@@ -52,25 +56,16 @@ export default function UploadPage() {
 
         const { clean, quarantined: badRows } = parseSurveyCSV(results.data, role);
         if (role === 'pre') {
-          setPreClean(clean);
-          if (postClean.length > 0) {
-            const result = pairPreAndPost(clean, postClean, attendanceRoster);
-            setPaired(result.paired);
-            setAttritionAnalysis(result.attritionAnalysis);
-          }
+          setDatasets({
+            preClean: clean,
+            quarantined: [...quarantined.filter((p) => !p.id.startsWith(role)), ...badRows]
+          });
         } else {
-          setPostClean(clean);
-          if (preClean.length > 0) {
-            const result = pairPreAndPost(preClean, clean, attendanceRoster);
-            setPaired(result.paired);
-            setAttritionAnalysis(result.attritionAnalysis);
-          }
+          setDatasets({
+            postClean: clean,
+            quarantined: [...quarantined.filter((p) => !p.id.startsWith(role)), ...badRows]
+          });
         }
-
-        setQuarantined((prev) => [
-          ...prev.filter((p) => !p.id.startsWith(role)),
-          ...badRows,
-        ]);
       },
     });
   };
@@ -90,37 +85,15 @@ export default function UploadPage() {
       const buffer = evt.target?.result as ArrayBuffer;
       if (buffer) {
         const roster = parseAttendanceExcel(buffer);
-        setAttendanceRoster(roster);
-        if (preClean.length > 0 && postClean.length > 0) {
-          const result = pairPreAndPost(preClean, postClean, roster);
-          setPaired(result.paired);
-          setAttritionAnalysis(result.attritionAnalysis);
-        }
+        setDatasets({ attendanceRoster: roster });
       }
     };
     reader.readAsArrayBuffer(file);
   };
 
-  const handleUnlinkPair = (index: number) => {
-    const updated = [...paired];
-    updated.splice(index, 1);
-    setPaired(updated);
-  };
-
   const handleReconcile = () => {
     setIsProcessing(true);
-    const result = pairPreAndPost(preClean, postClean, attendanceRoster);
-    setPaired(result.paired);
-    setAttritionAnalysis(result.attritionAnalysis);
-
-    localStorage.setItem('reportthy_pre_scores', JSON.stringify(preClean.map((p) => p.score)));
-    localStorage.setItem('reportthy_post_scores', JSON.stringify(postClean.map((p) => p.score)));
-    localStorage.setItem('reportthy_pre_data', JSON.stringify(preClean));
-    localStorage.setItem('reportthy_post_data', JSON.stringify(postClean));
-    localStorage.setItem('reportthy_quarantined', JSON.stringify(quarantined));
-    localStorage.setItem('reportthy_paired', JSON.stringify(result.paired));
-    localStorage.setItem('reportthy_attrition', JSON.stringify(result.attritionAnalysis));
-
+    reconcileCohorts();
     setIsProcessing(false);
   };
 
@@ -289,7 +262,7 @@ export default function UploadPage() {
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
                 <span>{t.upload.realign}</span>
               </button>
-              {paired.length > 0 && (
+              {pairedData.length > 0 && (
                 <button
                   onClick={() => router.push('/report')}
                   className="bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-2.5 rounded-md text-xs font-semibold flex items-center gap-2 transition shadow-xs"
@@ -304,19 +277,19 @@ export default function UploadPage() {
         )}
 
         {/* Pairing Preview & Override Table */}
-        {paired.length > 0 && (
+        {pairedData.length > 0 && (
           <section className="bg-white border border-[#D0D7DE] rounded-lg p-6 shadow-xs">
             <div className="flex items-center justify-between mb-4 border-b border-[#EDF2F7] pb-3">
               <div>
                 <h3 className="font-serif font-bold text-base text-[#002B49]">
-                  {t.upload.tableTitle} ({paired.length} Matched Subjects)
+                  {t.upload.tableTitle} ({pairedData.length} Matched Subjects)
                 </h3>
                 <p className="text-xs text-[#57606A]">
                   {t.upload.tableSub}
                 </p>
               </div>
               <span className="text-xs font-mono text-emerald-800 bg-emerald-50 border border-emerald-300 px-2.5 py-1 rounded font-bold">
-                {t.upload.pairingSuccess}: {((paired.length / preClean.length) * 100).toFixed(1)}%
+                {t.upload.pairingSuccess}: {((pairedData.length / preClean.length) * 100).toFixed(1)}%
               </span>
             </div>
             <div className="overflow-x-auto">
@@ -334,7 +307,7 @@ export default function UploadPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paired.slice(0, 15).map((p, idx) => (
+                  {pairedData.slice(0, 15).map((p, idx) => (
                     <tr key={idx}>
                       <td className="font-medium text-slate-800">{p.preName}</td>
                       <td className="text-slate-600">{p.postName}</td>
@@ -351,7 +324,7 @@ export default function UploadPage() {
                       <td className="font-bold text-emerald-700">+{p.delta}</td>
                       <td>
                         <button
-                          onClick={() => handleUnlinkPair(idx)}
+                          onClick={() => unlinkPair(idx)}
                           className="text-rose-600 hover:text-rose-800 font-mono text-[11px] flex items-center gap-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded transition"
                           title="Unlink pair"
                         >

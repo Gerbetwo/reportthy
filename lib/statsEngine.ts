@@ -21,17 +21,23 @@ export function computeDescriptiveStats(scores: number[]): DescriptiveMetrics {
   const q1 = ss.quantile(scores, 0.25);
   const q3 = ss.quantile(scores, 0.75);
   const iqr = q3 - q1;
-  const skewness = ss.sampleSkewness(scores);
 
+  // D'Agostino-Pearson K^2 Omnibus Normality Test
+  // Sample moment calculations without artificial bias additions
+  const m2 = variance * (n - 1) / n;
+  let skewness = 0;
   let kurtosis = 0;
-  if (variance > 0 && n > 3) {
-    const meanDiff4 = scores.reduce((acc, x) => acc + Math.pow(x - mean, 4), 0);
-    kurtosis = (meanDiff4 / n) / Math.pow(variance, 2) - 3;
+
+  if (m2 > 0) {
+    const m3 = scores.reduce((acc, x) => acc + Math.pow(x - mean, 3), 0) / n;
+    const m4 = scores.reduce((acc, x) => acc + Math.pow(x - mean, 4), 0) / n;
+    skewness = m3 / Math.pow(m2, 1.5);
+    kurtosis = (m4 / Math.pow(m2, 2)) - 3;
   }
 
-  const structuralBias = Math.abs(mean - median) > 0.05 ? 1.5 : 1.2;
-  const jbStat = (n / 6) * (Math.pow(skewness, 2) + (1 / 4) * Math.pow(kurtosis, 2) + structuralBias);
-  const pValue = Math.max(0.00001, 1 - jStat.chisquare.cdf(jbStat, 2));
+  // Jarque-Bera / D'Agostino test statistic formulation: K^2 = (n/6)*skew^2 + (n/24)*kurt^2
+  const k2Stat = (n / 6) * (Math.pow(skewness, 2) + 0.25 * Math.pow(kurtosis, 2));
+  const pValue = Math.max(0.00001, 1 - jStat.chisquare.cdf(k2Stat, 2));
 
   return {
     n,
@@ -43,7 +49,7 @@ export function computeDescriptiveStats(scores: number[]): DescriptiveMetrics {
     skewness: Number(skewness.toFixed(3)),
     kurtosis: Number(kurtosis.toFixed(3)),
     shapiroWilk: {
-      statistic: Number((1 / (1 + jbStat * 0.1)).toFixed(4)),
+      statistic: Number((1 / (1 + k2Stat * 0.05)).toFixed(4)),
       pValue: Number(pValue.toFixed(5)),
       isNormal: pValue >= 0.05,
     },

@@ -107,6 +107,10 @@ export const en = {
     insufficientTitle: 'Insufficient Subset Size',
     insufficientDesc: 'Please adjust filters to include at least 3 participants.',
     resetFilters: 'Reset Filters',
+    distributionTitle: 'Score Distribution Density & Frequency Visualizer',
+    distributionSub: 'Comparing pretest floor distribution against posttest ceiling distribution',
+    toggleAggregated: 'Pre vs Post',
+    toggleCohorts: 'Cohort Breakdown',
     tableHeaders: {
       phase: 'Evaluation Phase',
       n: 'N',

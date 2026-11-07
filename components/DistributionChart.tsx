@@ -20,12 +20,10 @@ export default function DistributionChart({ preData, postData }: DistributionCha
     1
   );
 
-  // Safely fallback to hardcoded strings if translation keys are missing from the dictionary type
-  const reportDict = t.report as unknown as Record<string, undefined>;
-  const distributionTitle = reportDict?.distributionTitle || 'Score Distribution Density & Frequency Visualizer';
-  const distributionSub = reportDict?.distributionSub || 'Comparing pretest floor distribution against posttest ceiling distribution';
-  const toggleAggregated = reportDict?.toggleAggregated || 'Pre vs Post';
-  const toggleCohorts = reportDict?.toggleCohorts || 'Cohort Breakdown';
+  const distributionTitle = t.report.distributionTitle;
+  const distributionSub = t.report.distributionSub;
+  const toggleAggregated = t.report.toggleAggregated;
+  const toggleCohorts = t.report.toggleCohorts;
 
   return (
     <div className="bg-white p-6 rounded-lg border border-[#D0D7DE] shadow-xs mb-8 print:border-none print:shadow-none">

@@ -1,12 +1,10 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import HeaderNav from '@/components/HeaderNav';
 import DistributionChart from '@/components/DistributionChart';
-import { computeDescriptiveStats } from '@/lib/statsEngine';
 import { generateSpringerNatureLatex } from '@/lib/latexTemplate';
-import { pairPreAndPost } from '@/lib/csvCleaner';
-import { DescriptiveMetrics, CleanedParticipant, PairedParticipant, AttritionAnalysis } from '@/types/dataset';
 import { useTranslation } from '@/lib/LanguageContext';
+import { useDatasetStats } from '@/lib/useDatasetStats';
 import {
   Download,
   Copy,
@@ -22,51 +20,20 @@ import {
 
 export default function QualityReportPage() {
   const { lang, t } = useTranslation();
-  const [preData, setPreData] = useState<CleanedParticipant[]>([]);
-  const [postData, setPostData] = useState<CleanedParticipant[]>([]);
-  const [pairedData, setPairedData] = useState<PairedParticipant[]>([]);
-  const [attrition, setAttrition] = useState<AttritionAnalysis | null>(null);
+  const {
+    preClean,
+    postClean,
+    pairedData,
+    preMetrics,
+    postMetrics,
+    attritionAnalysis
+  } = useDatasetStats();
 
   const [copied, setCopied] = useState(false);
   const [isCompilingPdf, setIsCompilingPdf] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  useEffect(() => {
-    try {
-      const savedPreData = localStorage.getItem('reportthy_pre_data');
-      const savedPostData = localStorage.getItem('reportthy_post_data');
-      const savedPairedData = localStorage.getItem('reportthy_paired');
-      const savedAttritionData = localStorage.getItem('reportthy_attrition');
-
-      if (savedPreData && savedPostData) {
-        const parsedPre = JSON.parse(savedPreData);
-        const parsedPost = JSON.parse(savedPostData);
-        setPreData(parsedPre);
-        setPostData(parsedPost);
-
-        if (savedPairedData) {
-          setPairedData(JSON.parse(savedPairedData));
-        } else {
-          const reconciliation = pairPreAndPost(parsedPre, parsedPost);
-          setPairedData(reconciliation.paired);
-        }
-
-        if (savedAttritionData) {
-          setAttrition(JSON.parse(savedAttritionData));
-        }
-      }
-    } catch (e) {
-      setPreData([]);
-      setPostData([]);
-      setPairedData([]);
-      setAttrition(null);
-    }
-  }, []);
-
-  const preScores = useMemo(() => preData.map((p) => p.score), [preData]);
-  const postScores = useMemo(() => postData.map((p) => p.score), [postData]);
-
-  if (preScores.length < 3 || postScores.length < 3) {
+  if (!preMetrics || !postMetrics) {
     return (
       <div className="min-h-screen bg-[#F8F9FA] text-[#1F2328]">
         <HeaderNav />
@@ -90,9 +57,6 @@ export default function QualityReportPage() {
     );
   }
 
-  const preMetrics: DescriptiveMetrics = computeDescriptiveStats(preScores);
-  const postMetrics: DescriptiveMetrics = computeDescriptiveStats(postScores);
-
   const attritionCount = Math.max(0, preMetrics.n - postMetrics.n);
   const attritionRate = preMetrics.n > 0 ? (attritionCount / preMetrics.n) * 100 : 0;
   const latexCode = generateSpringerNatureLatex(
@@ -101,7 +65,7 @@ export default function QualityReportPage() {
     attritionCount,
     attritionRate,
     lang,
-    attrition || undefined,
+    attritionAnalysis || undefined,
     pairedData
   );
 
@@ -206,7 +170,7 @@ export default function QualityReportPage() {
                   {t.report.normalityTitle || 'Distribution: Non-Normal'}
                 </span>
                 <span className="text-xs font-mono text-[#C0392B] font-bold">
-                  (Shapiro-Wilk p &lt; 0.05)
+                  (D&apos;Agostino-Pearson p &lt; 0.05)
                 </span>
               </div>
               <p className="text-xs font-semibold text-[#002B49] mt-2 font-mono leading-relaxed">
@@ -235,7 +199,7 @@ export default function QualityReportPage() {
         </section>
 
         {/* Score Distribution Density Histogram */}
-        <DistributionChart preData={preData} postData={postData} />
+        <DistributionChart preData={preClean} postData={postClean} />
 
         {/* Quick KPI Cards */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

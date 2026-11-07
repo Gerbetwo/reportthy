@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
-import { execSync } from 'child_process';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
+
+const execFileAsync = promisify(execFile);
 
 export async function POST(request: Request) {
   let tmpDir = '';
@@ -18,18 +21,25 @@ export async function POST(request: Request) {
     const texFilePath = path.join(tmpDir, `report_${jobId}.tex`);
     const pdfFilePath = path.join(tmpDir, `report_${jobId}.pdf`);
 
+    // Copy bundled sn-jnl.cls into tmpDir if available
+    const clsSource = path.join(process.cwd(), 'lib', 'tex', 'sn-jnl.cls');
+    if (fs.existsSync(clsSource)) {
+      fs.copyFileSync(clsSource, path.join(tmpDir, 'sn-jnl.cls'));
+    }
+
     fs.writeFileSync(texFilePath, latexContent, 'utf-8');
 
-    // Two compilation passes to ensure booktabs and hyperref cross-references settle properly
+    // Execute pdflatex safely via execFile with security flags disabled shell escapes
+    const pdfArgs = [
+      '-interaction=nonstopmode',
+      '-no-shell-escape',
+      `-output-directory=${tmpDir}`,
+      texFilePath
+    ];
+
     try {
-      execSync(`pdflatex -interaction=nonstopmode -output-directory=${tmpDir} ${texFilePath}`, {
-        timeout: 12000,
-        stdio: 'ignore'
-      });
-      execSync(`pdflatex -interaction=nonstopmode -output-directory=${tmpDir} ${texFilePath}`, {
-        timeout: 12000,
-        stdio: 'ignore'
-      });
+      await execFileAsync('pdflatex', pdfArgs, { timeout: 12000 });
+      await execFileAsync('pdflatex', pdfArgs, { timeout: 12000 });
     } catch (execErr) {
       console.error('[pdflatex compilation process error]:', execErr);
       return NextResponse.json(

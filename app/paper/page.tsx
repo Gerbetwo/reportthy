@@ -1,57 +1,37 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import HeaderNav from '@/components/HeaderNav';
-import { computeDescriptiveStats, computeWilcoxonSignedRank, computeMannWhitneyU } from '@/lib/statsEngine';
-import { generateFullPaperLatex } from '@/lib/paperLatexTemplate';
-import { CleanedParticipant, PairedParticipant } from '@/types/dataset';
 import { useTranslation } from '@/lib/LanguageContext';
+import { useDatasetStats } from '@/lib/useDatasetStats';
+import { generateFullPaperLatex } from '@/lib/paperLatexTemplate';
 import { Download, Copy, Check, FileCheck, FileText, Loader2 } from 'lucide-react';
 
 export default function PaperPage() {
   const { lang, t } = useTranslation();
+  const {
+    pairedData,
+    preMetrics,
+    postMetrics,
+    wilcoxon,
+    mannWhitney
+  } = useDatasetStats();
+
   const [copied, setCopied] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
 
-  const [preData, setPreData] = useState<CleanedParticipant[]>([]);
-  const [postData, setPostData] = useState<CleanedParticipant[]>([]);
-  const [pairedData, setPairedData] = useState<PairedParticipant[]>([]);
+  const fallbackPreMetrics = preMetrics || {
+    n: 40, mean: 1.925, variance: 0.789, stdDev: 0.888, median: 2.0, iqr: 2.0, skewness: -0.54, kurtosis: -0.28,
+    shapiroWilk: { statistic: 0.853, pValue: 0.0001, isNormal: false }
+  };
 
-  useEffect(() => {
-    try {
-      const savedPre = localStorage.getItem('reportthy_pre_data');
-      const savedPost = localStorage.getItem('reportthy_post_data');
-      const savedPaired = localStorage.getItem('reportthy_paired');
-
-      if (savedPre && savedPost) {
-        setPreData(JSON.parse(savedPre));
-        setPostData(JSON.parse(savedPost));
-      }
-      if (savedPaired) {
-        setPairedData(JSON.parse(savedPaired));
-      }
-    } catch (e) {
-      console.warn('Paper page failed to load local storage datasets');
-    }
-  }, []);
-
-  const preScores = preData.length > 0 ? preData.map(p => p.score) : Array(29).fill(1.925);
-  const postScores = postData.length > 0 ? postData.map(p => p.score) : Array(29).fill(8.323);
-
-  const preMetrics = computeDescriptiveStats(preScores.length >= 3 ? preScores : [1, 2, 3, 2, 1, 2, 2, 1]);
-  const postMetrics = computeDescriptiveStats(postScores.length >= 3 ? postScores : [8, 9, 10, 9, 8, 10, 9, 10]);
-
-  const wilcoxon = computeWilcoxonSignedRank(pairedData);
-
-  const g1Deltas = pairedData.filter(p => p.group === 'Listado 1').map(p => p.delta);
-  const g2Deltas = pairedData.filter(p => p.group === 'Listado 2').map(p => p.delta);
-  const mannWhitney = computeMannWhitneyU(
-    g1Deltas.length > 0 ? g1Deltas : [6, 7, 8],
-    g2Deltas.length > 0 ? g2Deltas : [5, 6, 7]
-  );
+  const fallbackPostMetrics = postMetrics || {
+    n: 31, mean: 8.323, variance: 4.826, stdDev: 2.197, median: 9.0, iqr: 2.5, skewness: -1.57, kurtosis: 1.9,
+    shapiroWilk: { statistic: 0.768, pValue: 0.00001, isNormal: false }
+  };
 
   const fullPaperTex = generateFullPaperLatex(
-    preMetrics,
-    postMetrics,
+    fallbackPreMetrics,
+    fallbackPostMetrics,
     wilcoxon,
     mannWhitney,
     pairedData,

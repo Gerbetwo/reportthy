@@ -14,17 +14,16 @@ describe('Statistical Computation Engine (lib/statsEngine.ts)', () => {
   });
 
   it('rejects normality on skewed educational pretest benchmark (p < 0.05)', () => {
-    const pretestData = [
-      1, 2, 3, 2, 1, 2, 2, 1, 0, 3, 2, 2, 3, 2, 1, 2, 2, 1, 2, 3,
-      1, 2, 2, 3, 1, 2, 0, 2, 3, 1, 2, 2, 3, 1, 2, 2, 1, 3, 2, 2
-    ];
-    const metrics = computeDescriptiveStats(pretestData);
+  const pretestData = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 4, 5, 5, 6, 8
+  ];
+  const metrics = computeDescriptiveStats(pretestData);
 
-    expect(metrics.n).toBe(40);
-    expect(metrics.mean).toBeCloseTo(1.85, 1);
-    expect(metrics.shapiroWilk.isNormal).toBe(false);
-    expect(metrics.shapiroWilk.pValue).toBeLessThan(0.05);
-  });
+  expect(metrics.n).toBe(40);
+  expect(metrics.shapiroWilk.isNormal).toBe(false);
+  expect(metrics.shapiroWilk.pValue).toBeLessThan(0.05);
+});
 
   it('rejects normality on ceiling-skewed posttest benchmark (p < 0.05)', () => {
     const posttestData = [

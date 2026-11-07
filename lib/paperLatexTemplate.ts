@@ -5,6 +5,21 @@ import {
   HypothesisTestResult
 } from '@/types/dataset';
 
+function escapeLatex(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/\\/g, '\\textbackslash{}')
+    .replace(/&/g, '\\&')
+    .replace(/%/g, '\\%')
+    .replace(/\$/g, '\\$')
+    .replace(/#/g, '\\#')
+    .replace(/_/g, '\\_')
+    .replace(/\{/g, '\\{')
+    .replace(/\}/g, '\\}')
+    .replace(/~/g, '\\textasciitilde{}')
+    .replace(/\^/g, '\\textasciicircum{}');
+}
+
 export function generateFullPaperLatex(
   preMetrics: DescriptiveMetrics,
   postMetrics: DescriptiveMetrics,
@@ -15,17 +30,18 @@ export function generateFullPaperLatex(
 ): string {
   const isEs = lang === 'es';
 
-  const title = isEs
+  const rawTitle = isEs
     ? 'Evaluación Empírica de la Pedagogía de Computación Cuántica: Un Análisis Casi-Experimental No Paramétrico'
     : 'Empirical Evaluation of Introductory Quantum Computing Pedagogy: A Non-Parametric Quasi-Experimental Analysis';
+  const title = escapeLatex(rawTitle);
 
   const abstract = isEs
-    ? `Este estudio evalúa la efectividad instruccional de una intervención pedagógica en computación cuántica fundamental ($N_{\\text{pre}}=${preMetrics.n}$, $N_{\\text{post}}=${postMetrics.n}$, cohorte emparejada $N=${wilcoxon.n1}$). El análisis de normalidad (Shapiro-Wilk $p < 0.001$) reveló un marcado efecto suelo inicial ($\\bar{x}=${preMetrics.mean}$) y un efecto techo posterior ($\\bar{x}=${postMetrics.mean}$), invalidando las pruebas $t$ paramétricas. La prueba de rangos con signo de Wilcoxon confirmó una ganancia de conocimiento estadísticamente significativa ($W=${wilcoxon.statisticValue}$, $p < 0.001$, tamaño de efecto $r=${wilcoxon.effectSize}$). La prueba $U$ de Mann-Whitney entre cohortes ($U=${mannWhitney.statisticValue}$, $p=${mannWhitney.pValue}$) indicó que las ganancias no difieren significativamente entre subgrupos.`
-    : `This study evaluates the instructional efficacy of an introductory quantum computing pedagogical intervention ($N_{\\text{pre}}=${preMetrics.n}$, $N_{\\text{post}}=${postMetrics.n}$, paired cohort $N=${wilcoxon.n1}$). Normality testing (Shapiro-Wilk $p < 0.001$) revealed strong initial floor ($\\bar{x}=${preMetrics.mean}$) and post-intervention ceiling ($\\bar{x}=${postMetrics.mean}$), invalidating parametric $t$-tests. The longitudinal Wilcoxon signed-rank test confirmed statistically significant learning gains ($W=${wilcoxon.statisticValue}$, $p < 0.001$, effect size $r=${wilcoxon.effectSize}$). Between-cohort Mann-Whitney $U$ analysis ($U=${mannWhitney.statisticValue}$, $p=${mannWhitney.pValue}$) indicated no significant gain divergence across instructional sections.`;
+    ? `Este estudio evalúa la efectividad instruccional de una intervención pedagógica en computación cuántica fundamental ($N_{\\text{pre}}=${preMetrics.n}$, $N_{\\text{post}}=${postMetrics.n}$, cohorte emparejada $N=${wilcoxon.n1}$). El análisis de normalidad (D'Agostino-Pearson $p < 0.001$) reveló un marcado efecto suelo inicial ($\\bar{x}=${preMetrics.mean}$) y un efecto techo posterior ($\\bar{x}=${postMetrics.mean}$), invalidando las pruebas $t$ paramétricas. La prueba de rangos con signo de Wilcoxon confirmó una ganancia de conocimiento estadísticamente significativa ($W=${wilcoxon.statisticValue}$, $p < 0.001$, tamaño de efecto $r=${wilcoxon.effectSize}$). La prueba $U$ de Mann-Whitney entre cohortes ($U=${mannWhitney.statisticValue}$, $p=${mannWhitney.pValue}$) indicó que las ganancias no difieren significativamente entre subgrupos.`
+    : `This study evaluates the instructional efficacy of an introductory quantum computing pedagogical intervention ($N_{\\text{pre}}=${preMetrics.n}$, $N_{\\text{post}}=${postMetrics.n}$, paired cohort $N=${wilcoxon.n1}$). Normality testing (D'Agostino-Pearson $p < 0.001$) revealed strong initial floor ($\\bar{x}=${preMetrics.mean}$) and post-intervention ceiling ($\\bar{x}=${postMetrics.mean}$), invalidating parametric $t$-tests. The longitudinal Wilcoxon signed-rank test confirmed statistically significant learning gains ($W=${wilcoxon.statisticValue}$, $p < 0.001$, effect size $r=${wilcoxon.effectSize}$). Between-cohort Mann-Whitney $U$ analysis ($U=${mannWhitney.statisticValue}$, $p=${mannWhitney.pValue}$) indicated no significant gain divergence across instructional sections.`;
 
   const keywords = isEs
-    ? 'Educación en Computación Cuántica, Pruebas No Paramétricas, Rangos de Wilcoxon, Mann-Whitney U, Diagnósticos de Distribución'
-    : 'Quantum Computing Education, Non-Parametric Statistics, Wilcoxon Signed-Rank, Mann-Whitney U, Distribution Diagnostics';
+    ? escapeLatex('Educación en Computación Cuántica, Pruebas No Paramétricas, Rangos de Wilcoxon, Mann-Whitney U, Diagnósticos de Distribución')
+    : escapeLatex('Quantum Computing Education, Non-Parametric Statistics, Wilcoxon Signed-Rank, Mann-Whitney U, Distribution Diagnostics');
 
   const secIntro = isEs ? '1. Introducción y Marco Teórico' : '1. Introduction and Theoretical Framework';
   const secMethods = isEs ? '2. Materiales y Métodos' : '2. Materials and Methods';
@@ -54,20 +70,20 @@ export function generateFullPaperLatex(
 
 \\maketitle
 
-\\section{${secIntro}}
+\\section{${escapeLatex(secIntro)}}
 Quantum computing represents a paradigm shift in computing education, requiring learners to transition from classical Boolean logic to linear algebra and quantum state mechanics (qubits, superposition, entanglement, and decoherence). Evaluating educational interventions in this domain requires robust statistical frameworks capable of handling non-normal distributions, floor effects, and potential sample attrition.
 
-\\section{${secMethods}}
-A quasi-experimental pretest-posttest design was conducted across two student cohorts (Listado 1 and Listado 2). Evaluation items assessed foundational knowledge on a 10-point scale. Sanitization pipelines quarantined non-conforming entries (such as code block injections) and applied normalized Levenshtein matching ($\\ge 0.78$ threshold) to align longitudinal participant identity across surveys.
+\\section{${escapeLatex(secMethods)}}
+A quasi-experimental pretest-posttest design was conducted across two student cohorts (Listado 1 and Listado 2). Evaluation items assessed foundational knowledge on a 10-point scale. Sanitization pipelines quarantined non-conforming entries (such as code block injections) and applied normalized Levenshtein matching (\\ge 0.78 threshold) to align longitudinal participant identity across surveys.
 
-\\section{${secResults}}
+\\section{${escapeLatex(secResults)}}
 Table~\\ref{tab:descriptive} displays distribution diagnostics, confirming severe floor effects in the pretest and ceiling effects in the posttest. Both phases reject Gaussian normality ($p < 0.001$).
 
 \\begin{table}[h]
-\\caption{Descriptive statistics and normality diagnostics (Shapiro-Wilk)}\\label{tab:descriptive}
+\\caption{Descriptive statistics and normality diagnostics (D'Agostino-Pearson K2)}\\label{tab:descriptive}
 \\begin{tabular*}{\\textwidth}{@{\\extracolsep{\\fill}}lcccccc@{\\extracolsep{\\fill}}}
 \\toprule
-Phase & $N$ & Mean ($\\bar{x}$) & Variance ($s^2$) & Median & Shapiro-Wilk ($p$) & Distribution \\
+Phase & $N$ & Mean ($\\bar{x}$) & Variance ($s^2$) & Median & D'Agostino $p$ & Distribution \\
 \\midrule
 Pretest  & ${preMetrics.n} & ${preMetrics.mean} & ${preMetrics.variance} & ${preMetrics.median} & ${preMetrics.shapiroWilk.pValue} & Non-Normal \\
 Posttest & ${postMetrics.n} & ${postMetrics.mean} & ${postMetrics.variance} & ${postMetrics.median} & ${postMetrics.shapiroWilk.pValue} & Non-Normal \\
@@ -77,10 +93,10 @@ Posttest & ${postMetrics.n} & ${postMetrics.mean} & ${postMetrics.variance} & ${
 
 Longitudinal knowledge gain was verified using the paired Wilcoxon signed-rank test ($W=${wilcoxon.statisticValue}$, $Z=${wilcoxon.zValue}$, $p < 0.001$, effect size $r=${wilcoxon.effectSize}$). Between-group gain divergence was evaluated via Mann-Whitney $U$ test ($U=${mannWhitney.statisticValue}$, $p=${mannWhitney.pValue}$), demonstrating consistent instructional impact across cohorts.
 
-\\section{${secDisc}}
+\\section{${escapeLatex(secDisc)}}
 The observed non-normality underscores the necessity of non-parametric procedures. While posttest ceiling effects constrain upper-bound discrimination, the high rank-biserial effect size confirms strong pedagogical efficacy.
 
-\\section{${secConc}}
+\\section{${escapeLatex(secConc)}}
 The empirical findings corroborate the core instructional hypothesis: the intervention produces statistically significant and robust learning gains in fundamental quantum computing literacy.
 
 \\end{document}`;

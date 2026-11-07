@@ -40,13 +40,22 @@ export function levenshteinDistance(a: string, b: string): number {
 }
 
 export function computeNameSimilarity(nameA: string, nameB: string): number {
-  const a = normalizeName(nameA);
-  const b = normalizeName(nameB);
-  if (a === b) return 1.0;
-  if (a.includes(b) || b.includes(a)) return 0.9;
-  const maxLen = Math.max(a.length, b.length);
+  const normA = normalizeName(nameA);
+  const normB = normalizeName(nameB);
+  if (normA === normB) return 1.0;
+
+  // Token-sorted comparison (handles "Last First" vs "First Last")
+  const sortTokens = (str: string) => str.split(" ").filter(Boolean).sort().join(" ");
+  const sortedA = sortTokens(normA);
+  const sortedB = sortTokens(normB);
+  if (sortedA === sortedB) return 0.98;
+
+  const maxLen = Math.max(sortedA.length, sortedB.length);
   if (maxLen === 0) return 1.0;
-  return 1 - levenshteinDistance(a, b) / maxLen;
+
+  // Strict Levenshtein ratio on sorted tokens to avoid substring false positives
+  const dist = levenshteinDistance(sortedA, sortedB);
+  return Number((1 - dist / maxLen).toFixed(2));
 }
 
 export function parseAttendanceExcel(
@@ -179,40 +188,44 @@ export function pairPreAndPost(
   unmatchedPost: CleanedParticipant[];
   attritionAnalysis: AttritionAnalysis;
 } {
-  const paired: PairedParticipant[] = [];
-  const usedPreIds = new Set<string>();
-  const unmatchedPost: CleanedParticipant[] = [];
+  const candidates: { pre: CleanedParticipant; post: CleanedParticipant; sim: number }[] = [];
 
-  postClean.forEach((post) => {
-    let bestSim = 0;
-    let bestMatch: CleanedParticipant | null = null;
-
-    preClean.forEach((pre) => {
-      if (usedPreIds.has(pre.id)) return;
+  // 1. Generate all candidate pair combinations
+  preClean.forEach((pre) => {
+    postClean.forEach((post) => {
       const sim = computeNameSimilarity(pre.originalName, post.originalName);
-      if (sim > bestSim) {
-        bestSim = sim;
-        bestMatch = pre;
+      if (sim >= threshold) {
+        candidates.push({ pre, post, sim });
       }
     });
+  });
 
-    if (bestMatch && bestSim >= threshold) {
-      usedPreIds.add((bestMatch as CleanedParticipant).id);
+  // 2. Globally sort candidates by highest similarity score
+  candidates.sort((a, b) => b.sim - a.sim);
+
+  const usedPre = new Set<string>();
+  const usedPost = new Set<string>();
+  const paired: PairedParticipant[] = [];
+
+  // 3. Greedily lock globally optimal pairs
+  candidates.forEach(({ pre, post, sim }) => {
+    if (!usedPre.has(pre.id) && !usedPost.has(post.id)) {
+      usedPre.add(pre.id);
+      usedPost.add(post.id);
       paired.push({
-        preName: (bestMatch as CleanedParticipant).originalName,
+        preName: pre.originalName,
         postName: post.originalName,
-        similarity: Number(bestSim.toFixed(2)),
+        similarity: sim,
         group: post.group,
-        preScore: (bestMatch as CleanedParticipant).score,
+        preScore: pre.score,
         postScore: post.score,
-        delta: post.score - (bestMatch as CleanedParticipant).score,
+        delta: post.score - pre.score,
       });
-    } else {
-      unmatchedPost.push(post);
     }
   });
 
-  const unmatchedPre = preClean.filter((pre) => !usedPreIds.has(pre.id));
+  const unmatchedPre = preClean.filter((pre) => !usedPre.has(pre.id));
+  const unmatchedPost = postClean.filter((post) => !usedPost.has(post.id));
 
   let officialDropouts: AttendanceRecord[] = [];
   let masterRosterCount = preClean.length;

@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  experimental: {
+    cacheComponents: true,
+    // @ts-expect-error - partialPrefetching is supported at runtime
+    partialPrefetching: true,
+  },
   turbopack: {
     rules: {
       "*.css": {
