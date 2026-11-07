@@ -27,17 +27,22 @@ export default function QualityReportPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const savedPre = localStorage.getItem('reportthy_pre_scores');
-    const savedPost = localStorage.getItem('reportthy_post_scores');
-    const savedPreData = localStorage.getItem('reportthy_pre_data');
-    const savedPostData = localStorage.getItem('reportthy_post_data');
+    try {
+      const savedPre = localStorage.getItem('reportthy_pre_scores');
+      const savedPost = localStorage.getItem('reportthy_post_scores');
+      const savedPreData = localStorage.getItem('reportthy_pre_data');
+      const savedPostData = localStorage.getItem('reportthy_post_data');
 
-    if (savedPre && savedPost) {
-      setPreScores(JSON.parse(savedPre));
-      setPostScores(JSON.parse(savedPost));
-      if (savedPreData) setPreData(JSON.parse(savedPreData));
-      if (savedPostData) setPostData(JSON.parse(savedPostData));
-    } else {
+      if (savedPre && savedPost) {
+        setPreScores(JSON.parse(savedPre));
+        setPostScores(JSON.parse(savedPost));
+        if (savedPreData) setPreData(JSON.parse(savedPreData));
+        if (savedPostData) setPostData(JSON.parse(savedPostData));
+      } else {
+        throw new Error('No saved scores found in storage');
+      }
+    } catch (e) {
+      console.warn('[QualityReport] Failed to load cached scores from localStorage. Loading benchmark defaults.', e);
       // Default verified empirical benchmark: N=40 pretest, N=31 clean posttest
       const benchmarkPre = [1,2,3,2,1,2,2,1,0,3,2,2,3,2,1,2,2,1,2,3,1,2,2,3,1,2,0,2,3,1,2,2,3,1,2,2,1,3,2,2];
       const benchmarkPost = [8,7,10,7,8,10,5,9,10,10,10,9,9,10,10,10,10,10,9,9,10,9,9,2,9,7,10,8,8,7,10];

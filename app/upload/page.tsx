@@ -132,6 +132,11 @@ export default function UploadPage() {
     Papa.parse<RawSurveyRow>(file, {
       header: true,
       skipEmptyLines: true,
+      error: (error) => {
+        console.error('[CSV Ingestion] PapaParse error:', error);
+        setIsProcessing(false);
+        alert('Failed to parse CSV file: ' + error.message);
+      },
       complete: (results) => {
         const { clean, quarantined: badRows } = parseSurveyCSV(results.data, role);
         if (role === 'pre') {
