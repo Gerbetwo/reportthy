@@ -214,7 +214,7 @@ export default function QualityReportPage() {
                 <tr>
                   <th>Phase</th>
                   <th>N</th>
-                  <th>Mean ($ar{x}$)</th>
+                  <th>{`Mean ($\\bar{x}$)`}</th>
                   <th>Variance ($s^2$)</th>
                   <th>Std Dev ($s$)</th>
                   <th>Median</th>
@@ -279,7 +279,7 @@ export default function QualityReportPage() {
                   <th>Cohort Subset</th>
                   <th>Phase</th>
                   <th>N</th>
-                  <th>Mean ($ar{x}$)</th>
+                  <th>{`Mean ($\\bar{x}$)`}</th>
                   <th>Variance ($s^2$)</th>
                   <th>Std Dev ($s$)</th>
                   <th>Median</th>
