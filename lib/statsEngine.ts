@@ -1,8 +1,10 @@
 import {
   CleanedParticipant,
   PairedParticipant,
-  AttritionAnalysis
+  AttritionAnalysis,
+  StudyMetadata,
 } from '@/types/dataset';
+import { inferDefaultCohortRole } from '@/lib/csvCleaner';
 
 export function generateIpynbJson(
   pairedData: PairedParticipant[],
@@ -12,36 +14,101 @@ export function generateIpynbJson(
   attritionAnalysis?: AttritionAnalysis | null,
   alternative: 'greater' | 'less' | 'two-sided' = 'greater',
   alpha: number = 0.05,
-  apiBaseUrl: string = process.env.REPORTTHY_INTERNAL_URL || 'http://localhost:3000'
+  apiBaseUrl: string = process.env.REPORTTHY_INTERNAL_URL || 'http://localhost:3000',
+  studyMetadata?: StudyMetadata,
+  sessionId?: string
 ): string {
-  const pairedRecords = pairedData.length > 0
-    ? pairedData
-    : preData.slice(0, Math.min(preData.length, postData.length)).map((pre, idx) => ({
-        preName: pre.originalName,
-        postName: postData[idx]?.originalName || pre.originalName,
-        similarity: 1.0,
-        group: postData[idx]?.group || pre.group,
-        preScore: pre.score,
-        postScore: postData[idx]?.score ?? pre.score,
-        delta: (postData[idx]?.score ?? pre.score) - pre.score,
-      }));
+  const pairedRecords =
+    pairedData.length > 0
+      ? pairedData.map((p) => ({
+          ...p,
+          cohortRole:
+            p.cohortRole ??
+            (studyMetadata?.cohortMapping?.[p.group] ||
+              inferDefaultCohortRole(p.group)),
+        }))
+      : preData
+          .slice(0, Math.min(preData.length, postData.length))
+          .map((pre, idx) => {
+            const grp = postData[idx]?.group || pre.group;
+            const role =
+              postData[idx]?.cohortRole &&
+              postData[idx].cohortRole !== 'Unassigned'
+                ? postData[idx].cohortRole
+                : pre.cohortRole ??
+                  (studyMetadata?.cohortMapping?.[grp] ||
+                    inferDefaultCohortRole(grp));
+            return {
+              preName: pre.originalName,
+              postName: postData[idx]?.originalName || pre.originalName,
+              similarity: 1.0,
+              group: grp,
+              cohortRole: role,
+              preScore: pre.score,
+              postScore: postData[idx]?.score ?? pre.score,
+              delta: (postData[idx]?.score ?? pre.score) - pre.score,
+            };
+          });
 
-  const preScores = pairedRecords.map(p => p.preScore);
-  const postScores = pairedRecords.map(p => p.postScore);
+  const preScores = pairedRecords.map((p) => p.preScore);
+  const postScores = pairedRecords.map((p) => p.postScore);
   const quarantinedCount = quarantined.length;
-  const attritionRate = attritionAnalysis?.attritionRate ?? (
-    preData.length > 0 ? Number(((Math.max(preData.length - postData.length, 0) / preData.length) * 100).toFixed(1)) : 0
-  );
+  const attritionRate =
+    attritionAnalysis?.attritionRate ??
+    (preData.length > 0
+      ? Number(
+          (
+            (Math.max(preData.length - postData.length, 0) / preData.length) *
+            100
+          ).toFixed(1)
+        )
+      : 0);
+
+  const effectiveAlpha = studyMetadata?.alpha ?? alpha;
+  const effectiveWilcoxonAlt = studyMetadata?.wilcoxonAlternative ?? alternative;
+  const effectiveMannWhitneyAlt =
+    studyMetadata?.mannWhitneyAlternative ??
+    (studyMetadata?.designMode === 'within_subject' ? 'two-sided' : 'greater');
+  const effectiveDesignMode = studyMetadata?.designMode ?? 'within_subject';
+  const studyTitle =
+    studyMetadata?.studyTitle?.trim() ||
+    'Quantum Computing Pedagogy: Longitudinal Hypothesis Verification';
+  const topicDomain =
+    studyMetadata?.topicDomain?.trim() ||
+    'Introductory Quantum Computing Literacy';
+  const controlPedagogy =
+    studyMetadata?.controlPedagogy?.trim() ||
+    'Standard synchronous lecture and problem sets';
+  const experimentalPedagogy =
+    studyMetadata?.experimentalPedagogy?.trim() ||
+    'Interactive instructional intervention with immediate telemetry';
+  const hypothesisStatement =
+    studyMetadata?.hypothesisStatement?.trim() ||
+    'The instructional intervention produces a statistically significant positive learning shift (\\Delta > 0).';
+  const authorNames =
+    studyMetadata?.authors && studyMetadata.authors.length > 0
+      ? studyMetadata.authors.map((a) => a.fullName).filter(Boolean).join(', ')
+      : 'Research Investigator Team';
+
+  const safeSessionId = sessionId || 'default-workspace';
+  const sessionQuery = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '';
+  const datasetApiUrl = `${apiBaseUrl}/api/notebook/dataset${sessionQuery}`;
+  const resultsApiUrl = `${apiBaseUrl}/api/notebook/results${sessionQuery}`;
 
   const cell1Markdown = [
-    '# Quantum Computing Pedagogy: Longitudinal Hypothesis Verification\n',
-    '## Quasi-Experimental Pre/Post Non-Parametric Evaluation (Reportthy Lab)\n\n',
+    `# ${studyTitle}\n`,
+    `## Domain: ${topicDomain} | Quasi-Experimental Pre/Post Evaluation (Reportthy Lab)\n\n`,
+    `**Investigators**: ${authorNames}\n\n`,
+    `**Experimental Design Mode**: \`${effectiveDesignMode}\`\n\n`,
+    '### Pedagogical Interventions\n',
+    `- **Control Condition**: ${controlPedagogy}\n`,
+    `- **Experimental Condition**: ${experimentalPedagogy}\n\n`,
     '### Research Hypotheses\n',
-    '- **Null Hypothesis ($H_0$)**: The instructional intervention produces no significant knowledge gain ($\\Delta = \\text{Post} - \\text{Pre} \\le 0$).\n',
-    '- **Alternative Hypothesis ($H_1$)**: The instructional intervention produces a statistically significant positive learning shift ($\\Delta > 0$).\n\n',
+    '- **Null Hypothesis ($H_0$)**: The instructional intervention produces no significant knowledge gain or cohort superiority ($\\Delta \\le 0$).\n',
+    `- **Alternative Hypothesis ($H_1$)**: ${hypothesisStatement}\n\n`,
     '### Researcher Audit Instructions\n',
     '1. Run all cells sequentially (`Shift + Enter` or `Run -> Run All Cells`).\n',
-    '2. You may adjust statistical parameters such as `ALPHA` (default `0.05`) and `WILCOXON_ALTERNATIVE` (default `\'greater\'`) in Cell 4.\n',
+    `2. Parameters: \`ALPHA = ${effectiveAlpha}\`, \`WILCOXON_ALTERNATIVE = '${effectiveWilcoxonAlt}'\`, \`MANN_WHITNEY_ALTERNATIVE = '${effectiveMannWhitneyAlt}'\`.\n`,
     '3. Cell 6 automatically syncs verified computational metrics via the Reportthy API bridge for the Springer Nature (`sn-jnl`) manuscript.'
   ];
 
@@ -56,7 +123,7 @@ export function generateIpynbJson(
     'import scipy.stats as stats\n',
     'from datetime import datetime, timezone\n',
     'import urllib.request\n\n',
-    `DATASET_API_URL = "${apiBaseUrl}/api/notebook/dataset"\n\n`,
+    `DATASET_API_URL = "${datasetApiUrl}"\n\n`,
     `fallback_paired = ${JSON.stringify(pairedRecords)}\n`,
     `fallback_pre_scores = ${JSON.stringify(preScores)}\n`,
     `fallback_post_scores = ${JSON.stringify(postScores)}\n`,
@@ -67,7 +134,7 @@ export function generateIpynbJson(
     'post_scores = np.array(fallback_post_scores, dtype=float)\n\n',
     '# Attempt live synchronization from Reportthy server\n',
     'try:\n',
-    '    req = urllib.request.Request(DATASET_API_URL, headers={"Accept": "application/json"})\n',
+    `    req = urllib.request.Request(DATASET_API_URL, headers={"Accept": "application/json", "x-reportthy-session": "${safeSessionId}"})\n`,
     '    with urllib.request.urlopen(req, timeout=2.0) as resp:\n',
     '        data = json.loads(resp.read().decode("utf-8"))\n',
     '        if "pairedData" in data and len(data["pairedData"]) > 0:\n',
@@ -98,13 +165,13 @@ export function generateIpynbJson(
     '    skew_val = float(stats.skew(scores, bias=False)) if n > 2 else 0.0\n',
     '    kurt_val = float(stats.kurtosis(scores, bias=False)) if n > 3 else 0.0\n',
     '    \n',
-    '    # Shapiro-Wilk Normality Test\n',
-    '    if n >= 3:\n',
+    '    # Shapiro-Wilk normality test (requires 3 <= n <= 5000)\n',
+    '    if 3 <= n <= 5000:\n',
     '        sw_stat, sw_p = stats.shapiro(scores)\n',
-    '        sw_stat = float(sw_stat)\n',
-    '        sw_p = float(sw_p)\n',
+    '        is_normal = bool(sw_p >= 0.05)\n',
     '    else:\n',
-    '        sw_stat, sw_p = 1.0, 1.0\n',
+    '        sw_stat, sw_p = 0.0, 1.0\n',
+    '        is_normal = True\n',
     '        \n',
     '    return {\n',
     '        "n": int(n),\n',
@@ -116,30 +183,30 @@ export function generateIpynbJson(
     '        "skewness": round(skew_val, 3),\n',
     '        "kurtosis": round(kurt_val, 3),\n',
     '        "shapiroWilk": {\n',
-    '            "statistic": round(sw_stat, 4),\n',
-    '            "pValue": round(sw_p, 5),\n',
-    '            "isNormal": bool(sw_p >= 0.05)\n',
+    '            "statistic": round(float(sw_stat), 5),\n',
+    '            "pValue": round(float(sw_p), 5),\n',
+    '            "isNormal": is_normal\n',
     '        }\n',
     '    }\n\n',
     'pre_metrics = compute_descriptive_and_normality(pre_scores)\n',
     'post_metrics = compute_descriptive_and_normality(post_scores)\n\n',
-    'print("=== Phase Distribution Diagnostics ===")\n',
-    'print(f"Pretest  : N={pre_metrics[\'n\']}, Mean={pre_metrics[\'mean\']:.3f}, Var={pre_metrics[\'variance\']:.3f}, Median={pre_metrics[\'median\']:.3f}, SW p={pre_metrics[\'shapiroWilk\'][\'pValue\']:.5f}")\n',
-    'print(f"Posttest : N={post_metrics[\'n\']}, Mean={post_metrics[\'mean\']:.3f}, Var={post_metrics[\'variance\']:.3f}, Median={post_metrics[\'median\']:.3f}, SW p={post_metrics[\'shapiroWilk\'][\'pValue\']:.5f}")\n\n',
-    'is_any_non_normal = (not pre_metrics["shapiroWilk"]["isNormal"]) or (not post_metrics["shapiroWilk"]["isNormal"])\n',
-    'if is_any_non_normal:\n',
-    '    print("\\n[Decision Directive] Gaussian normality statistically rejected (p < 0.05).")\n',
-    '    print("                     Parametric Student\'s t-tests are invalidated; non-parametric testing mandatory.")\n',
+    'print("=== Pre-Intervention Descriptive Statistics ===")\n',
+    'print(json.dumps(pre_metrics, indent=2))\n\n',
+    'print("=== Post-Intervention Descriptive Statistics ===")\n',
+    'print(json.dumps(post_metrics, indent=2))\n\n',
+    'normality_rejected = not (pre_metrics["shapiroWilk"]["isNormal"] and post_metrics["shapiroWilk"]["isNormal"])\n',
+    'if normality_rejected:\n',
+    '    print("\\n[MANDATE: NON-PARAMETRIC] Gaussian normality rejected (p < 0.05). Parametric Student\'s t-test invalidated. Proceeding with Wilcoxon & Mann-Whitney.")\n',
     'else:\n',
-    '    print("\\n[Decision Directive] Gaussian normality retained (p >= 0.05); non-parametric testing used as robustness check.")\n'
+    '    print("\\n[NOTICE: PARAMETRIC ELIGIBLE] Normality retained (p >= 0.05). Wilcoxon & Mann-Whitney retained for distribution-free robustness.")\n'
   ];
 
   const cell4Code = [
     '# =============================================================================\n',
     '# Cell 4: Within-Subject Longitudinal Hypothesis Verification (Wilcoxon)\n',
     '# =============================================================================\n',
-    `ALPHA = ${alpha}\n`,
-    `WILCOXON_ALTERNATIVE = '${alternative}'  # Options: 'greater', 'less', 'two-sided'\n\n`,
+    `ALPHA = ${effectiveAlpha}\n`,
+    `WILCOXON_ALTERNATIVE = '${effectiveWilcoxonAlt}'  # Options: 'greater', 'less', 'two-sided'\n\n`,
     'deltas = post_scores - pre_scores\n',
     'non_zero_deltas = deltas[deltas != 0]\n',
     'n_pairs = len(deltas)\n',
@@ -180,20 +247,25 @@ export function generateIpynbJson(
     '# =============================================================================\n',
     '# Cell 5: Between-Cohort Gain Divergence Verification (Mann-Whitney U)\n',
     '# =============================================================================\n',
-    'g1_deltas = [float(p["delta"]) for p in paired_records if p.get("group") == "Listado 1"]\n',
-    'g2_deltas = [float(p["delta"]) for p in paired_records if p.get("group") == "Listado 2"]\n\n',
-    'n1 = len(g1_deltas)\n',
-    'n2 = len(g2_deltas)\n\n',
-    'if n1 > 0 and n2 > 0:\n',
-    '    u_res = stats.mannwhitneyu(g1_deltas, g2_deltas, alternative="two-sided")\n',
+    `MANN_WHITNEY_ALTERNATIVE = '${effectiveMannWhitneyAlt}'  # Options: 'greater', 'less', 'two-sided'\n\n`,
+    'exp_deltas = [float(p["delta"]) for p in paired_records if p.get("cohortRole") == "Experimental"]\n',
+    'ctrl_deltas = [float(p["delta"]) for p in paired_records if p.get("cohortRole") == "Control"]\n\n',
+    'n_exp = len(exp_deltas)\n',
+    'n_ctrl = len(ctrl_deltas)\n\n',
+    'ctrl_cohorts = list({str(p.get("group", "Control")) for p in paired_records if p.get("cohortRole") == "Control"})\n',
+    'exp_cohorts = list({str(p.get("group", "Experimental")) for p in paired_records if p.get("cohortRole") == "Experimental"})\n',
+    'ctrl_label = ", ".join(sorted(ctrl_cohorts)) if ctrl_cohorts else "Control"\n',
+    'exp_label = ", ".join(sorted(exp_cohorts)) if exp_cohorts else "Experimental"\n\n',
+    'if n_exp > 0 and n_ctrl > 0:\n',
+    '    u_res = stats.mannwhitneyu(exp_deltas, ctrl_deltas, alternative=MANN_WHITNEY_ALTERNATIVE)\n',
     '    u_stat = float(u_res.statistic)\n',
     '    u_p = float(u_res.pvalue)\n',
     '    \n',
     '    # Normal approximation Z for Mann-Whitney U\n',
-    '    mu_u = n1 * n2 / 2.0\n',
-    '    sigma_u = np.sqrt(n1 * n2 * (n1 + n2 + 1) / 12.0)\n',
+    '    mu_u = n_exp * n_ctrl / 2.0\n',
+    '    sigma_u = np.sqrt(n_exp * n_ctrl * (n_exp + n_ctrl + 1) / 12.0)\n',
     '    u_z = float((u_stat - mu_u) / sigma_u) if sigma_u > 0 else 0.0\n',
-    '    u_r = float(abs(u_z) / np.sqrt(n1 + n2)) if (n1 + n2) > 0 else 0.0\n',
+    '    u_r = float(abs(u_z) / np.sqrt(n_exp + n_ctrl)) if (n_exp + n_ctrl) > 0 else 0.0\n',
     'else:\n',
     '    u_stat, u_z, u_p, u_r = 0.0, 0.0, 1.0, 0.0\n\n',
     'u_is_sig = bool(u_p < ALPHA)\n\n',
@@ -204,16 +276,18 @@ export function generateIpynbJson(
     '    "zValue": round(u_z, 3),\n',
     '    "pValue": round(u_p, 5),\n',
     '    "effectSize": round(u_r, 3),\n',
-    '    "interpretation": "Statistically significant gain divergence between Listado 1 and Listado 2" if u_is_sig else "Consistent instructional gains across cohorts (no divergence)",\n',
+    '    "interpretation": f"Statistically significant superiority for {exp_label} over {ctrl_label} (p < {ALPHA})" if (u_is_sig and u_z > 0) else f"No statistically significant difference between {exp_label} and {ctrl_label}",\n',
     '    "isSignificant": u_is_sig,\n',
-    '    "alternative": "two-sided",\n',
-    '    "n1": int(n1),\n',
-    '    "n2": int(n2)\n',
+    '    "alternative": MANN_WHITNEY_ALTERNATIVE,\n',
+    '    "n1": int(n_exp),\n',
+    '    "n2": int(n_ctrl),\n',
+    '    "controlLabel": ctrl_label,\n',
+    '    "experimentalLabel": exp_label,\n',
     '}\n\n',
-    'print("=== Between-Cohort Mann-Whitney U Test (Listado 1 vs Listado 2) ===")\n',
-    'print(f"Cohort Sizes: n1 (Listado 1) = {n1}, n2 (Listado 2) = {n2}")\n',
+    'print(f"=== Between-Cohort Mann-Whitney U Test ({exp_label} vs {ctrl_label}) ===")\n',
+    'print(f"Cohort Sizes: Experimental ({exp_label}) = {n_exp}, Control ({ctrl_label}) = {n_ctrl}")\n',
     'print(f"Mann-Whitney U: {u_stat:.3f} | Z-score: {u_z:.3f} | p-value: {u_p:.5f} | Effect Size r: {u_r:.3f}")\n',
-    'print(f"Cohort Invariance: {\'Gains diverged significantly (p < 0.05)\' if u_is_sig else \'Gains were invariant across cohorts (p >= 0.05)\'}")\n'
+    'print(f"Cohort Comparison: {\'Experimental cohort gains were significantly superior\' if (u_is_sig and u_z > 0) else \'No statistically significant experimental superiority\'}")\n'
   ];
 
   const cell6Code = [
@@ -221,18 +295,26 @@ export function generateIpynbJson(
     '# Cell 6: Empirical Hypothesis Verdict & Paper Sync Bridge\n',
     '# =============================================================================\n',
     'import scipy\n',
-    'hypothesis_confirmed = bool((w_p < ALPHA) and (w_z > 0))\n',
+    `DESIGN_MODE = "${effectiveDesignMode}"\n\n`,
+    'if DESIGN_MODE == "within_subject":\n',
+    '    hypothesis_confirmed = bool((w_p < ALPHA) and (w_z > 0))\n',
+    'elif DESIGN_MODE == "between_group":\n',
+    '    hypothesis_confirmed = bool((u_p < ALPHA) and (u_z > 0))\n',
+    'elif DESIGN_MODE == "combined":\n',
+    '    hypothesis_confirmed = bool((w_p < ALPHA) and (w_z > 0) and (u_p < ALPHA) and (u_z > 0))\n',
+    'else:\n',
+    '    hypothesis_confirmed = bool((w_p < ALPHA) and (w_z > 0))\n\n',
     'kernel_info = f"Python {sys.version.split()[0]} ({sys.platform}) / Scipy {scipy.__version__} / Numpy {np.__version__}"\n',
     'executed_at = datetime.now(timezone.utc).isoformat()\n\n',
     'print("=" * 64)\n',
-    'print("             SCIENTIFIC HYPOTHESIS FINAL VERDICT                ")\n',
+    'print(f"       SCIENTIFIC HYPOTHESIS FINAL VERDICT ({DESIGN_MODE})        ")\n',
     'print("=" * 64)\n',
     'if hypothesis_confirmed:\n',
-    '    print("[VERDICT: CORROBORATED] Statistically significant positive learning gain.")\n',
-    '    print(f"  Wilcoxon W = {w_stat:.3f}, Z = {w_z:.3f}, p = {w_p:.5e} (< {ALPHA}), effect size r = {w_r:.3f}")\n',
+    '    print("[VERDICT: CORROBORATED] Statistically significant learning outcome corroborated.")\n',
+    '    print(f"  Wilcoxon: W = {w_stat:.3f}, Z = {w_z:.3f}, p = {w_p:.5e}; Mann-Whitney: U = {u_stat:.3f}, Z = {u_z:.3f}, p = {u_p:.5e}")\n',
     'else:\n',
-    '    print("[VERDICT: REJECTED / NOT SUPPORTED] No statistically significant instructional gain.")\n',
-    '    print(f"  Wilcoxon W = {w_stat:.3f}, Z = {w_z:.3f}, p = {w_p:.5e} (alpha = {ALPHA})")\n',
+    '    print("[VERDICT: REJECTED / NOT SUPPORTED] Criteria for hypothesis confirmation not satisfied.")\n',
+    '    print(f"  Wilcoxon: W = {w_stat:.3f}, p = {w_p:.5e}; Mann-Whitney: U = {u_stat:.3f}, p = {u_p:.5e} (alpha = {ALPHA})")\n',
     'print("=" * 64)\n\n',
     'reportthy_results = {\n',
     '    "executedAt": executed_at,\n',
@@ -244,6 +326,9 @@ export function generateIpynbJson(
     '    "wilcoxon": wilcoxon_result,\n',
     '    "mannWhitney": mann_whitney_result,\n',
     '    "hypothesisConfirmed": hypothesis_confirmed,\n',
+    '    "designMode": DESIGN_MODE,\n',
+    '    "controlLabel": ctrl_label,\n',
+    '    "experimentalLabel": exp_label,\n',
     '    "executedCodeCells": [\n',
     '        "".join(In[2]) if "In" in globals() and len(In) > 2 else "Cell 2 executed",\n',
     '        "".join(In[3]) if "In" in globals() and len(In) > 3 else "Cell 3 executed",\n',
@@ -257,11 +342,12 @@ export function generateIpynbJson(
     '    json.dump(reportthy_results, f, indent=2)\n',
     'print("\\n[Filesystem] Saved reportthy_results.json to disk.")\n\n',
     '# 2. Bridge via HTTP POST to Reportthy backend API\n',
+    `RESULTS_API_URL = "${resultsApiUrl}"\n`,
     'try:\n',
-    `    req = urllib.request.Request(\n`,
-    `        "${apiBaseUrl}/api/notebook/results",\n`,
+    '    req = urllib.request.Request(\n',
+    '        RESULTS_API_URL,\n',
     '        data=json.dumps(reportthy_results).encode("utf-8"),\n',
-    '        headers={"Content-Type": "application/json"}\n',
+    `        headers={"Content-Type": "application/json", "x-reportthy-session": "${safeSessionId}"}\n`,
     '    )\n',
     '    with urllib.request.urlopen(req, timeout=2.0) as resp:\n',
     '        print(f"[Bridge: HTTP] Synced results to Reportthy API: HTTP {resp.status}")\n',
@@ -318,17 +404,25 @@ export function generateIpynbJson(
     ],
     metadata: {
       kernelspec: {
-        display_name: 'Python 3 (ipykernel)',
+        display_name: 'Python 3',
         language: 'python',
         name: 'python3'
       },
       language_info: {
+        codemirror_mode: {
+          name: 'ipython',
+          version: 3
+        },
+        file_extension: '.py',
+        mimetype: 'text/x-python',
         name: 'python',
-        version: '3.11'
+        nbconvert_exporter: 'python',
+        pygments_lexer: 'ipython3',
+        version: '3.11.0'
       }
     },
     nbformat: 4,
-    nbformat_minor: 2
+    nbformat_minor: 5
   };
 
   return JSON.stringify(notebook, null, 2);

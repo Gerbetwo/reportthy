@@ -1,10 +1,17 @@
 'use client';
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import HeaderNav from '@/components/HeaderNav';
-import { parseSurveyCSV, detectCSVRole } from '@/lib/csvCleaner';
-import { RawSurveyRow, CleanedParticipant } from '@/types/dataset';
+import StudyProtocolForm from '@/components/StudyProtocolForm';
+import {
+  parseSurveyCSV,
+  detectCSVRole,
+  extractUniqueGroups,
+  inferDefaultCohortRole,
+} from '@/lib/csvCleaner';
+import { RawSurveyRow, CleanedParticipant, CohortRole } from '@/types/dataset';
 import { useTranslation } from '@/lib/LanguageContext';
 import { useDataset } from '@/lib/DatasetContext';
 import {
@@ -14,13 +21,18 @@ import {
   ArrowRight,
   ShieldCheck,
   FileCheck,
-  Unlink
+  Unlink,
+  Users,
+  AlertCircle,
 } from 'lucide-react';
 
 export default function UploadPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const {
+    sessionId,
+    studyMetadata,
+    updateCohortMapping,
     preClean,
     postClean,
     pairedData,
@@ -28,13 +40,49 @@ export default function UploadPage() {
     attritionAnalysis,
     setDatasets,
     unlinkPair,
-    reconcileCohorts
+    reconcileCohorts,
   } = useDataset();
 
   const [preFilename, setPreFilename] = useState('');
   const [postFilename, setPostFilename] = useState('');
   const [autoDetectMsg, setAutoDetectMsg] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Group and Cohort Role Detection
+  const detectedGroups = useMemo(
+    () => extractUniqueGroups(preClean, postClean),
+    [preClean, postClean]
+  );
+
+  const groupParticipantCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    [...preClean, ...postClean].forEach((p) => {
+      const g = (p.group || '').trim();
+      if (g) {
+        counts[g] = (counts[g] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [preClean, postClean]);
+
+  const cohortRoleCounts = useMemo(() => {
+    let control = 0;
+    let experimental = 0;
+    [...preClean, ...postClean].forEach((p) => {
+      if (p.cohortRole === 'Control') control++;
+      else if (p.cohortRole === 'Experimental') experimental++;
+    });
+    return { control, experimental };
+  }, [preClean, postClean]);
+
+  const isBetweenOrCombined =
+    studyMetadata.designMode === 'between_group' ||
+    studyMetadata.designMode === 'combined';
+
+  const missingCohortWarning =
+    isBetweenOrCombined &&
+    detectedGroups.length > 0 &&
+    (cohortRoleCounts.control === 0 || cohortRoleCounts.experimental === 0);
 
   const processCSVFile = (file: File, explicitRole?: 'pre' | 'post') => {
     Papa.parse<RawSurveyRow>(file, {
@@ -43,7 +91,8 @@ export default function UploadPage() {
       complete: (results) => {
         const headers = results.meta.fields || [];
         const detectedRole = explicitRole || detectCSVRole(headers);
-        const role = detectedRole === 'unknown' ? (explicitRole || 'pre') : detectedRole;
+        const role =
+          detectedRole === 'unknown' ? explicitRole || 'pre' : detectedRole;
 
         if (role === 'pre') setPreFilename(file.name);
         else setPostFilename(file.name);
@@ -52,23 +101,36 @@ export default function UploadPage() {
           setAutoDetectMsg(t.upload.autoDetectSuccess);
         }
 
-        const { clean, quarantined: badRows } = parseSurveyCSV(results.data, role);
+        const { clean, quarantined: badRows } = parseSurveyCSV(
+          results.data,
+          role,
+          studyMetadata.cohortMapping
+        );
         if (role === 'pre') {
           setDatasets({
             preClean: clean,
-            quarantined: [...quarantined.filter((p) => !p.id.startsWith(role)), ...badRows]
+            quarantined: [
+              ...quarantined.filter((p) => !p.id.startsWith(role)),
+              ...badRows,
+            ],
           });
         } else {
           setDatasets({
             postClean: clean,
-            quarantined: [...quarantined.filter((p) => !p.id.startsWith(role)), ...badRows]
+            quarantined: [
+              ...quarantined.filter((p) => !p.id.startsWith(role)),
+              ...badRows,
+            ],
           });
         }
       },
     });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, role?: 'pre' | 'post') => {
+  const handleFileUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    role?: 'pre' | 'post'
+  ) => {
     const file = e.target.files?.[0];
     if (file) processCSVFile(file, role);
   };
@@ -84,9 +146,13 @@ export default function UploadPage() {
     if (preClean.length > 0 && postClean.length > 0) {
       fetch('/api/notebook/dataset', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-reportthy-session': sessionId,
+        },
         body: JSON.stringify({
-          sessionId: 'workspace',
+          sessionId,
+          studyMetadata,
           preClean,
           postClean,
           pairedData,
@@ -95,7 +161,15 @@ export default function UploadPage() {
         }),
       }).catch(() => {});
     }
-  }, [preClean, postClean, pairedData, quarantined, attritionAnalysis]);
+  }, [
+    preClean,
+    postClean,
+    pairedData,
+    quarantined,
+    attritionAnalysis,
+    sessionId,
+    studyMetadata,
+  ]);
 
   const isReadyToProceed = preClean.length > 0 && postClean.length > 0;
 
@@ -109,7 +183,9 @@ export default function UploadPage() {
               {t.upload.phase}
             </span>
             <span className="text-[#CBD5E1]">•</span>
-            <span className="text-[11px] font-mono text-[#57606A]">HU-02 Ingestion Suite</span>
+            <span className="text-[11px] font-mono text-[#57606A]">
+              HU-02 Ingestion Suite
+            </span>
           </div>
           <h1 className="font-serif font-bold text-2xl text-[#002B49]">
             {t.upload.title}
@@ -126,6 +202,9 @@ export default function UploadPage() {
           </div>
         )}
 
+        {/* Step 0: Pre-Upload Study Protocol & Researcher Metadata Card */}
+        <StudyProtocolForm />
+
         {/* 2 Upload Cards Grid (Direct Pre & Post CSV Ingestion) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* Pretest Dropzone */}
@@ -133,12 +212,15 @@ export default function UploadPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h2 className="font-serif font-bold text-base text-[#002B49] flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-[#002B49] text-white flex items-center justify-center text-xs font-mono">1</span>
+                  <span className="w-6 h-6 rounded-full bg-[#002B49] text-white flex items-center justify-center text-xs font-mono">
+                    1
+                  </span>
                   {t.upload.pretest}
                 </h2>
                 {preClean.length > 0 && (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-300 font-mono">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> N = {preClean.length}
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> N ={' '}
+                    {preClean.length}
                   </span>
                 )}
               </div>
@@ -151,7 +233,12 @@ export default function UploadPage() {
               <span className="text-xs font-medium text-slate-700 font-mono text-center truncate w-full">
                 {preFilename || t.upload.dropPre}
               </span>
-              <input type="file" accept=".csv" className="hidden" onChange={(e) => handleFileUpload(e, 'pre')} />
+              <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={(e) => handleFileUpload(e, 'pre')}
+              />
             </label>
           </div>
 
@@ -160,12 +247,15 @@ export default function UploadPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h2 className="font-serif font-bold text-base text-[#002B49] flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-[#002B49] text-white flex items-center justify-center text-xs font-mono">2</span>
+                  <span className="w-6 h-6 rounded-full bg-[#002B49] text-white flex items-center justify-center text-xs font-mono">
+                    2
+                  </span>
                   {t.upload.posttest}
                 </h2>
                 {postClean.length > 0 && (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-300 font-mono">
-                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> N = {postClean.length}
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> N ={' '}
+                    {postClean.length}
                   </span>
                 )}
               </div>
@@ -178,7 +268,12 @@ export default function UploadPage() {
               <span className="text-xs font-medium text-slate-700 font-mono text-center truncate w-full">
                 {postFilename || t.upload.dropPost}
               </span>
-              <input type="file" accept=".csv" className="hidden" onChange={(e) => handleFileUpload(e, 'post')} />
+              <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={(e) => handleFileUpload(e, 'post')}
+              />
             </label>
           </div>
         </div>
@@ -202,7 +297,10 @@ export default function UploadPage() {
                 </p>
                 <div className="bg-white border border-amber-200 rounded p-3 text-xs font-mono text-slate-700 max-h-36 overflow-y-auto">
                   {quarantined.map((item) => (
-                    <div key={item.id} className="border-b last:border-0 border-slate-100 pb-2 mb-2 last:mb-0">
+                    <div
+                      key={item.id}
+                      className="border-b last:border-0 border-slate-100 pb-2 mb-2 last:mb-0"
+                    >
                       <div className="font-bold text-[#C0392B]">
                         [{item.id}] {t.upload.reason}: {item.corruptionReason}
                       </div>
@@ -217,6 +315,109 @@ export default function UploadPage() {
           </section>
         )}
 
+        {/* Dynamic CSV Cohort Role Assignment Bar */}
+        {detectedGroups.length > 0 && (
+          <section className="bg-white border border-[#D0D7DE] rounded-lg p-5 mb-8 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#EDF2F7] pb-3 mb-4">
+              <div>
+                <h3 className="font-serif font-bold text-base text-[#002B49] flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[#002B49]" />
+                  <span>{t.protocol.cohortMapper.title}</span>
+                </h3>
+                <p className="text-xs text-[#57606A] mt-0.5">
+                  {t.protocol.cohortMapper.subtitle}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-mono">
+                <span className="px-2.5 py-1 rounded bg-blue-50 text-blue-800 border border-blue-200 font-semibold">
+                  {t.protocol.cohortMapper.roles.control}:{' '}
+                  {cohortRoleCounts.control}
+                </span>
+                <span className="px-2.5 py-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
+                  {t.protocol.cohortMapper.roles.experimental}:{' '}
+                  {cohortRoleCounts.experimental}
+                </span>
+              </div>
+            </div>
+
+            {missingCohortWarning && (
+              <div className="bg-amber-50 border border-amber-300 rounded-lg p-3.5 mb-4 text-xs text-amber-900 flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-amber-800">
+                    {t.protocol.cohortMapper.missingCohortWarningTitle}
+                  </p>
+                  <p className="text-amber-700 mt-0.5 text-[11px] leading-relaxed">
+                    {t.protocol.cohortMapper.missingCohortWarningDesc}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {detectedGroups.map((group) => {
+                const currentRole =
+                  studyMetadata.cohortMapping[group] ??
+                  inferDefaultCohortRole(group);
+                const count = groupParticipantCounts[group] || 0;
+
+                return (
+                  <div
+                    key={group}
+                    className="bg-[#F8F9FA] border border-[#D0D7DE] rounded-md p-3 flex flex-col justify-between gap-2"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className="font-mono font-semibold text-xs text-[#002B49] truncate"
+                          title={group}
+                        >
+                          {group}
+                        </span>
+                        <span className="text-[10px] font-mono text-[#57606A] bg-white px-1.5 py-0.5 rounded border border-[#E2E8F0] shrink-0">
+                          {count} {t.protocol.cohortMapper.participantCount}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] uppercase font-semibold text-[#57606A] mb-1">
+                        {t.protocol.cohortMapper.assignedRole}
+                      </label>
+                      <select
+                        value={currentRole}
+                        onChange={(e) =>
+                          updateCohortMapping((prev) => ({
+                            ...prev,
+                            [group]: e.target.value as CohortRole,
+                          }))
+                        }
+                        className={`w-full text-xs rounded border px-2 py-1.5 font-medium transition focus:outline-hidden focus:ring-1 focus:ring-[#002B49] ${
+                          currentRole === 'Control'
+                            ? 'bg-blue-50/70 border-blue-300 text-blue-900'
+                            : currentRole === 'Experimental'
+                            ? 'bg-emerald-50/70 border-emerald-300 text-emerald-900'
+                            : 'bg-white border-[#D0D7DE] text-slate-600'
+                        }`}
+                      >
+                        <option value="Control">
+                          {t.protocol.cohortMapper.roles.control}
+                        </option>
+                        <option value="Experimental">
+                          {t.protocol.cohortMapper.roles.experimental}
+                        </option>
+                        <option value="Unassigned">
+                          {t.protocol.cohortMapper.roles.unassigned}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Longitudinal Cohort Alignment Trigger */}
         {isReadyToProceed && (
           <div className="bg-white border border-[#D0D7DE] rounded-lg p-6 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
@@ -224,7 +425,7 @@ export default function UploadPage() {
               <h3 className="font-serif font-bold text-base text-[#002B49]">
                 {t.upload.matchTitle}
               </h3>
-              <p className="text-xs text-[#57606A] mt-0.5">
+              <p className="text-xs text-[#57606A] mt-1 max-w-xl">
                 {t.upload.matchDesc}
               </p>
             </div>
@@ -259,12 +460,11 @@ export default function UploadPage() {
                 <h3 className="font-serif font-bold text-base text-[#002B49]">
                   {t.upload.tableTitle} ({pairedData.length} Matched Subjects)
                 </h3>
-                <p className="text-xs text-[#57606A]">
-                  {t.upload.tableSub}
-                </p>
+                <p className="text-xs text-[#57606A]">{t.upload.tableSub}</p>
               </div>
               <span className="text-xs font-mono text-emerald-800 bg-emerald-50 border border-emerald-300 px-2.5 py-1 rounded font-bold">
-                {t.upload.pairingSuccess}: {((pairedData.length / preClean.length) * 100).toFixed(1)}%
+                {t.upload.pairingSuccess}:{' '}
+                {((pairedData.length / preClean.length) * 100).toFixed(1)}%
               </span>
             </div>
             <div className="overflow-x-auto">
@@ -284,19 +484,35 @@ export default function UploadPage() {
                 <tbody>
                   {pairedData.slice(0, 15).map((p, idx) => (
                     <tr key={idx}>
-                      <td className="font-medium text-slate-800">{p.preName}</td>
+                      <td className="font-medium text-slate-800">
+                        {p.preName}
+                      </td>
                       <td className="text-slate-600">{p.postName}</td>
                       <td>
-                        <span className="bg-[#F1F5F9] text-[#002B49] px-2 py-0.5 rounded font-mono text-[11px] font-semibold border border-[#E2E8F0]">
-                          {p.group}
+                        <span
+                          className={`px-2 py-0.5 rounded font-mono text-[11px] font-semibold border ${
+                            p.cohortRole === 'Control'
+                              ? 'bg-blue-50 text-blue-800 border-blue-200'
+                              : p.cohortRole === 'Experimental'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-[#F1F5F9] text-[#002B49] border-[#E2E8F0]'
+                          }`}
+                        >
+                          {p.group} ({p.cohortRole})
                         </span>
                       </td>
                       <td className="font-mono text-emerald-700 font-bold">
                         {(p.similarity * 100).toFixed(0)}%
                       </td>
                       <td className="font-semibold">{p.preScore} / 10</td>
-                      <td className="font-semibold text-[#002B49]">{p.postScore} / 10</td>
-                      <td className={`font-bold ${p.delta >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      <td className="font-semibold text-[#002B49]">
+                        {p.postScore} / 10
+                      </td>
+                      <td
+                        className={`font-bold ${
+                          p.delta >= 0 ? 'text-emerald-700' : 'text-rose-700'
+                        }`}
+                      >
                         {p.delta >= 0 ? `+${p.delta}` : `${p.delta}`}
                       </td>
                       <td>

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerDatasetBundle } from '@/lib/notebookStore';
+import { getServerDatasetBundle, extractSessionId } from '@/lib/notebookStore';
 import { generateIpynbJson } from '@/lib/statsEngine';
 
 export async function GET(request: NextRequest) {
-  const bundle = getServerDatasetBundle();
+  const sessionId = extractSessionId(request);
+  const bundle = getServerDatasetBundle(sessionId);
   const searchParams = request.nextUrl.searchParams;
   const isDownload = searchParams.get('download') === 'true';
 
@@ -21,11 +22,23 @@ export async function GET(request: NextRequest) {
   };
 
   if (isDownload) {
-    headers['Content-Disposition'] = 'attachment; filename="quantum_hypothesis_verification.ipynb"';
+    headers['Content-Disposition'] = `attachment; filename="reportthy_${sessionId}.ipynb"`;
   }
 
   return new NextResponse(notebookJsonStr, {
     status: 200,
     headers,
+  });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers':
+        'Content-Type, Authorization, x-reportthy-session',
+    },
   });
 }

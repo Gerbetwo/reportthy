@@ -3,7 +3,9 @@ import {
   getServerDatasetBundle,
   saveServerDatasetBundle,
   getServerJupyterResult,
-  saveServerJupyterResult
+  saveServerJupyterResult,
+  extractSessionId,
+  sanitizeSessionId,
 } from '@/lib/notebookStore';
 import { generateIpynbJson } from '@/lib/statsEngine';
 import { JupyterExecutionResult } from '@/types/dataset';
@@ -33,17 +35,25 @@ interface JupyterHubUserResponse {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    let bundle = getServerDatasetBundle();
+    const sessionId = extractSessionId(request, body);
+    const safeSessionId = sanitizeSessionId(sessionId);
+    const notebookFileName = `reportthy_${safeSessionId}.ipynb`;
+
+    let bundle = getServerDatasetBundle(safeSessionId);
 
     if (body.preClean || body.postClean) {
-      bundle = saveServerDatasetBundle({
-        sessionId: body.sessionId || bundle?.sessionId || 'workspace',
-        preClean: body.preClean || [],
-        postClean: body.postClean || [],
-        pairedData: body.pairedData || [],
-        quarantined: body.quarantined || [],
-        attritionAnalysis: body.attritionAnalysis || null,
-      });
+      bundle = saveServerDatasetBundle(
+        {
+          sessionId: safeSessionId,
+          studyMetadata: body.studyMetadata,
+          preClean: body.preClean || [],
+          postClean: body.postClean || [],
+          pairedData: body.pairedData || [],
+          quarantined: body.quarantined || [],
+          attritionAnalysis: body.attritionAnalysis || null,
+        },
+        safeSessionId
+      );
     }
 
     if (!bundle) {
@@ -154,7 +164,7 @@ export async function POST(request: NextRequest) {
       {
         method: 'POST',
         headers: authHeaders,
-        body: JSON.stringify({ expires_in: 86400, note: 'reportthy-session' }),
+        body: JSON.stringify({ expires_in: 86400, note: `reportthy-${safeSessionId}` }),
       }
     ).catch(() => null);
 
@@ -164,7 +174,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step D: Upload notebook via official Jupyter Server Contents API if needed
-    const contentsUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/quantum_hypothesis_verification.ipynb`;
+    const contentsUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/${notebookFileName}`;
     let shouldUpload = true;
 
     const forceReset = Boolean(body.forceReset);
@@ -203,11 +213,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const embedUrl = `${JUPYTERHUB_PUBLIC_URL}/user/${JUPYTERHUB_USER}/doc/tree/quantum_hypothesis_verification.ipynb?token=${userToken}`;
-    const fullLabUrl = `${JUPYTERHUB_PUBLIC_URL}/user/${JUPYTERHUB_USER}/lab/tree/quantum_hypothesis_verification.ipynb?token=${userToken}`;
+    const embedUrl = `${JUPYTERHUB_PUBLIC_URL}/user/${JUPYTERHUB_USER}/doc/tree/${notebookFileName}?token=${userToken}`;
+    const fullLabUrl = `${JUPYTERHUB_PUBLIC_URL}/user/${JUPYTERHUB_USER}/lab/tree/${notebookFileName}?token=${userToken}`;
 
     return NextResponse.json({
       ok: true,
+      sessionId: safeSessionId,
       embedUrl,
       fullLabUrl,
       user: JUPYTERHUB_USER,
@@ -226,14 +237,18 @@ export async function POST(request: NextRequest) {
 }
 
 // 2. Read executed notebook and results from JupyterHub Contents API
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const sessionId = extractSessionId(request);
+    const safeSessionId = sanitizeSessionId(sessionId);
+    const notebookFileName = `reportthy_${safeSessionId}.ipynb`;
+
     const authHeaders = {
       Authorization: `token ${JUPYTERHUB_API_TOKEN}`,
       'Content-Type': 'application/json',
     };
 
-    const contentsUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/quantum_hypothesis_verification.ipynb?content=1`;
+    const contentsUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/${notebookFileName}?content=1`;
     const res = await fetch(contentsUrl, {
       headers: authHeaders,
       cache: 'no-store',
@@ -288,20 +303,32 @@ export async function GET() {
       if (codeCellSources.length > 0) {
         parsedResult.executedCodeCells = codeCellSources;
       }
-      saveServerJupyterResult(parsedResult);
-      return NextResponse.json({ ok: true, results: parsedResult, source: 'jupyterhub-contents' });
+      saveServerJupyterResult(parsedResult, safeSessionId);
+      return NextResponse.json({
+        ok: true,
+        sessionId: safeSessionId,
+        results: parsedResult,
+        source: 'jupyterhub-contents',
+      });
     }
 
     // Fallback: check in-memory cache if cell posted via HTTP
-    const cached = getServerJupyterResult();
+    const cached = getServerJupyterResult(safeSessionId);
     if (cached) {
-      return NextResponse.json({ ok: true, results: cached, source: 'server-cache' });
+      return NextResponse.json({
+        ok: true,
+        sessionId: safeSessionId,
+        results: cached,
+        source: 'server-cache',
+      });
     }
 
     return NextResponse.json(
       {
         ok: false,
-        error: 'No executed statistical results detected in JupyterHub notebook. Run all cells in JupyterLab.',
+        sessionId: safeSessionId,
+        error:
+          'No executed statistical results detected in JupyterHub notebook. Run all cells in JupyterLab.',
       },
       { status: 404 }
     );

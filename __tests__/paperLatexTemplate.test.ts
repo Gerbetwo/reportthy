@@ -6,7 +6,8 @@ import {
   HypothesisTestResult,
   AttritionAnalysis,
   CleanedParticipant,
-  JupyterExecutionResult
+  JupyterExecutionResult,
+  StudyMetadata,
 } from '@/types/dataset';
 
 const pre: DescriptiveMetrics = {
@@ -64,8 +65,8 @@ const makeJupyterResult = (
 });
 
 const paired: PairedParticipant[] = [
-  { preName: 'Alexander Yama', postName: 'Alexander Yama', similarity: 1, group: 'Listado 1', preScore: 3, postScore: 8, delta: 5 },
-  { preName: 'Darwin Meneses', postName: 'Darwin Meneses', similarity: 0.92, group: 'Listado 2', preScore: 2, postScore: 10, delta: 8 }
+  { preName: 'Alexander Yama', postName: 'Alexander Yama', similarity: 1, group: 'Listado 1', cohortRole: 'Control', preScore: 3, postScore: 8, delta: 5 },
+  { preName: 'Darwin Meneses', postName: 'Darwin Meneses', similarity: 0.92, group: 'Listado 2', cohortRole: 'Experimental', preScore: 2, postScore: 10, delta: 8 }
 ];
 
 const attrition: AttritionAnalysis = {
@@ -75,11 +76,11 @@ const attrition: AttritionAnalysis = {
 
 const quarantined: CleanedParticipant[] = [
   {
-    id: 'q1', originalName: 'def solve(): return 42', normalizedName: '', group: 'Unknown', score: 0, timestamp: '',
+    id: 'q1', originalName: 'def solve(): return 42', normalizedName: '', group: 'Unknown', cohortRole: 'Unassigned', score: 0, timestamp: '',
     isFlaggedCorrupted: true, corruptionReason: 'Code keyword detected'
   },
   {
-    id: 'q2', originalName: 'import numpy', normalizedName: '', group: 'Unknown', score: 0, timestamp: '',
+    id: 'q2', originalName: 'import numpy', normalizedName: '', group: 'Unknown', cohortRole: 'Unassigned', score: 0, timestamp: '',
     isFlaggedCorrupted: true, corruptionReason: 'Code keyword detected'
   }
 ];
@@ -242,5 +243,155 @@ describe('Unified Springer Nature manuscript (lib/paperLatexTemplate.ts)', () =>
     expect(errJson.details).toContain('undefinedCommandHere');
     expect(typeof errJson.line).toBe('number');
     expect(errJson.rawLog).toContain('Undefined control sequence');
+  });
+
+  it('renders custom StudyMetadata with multi-author blocks, affiliations, topic domain, and pedagogies', () => {
+    const jupyterRes = makeJupyterResult(true, 4.2, 0.00001);
+    const studyMetadata: StudyMetadata = {
+      studyTitle: 'Gamified Linux Terminal Instruction',
+      topicDomain: 'Linux Command-Line Administration',
+      controlPedagogy: 'Self-paced PDF study guide',
+      experimentalPedagogy: 'Interactive shell challenges',
+      hypothesisStatement: 'Gamified interactive challenges lead to superior command retention.',
+      designMode: 'between_group',
+      alpha: 0.05,
+      wilcoxonAlternative: 'greater',
+      mannWhitneyAlternative: 'greater',
+      authors: [
+        { fullName: 'Linus Torvalds', email: 'linus@linuxfoundation.org', affiliation: 'Linux Foundation', country: 'USA' },
+        { fullName: 'Grace Hopper', email: 'grace@navy.mil', affiliation: 'Naval Academy', country: 'USA' },
+      ],
+      cohortMapping: { 'Listado 1': 'Control', 'Listado 2': 'Experimental' },
+    };
+
+    const tex = generateFullPaperLatex(jupyterRes, paired, 'en', attrition, quarantined, studyMetadata);
+
+    expect(tex).toContain('\\author*[1]{\\fnm{Linus} \\sur{Torvalds}}\\email{linus@linuxfoundation.org}');
+    expect(tex).toContain('\\affil*[1]{\\orgname{Linux Foundation}, \\orgaddress{\\country{USA}}}');
+    expect(tex).toContain('\\author[2]{\\fnm{Grace} \\sur{Hopper}}\\email{grace@navy.mil}');
+    expect(tex).toContain('\\affil[2]{\\orgname{Naval Academy}, \\orgaddress{\\country{USA}}}');
+    expect(tex).toContain('Gamified Linux Terminal Instruction');
+    expect(tex).toContain('Linux Command-Line Administration');
+    expect(tex).toContain('Self-paced PDF study guide');
+    expect(tex).toContain('Interactive shell challenges');
+  });
+
+  it('escapes LaTeX special characters in study metadata fields', () => {
+    const jupyterRes = makeJupyterResult(true, 4.2, 0.00001);
+    const studyMetadata: StudyMetadata = {
+      studyTitle: 'Analysis of 100% Rust & C_++ Performance #1',
+      topicDomain: 'Systems & Tools',
+      controlPedagogy: 'Textbooks & Guides ($50)',
+      experimentalPedagogy: 'Live Coding & 100% AI_Assistance',
+      hypothesisStatement: 'AI_Assistance yields > 50% gain & efficiency #1.',
+      designMode: 'within_subject',
+      alpha: 0.05,
+      wilcoxonAlternative: 'greater',
+      mannWhitneyAlternative: 'greater',
+      authors: [
+        { fullName: 'Alice & Bob_Smith', email: 'alice_bob@test.com', affiliation: 'Dept of CS & IT', country: 'US_A' },
+      ],
+      cohortMapping: {},
+    };
+
+    const tex = generateFullPaperLatex(jupyterRes, paired, 'en', attrition, quarantined, studyMetadata);
+
+    expect(tex).toContain('100\\% Rust \\& C\\_++ Performance \\#1');
+    expect(tex).toContain('Systems \\& Tools');
+    expect(tex).toContain('Textbooks \\& Guides (\\$50)');
+    expect(tex).toContain('Live Coding \\& 100\\% AI\\_Assistance');
+    expect(tex).toContain('AI\\_Assistance yields > 50\\% gain \\& efficiency \\#1.');
+    expect(tex).toContain('\\fnm{Alice \\&} \\sur{Bob\\_Smith}');
+    expect(tex).toContain('alice\\_bob@test.com');
+    expect(tex).toContain('Dept of CS \\& IT');
+    expect(tex).toContain('US\\_A');
+  });
+
+  it('formats conclusions according to experimental design modes (between_group and combined)', () => {
+    const metaBetween: StudyMetadata = {
+      studyTitle: 'Between Group Study',
+      topicDomain: 'Testing',
+      controlPedagogy: 'Control',
+      experimentalPedagogy: 'Experimental',
+      hypothesisStatement: 'Exp > Ctrl',
+      designMode: 'between_group',
+      alpha: 0.05,
+      wilcoxonAlternative: 'greater',
+      mannWhitneyAlternative: 'greater',
+      authors: [],
+      cohortMapping: {},
+    };
+
+    // 1. Between-group confirmed
+    const jupyterBetweenConf = { ...makeJupyterResult(true, 3.5, 0.001, true), hypothesisConfirmed: true };
+    const texBetweenConf = generateFullPaperLatex(jupyterBetweenConf, paired, 'en', attrition, quarantined, metaBetween);
+    expect(texBetweenConf).toContain('\\textbf{corroborates}');
+    expect(texBetweenConf).toContain('superior gain over the control cohort');
+
+    // 2. Between-group rejected
+    const jupyterBetweenRej = { ...makeJupyterResult(true, 3.5, 0.001, false), hypothesisConfirmed: false };
+    const texBetweenRej = generateFullPaperLatex(jupyterBetweenRej, paired, 'en', attrition, quarantined, metaBetween);
+    expect(texBetweenRej).toContain('\\textbf{fails to corroborate}');
+    expect(texBetweenRej).toContain('no statistically significant experimental cohort superiority was corroborated');
+
+    // 3. Combined confirmed
+    const metaCombined: StudyMetadata = { ...metaBetween, designMode: 'combined' };
+    const jupyterCombinedConf = { ...makeJupyterResult(true, 3.5, 0.001, true), hypothesisConfirmed: true };
+    const texCombinedConf = generateFullPaperLatex(jupyterCombinedConf, paired, 'en', attrition, quarantined, metaCombined);
+    expect(texCombinedConf).toContain('\\textbf{corroborates}');
+    expect(texCombinedConf).toContain('both a statistically significant longitudinal gain');
+    expect(texCombinedConf).toContain('statistically significant between-cohort superiority');
+
+    // 4. Combined rejected
+    const jupyterCombinedRej = { ...makeJupyterResult(true, 3.5, 0.001, false), hypothesisConfirmed: false };
+    const texCombinedRej = generateFullPaperLatex(jupyterCombinedRej, paired, 'en', attrition, quarantined, metaCombined);
+    expect(texCombinedRej).toContain('\\textbf{fails to corroborate}');
+    expect(texCombinedRej).toContain('the dual criteria for combined significance was not met');
+  });
+
+  it('successfully compiles a custom-parameterized manuscript with escaped special characters via pdflatex', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const os = await import('os');
+    const { execFile } = await import('child_process');
+    const { promisify } = await import('util');
+    const execFileAsync = promisify(execFile);
+
+    const jupyterRes = makeJupyterResult(true, 4.2, 0.00001, true);
+    const studyMetadata: StudyMetadata = {
+      studyTitle: 'Gamified Linux Terminal & Shell Commands Evaluation',
+      topicDomain: 'Operating Systems & Scripting',
+      controlPedagogy: 'PDF Guide & Static Slides',
+      experimentalPedagogy: 'Gamified Challenges & Interactive Feedback',
+      hypothesisStatement: 'Interactive challenges produce > 25% gain & cohort superiority.',
+      designMode: 'combined',
+      alpha: 0.05,
+      wilcoxonAlternative: 'greater',
+      mannWhitneyAlternative: 'greater',
+      authors: [
+        { fullName: 'Linus Torvalds', email: 'linus@linuxfoundation.org', affiliation: 'Linux Foundation & Kernel Dept', country: 'USA' },
+        { fullName: 'Ada Lovelace', email: 'ada@computing.org', affiliation: 'Babbage Analytical Engine', country: 'UK' }
+      ],
+      cohortMapping: { 'Listado 1': 'Control', 'Listado 2': 'Experimental' },
+    };
+
+    const tex = generateFullPaperLatex(jupyterRes, paired, 'en', attrition, quarantined, studyMetadata);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reportthy-test-custom-pdf-'));
+    try {
+      const clsSource = path.join(process.cwd(), 'lib', 'tex', 'sn-jnl.cls');
+      fs.copyFileSync(clsSource, path.join(tmpDir, 'sn-jnl.cls'));
+      fs.writeFileSync(path.join(tmpDir, 'paper_custom.tex'), tex, 'utf-8');
+
+      await execFileAsync(
+        'pdflatex',
+        ['-interaction=nonstopmode', '-no-shell-escape', '-output-directory=' + tmpDir, path.join(tmpDir, 'paper_custom.tex')],
+        { timeout: 15000 }
+      );
+      expect(fs.existsSync(path.join(tmpDir, 'paper_custom.pdf'))).toBe(true);
+      expect(fs.statSync(path.join(tmpDir, 'paper_custom.pdf')).size).toBeGreaterThan(1000);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });

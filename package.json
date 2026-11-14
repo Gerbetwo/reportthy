@@ -18,6 +18,7 @@
     "@codemirror/language": "^6.13.1",
     "@codemirror/legacy-modes": "^6.5.5",
     "@codemirror/view": "^6.43.15",
+    "@mlc-ai/web-llm": "^0.2.88",
     "@uiw/react-codemirror": "^4.25.12",
     "clsx": "^2.1.1",
     "lucide-react": "^1.70.0",

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerJupyterResult, saveServerJupyterResult } from '@/lib/notebookStore';
+import {
+  getServerJupyterResult,
+  saveServerJupyterResult,
+  extractSessionId,
+} from '@/lib/notebookStore';
 import { JupyterExecutionResult } from '@/types/dataset';
 
 export async function POST(request: NextRequest) {
@@ -8,6 +12,8 @@ export async function POST(request: NextRequest) {
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
     }
+
+    const sessionId = extractSessionId(request, body);
 
     // Support payload wrapped in { payload: ... } or raw result
     const resultPayload: Partial<JupyterExecutionResult> = body.payload || body;
@@ -43,18 +49,22 @@ export async function POST(request: NextRequest) {
       executedCodeCells: Array.isArray(resultPayload.executedCodeCells)
         ? resultPayload.executedCodeCells
         : [],
+      designMode: resultPayload.designMode,
+      controlLabel: resultPayload.controlLabel,
+      experimentalLabel: resultPayload.experimentalLabel,
     };
 
-    saveServerJupyterResult(verifiedResult);
+    saveServerJupyterResult(verifiedResult, sessionId);
 
     return NextResponse.json(
-      { ok: true, results: verifiedResult },
+      { ok: true, results: verifiedResult, sessionId },
       {
         status: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Headers':
+            'Content-Type, Authorization, x-reportthy-session',
         },
       }
     );
@@ -66,17 +76,31 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
-  const results = getServerJupyterResult();
+export async function GET(request: NextRequest) {
+  const sessionId = extractSessionId(request);
+  const results = getServerJupyterResult(sessionId);
   return NextResponse.json(
-    { ok: true, results },
+    { ok: true, results, sessionId },
     {
       status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers':
+          'Content-Type, Authorization, x-reportthy-session',
       },
     }
   );
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers':
+        'Content-Type, Authorization, x-reportthy-session',
+    },
+  });
 }

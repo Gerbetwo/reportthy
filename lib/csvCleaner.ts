@@ -4,6 +4,7 @@ import {
   RawSurveyRow,
   PairedParticipant,
   AttritionAnalysis,
+  CohortRole,
 } from "@/types/dataset";
 
 export function normalizeName(name: string): string {
@@ -67,9 +68,76 @@ export function detectCSVRole(headers: string[]): 'pre' | 'post' | 'unknown' {
   return 'unknown';
 }
 
+export function inferDefaultCohortRole(
+  rawGroup: string,
+  allObservedGroups?: string[]
+): CohortRole {
+  const normalized = normalizeName(rawGroup);
+
+  const controlRegex = /control|tradicional|master\s*class|pdf|guia|listado\s*1|grupo\s*1|grupo\s*a/i;
+  const experimentalRegex = /experimental|gamif|ia\b|ai\b|generativ|listado\s*2|grupo\s*2|grupo\s*b/i;
+
+  if (controlRegex.test(normalized)) {
+    return 'Control';
+  }
+  if (experimentalRegex.test(normalized)) {
+    return 'Experimental';
+  }
+
+  if (allObservedGroups && allObservedGroups.length > 0) {
+    const distinct = Array.from(
+      new Set(allObservedGroups.map((g) => g.trim()).filter((g) => g.length > 0))
+    );
+    if (distinct.length === 2) {
+      if (rawGroup.trim() === distinct[0] || normalized === normalizeName(distinct[0])) {
+        return 'Control';
+      }
+      if (rawGroup.trim() === distinct[1] || normalized === normalizeName(distinct[1])) {
+        return 'Experimental';
+      }
+    }
+  }
+
+  return 'Unassigned';
+}
+
+export function extractUniqueGroups(
+  preClean: CleanedParticipant[],
+  postClean: CleanedParticipant[]
+): string[] {
+  const set = new Set<string>();
+  for (const p of preClean) {
+    const trimmed = (p.group || '').trim();
+    if (trimmed) set.add(trimmed);
+  }
+  for (const p of postClean) {
+    const trimmed = (p.group || '').trim();
+    if (trimmed) set.add(trimmed);
+  }
+  return Array.from(set).sort();
+}
+
+function findRowValue(row: RawSurveyRow, candidateKeys: string[]): string | undefined {
+  for (const key of candidateKeys) {
+    if (row[key] !== undefined && row[key] !== '') {
+      return row[key];
+    }
+  }
+  const rowKeys = Object.keys(row);
+  for (const candidate of candidateKeys) {
+    const candNorm = candidate.trim().toLowerCase();
+    const matchedKey = rowKeys.find((k) => k.trim().toLowerCase() === candNorm);
+    if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== '') {
+      return row[matchedKey];
+    }
+  }
+  return undefined;
+}
+
 export function parseSurveyCSV(
   rows: RawSurveyRow[],
-  source: "pre" | "post"
+  source: "pre" | "post",
+  cohortMapping?: Record<string, CohortRole>
 ): {
   clean: CleanedParticipant[];
   quarantined: CleanedParticipant[];
@@ -79,17 +147,34 @@ export function parseSurveyCSV(
 
   rows.forEach((row, index) => {
     const rawName = (
-      row["Nombre y apellido "] ||
-      row["Nombre y apellido"] ||
-      row["Nombre"] ||
-      ""
+      findRowValue(row, [
+        "Nombre y apellido ",
+        "Nombre y apellido",
+        "Nombre",
+        "Name",
+        "Student",
+      ]) || ""
     ).trim();
-    const rawScore =
+
+    const rawScore = (
       source === "pre"
-        ? row["Score"] || row["Puntuación"] || ""
-        : row["Puntuación"] || row["Score"] || "";
-    const rawGroup = row["A que listado Pertenece"] || "Unknown";
-    const timestamp = row["Timestamp"] || row["Marca temporal"] || "";
+        ? findRowValue(row, ["Score", "Puntuación", "Puntaje", "Nota"])
+        : findRowValue(row, ["Puntuación", "Score", "Puntaje", "Nota"])
+    ) || "";
+
+    const rawGroup = (
+      findRowValue(row, [
+        "A que listado Pertenece",
+        "A qué listado pertenece",
+        "Listado",
+        "Grupo",
+        "Group",
+        "Cohort",
+      ]) || ""
+    ).trim() || "Default Cohort";
+
+    const timestamp =
+      findRowValue(row, ["Timestamp", "Marca temporal"]) || "";
 
     const hasCodeKeywords =
       rawName.includes("def ") ||
@@ -112,15 +197,15 @@ export function parseSurveyCSV(
       corruptionReason = "Invalid score format";
     }
 
+    const cohortRole: CohortRole =
+      cohortMapping?.[rawGroup] ?? inferDefaultCohortRole(rawGroup);
+
     const participant: CleanedParticipant = {
       id: `${source}-${index + 1}`,
       originalName: rawName,
       normalizedName: normalizeName(rawName),
-      group: rawGroup.includes("Listado 1")
-        ? "Listado 1"
-        : rawGroup.includes("Listado 2")
-          ? "Listado 2"
-          : "Unknown",
+      group: rawGroup,
+      cohortRole,
       score: numericScore,
       timestamp,
       isFlaggedCorrupted: isCorrupted || isInvalidScore,
@@ -171,11 +256,14 @@ export function pairPreAndPost(
     if (!usedPre.has(pre.id) && !usedPost.has(post.id)) {
       usedPre.add(pre.id);
       usedPost.add(post.id);
+      const cohortRole: CohortRole =
+        post.cohortRole !== 'Unassigned' ? post.cohortRole : pre.cohortRole;
       paired.push({
         preName: pre.originalName,
         postName: post.originalName,
         similarity: sim,
-        group: post.group,
+        group: post.group || pre.group,
+        cohortRole,
         preScore: pre.score,
         postScore: post.score,
         delta: post.score - pre.score,

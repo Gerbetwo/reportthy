@@ -24,6 +24,8 @@ export default function LabPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const {
+    sessionId,
+    studyMetadata,
     preClean,
     postClean,
     pairedData,
@@ -48,10 +50,15 @@ export default function LabPage() {
     setConnectionError('');
 
     try {
-      const res = await fetch('/api/jupyterhub', {
+      const res = await fetch(`/api/jupyterhub?sessionId=${encodeURIComponent(sessionId)}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-reportthy-session': sessionId,
+        },
         body: JSON.stringify({
+          sessionId,
+          studyMetadata,
           preClean,
           postClean,
           pairedData,
@@ -79,7 +86,7 @@ export default function LabPage() {
       setIsProvisioning(false);
       provisioningRef.current = false;
     }
-  }, [preClean, postClean, pairedData, quarantined, attritionAnalysis]);
+  }, [sessionId, studyMetadata, preClean, postClean, pairedData, quarantined, attritionAnalysis]);
 
   useEffect(() => {
     if (provisioningRef.current) return;
@@ -94,7 +101,9 @@ export default function LabPage() {
     let isMounted = true;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch('/api/notebook/results');
+        const res = await fetch(`/api/notebook/results?sessionId=${encodeURIComponent(sessionId)}`, {
+          headers: { 'x-reportthy-session': sessionId },
+        });
         if (res.ok) {
           const data = await res.json();
           if (data.results && isMounted) {
@@ -103,7 +112,9 @@ export default function LabPage() {
           }
         }
         // Fallback to checking JupyterHub contents if notebook was saved
-        const hubRes = await fetch('/api/jupyterhub');
+        const hubRes = await fetch(`/api/jupyterhub?sessionId=${encodeURIComponent(sessionId)}`, {
+          headers: { 'x-reportthy-session': sessionId },
+        });
         if (hubRes.ok) {
           const hubData = await hubRes.json();
           if (hubData.results && isMounted) {
@@ -119,7 +130,7 @@ export default function LabPage() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [setJupyterResults]);
+  }, [setJupyterResults, sessionId]);
 
   // 3. Fallback parser: upload executed .ipynb file directly
   const handleUploadExecutedIpynb = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -170,8 +181,14 @@ export default function LabPage() {
           setJupyterResults(foundResult);
           fetch('/api/notebook/results', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(foundResult),
+            headers: {
+              'Content-Type': 'application/json',
+              'x-reportthy-session': sessionId,
+            },
+            body: JSON.stringify({
+              sessionId,
+              payload: foundResult,
+            }),
           }).catch(() => {});
         } else {
           alert(t.lab.noResultsInIpynb);
@@ -185,7 +202,7 @@ export default function LabPage() {
   };
 
   const handleDownloadNotebook = () => {
-    window.open('/api/notebook/ipynb?download=true', '_blank');
+    window.open(`/api/notebook/ipynb?sessionId=${encodeURIComponent(sessionId)}&download=true`, '_blank');
   };
 
   return (

@@ -1,27 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerDatasetBundle, saveServerDatasetBundle } from '@/lib/notebookStore';
+import {
+  getServerDatasetBundle,
+  saveServerDatasetBundle,
+  extractSessionId,
+} from '@/lib/notebookStore';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const sessionId = body.sessionId || `session-${Date.now()}`;
-    const bundle = saveServerDatasetBundle({
-      sessionId,
-      preClean: body.preClean || [],
-      postClean: body.postClean || [],
-      pairedData: body.pairedData || [],
-      quarantined: body.quarantined || [],
-      attritionAnalysis: body.attritionAnalysis || null,
-    });
+    const body = await request.json().catch(() => ({}));
+    const sessionId = extractSessionId(request, body);
+    const bundle = saveServerDatasetBundle(
+      {
+        sessionId,
+        studyMetadata: body.studyMetadata,
+        preClean: body.preClean || [],
+        postClean: body.postClean || [],
+        pairedData: body.pairedData || [],
+        quarantined: body.quarantined || [],
+        attritionAnalysis: body.attritionAnalysis || null,
+      },
+      sessionId
+    );
 
     const origin = request.nextUrl.origin;
-    return NextResponse.json({
-      ok: true,
-      sessionId: bundle.sessionId,
-      datasetUrl: `${origin}/api/notebook/dataset?sessionId=${bundle.sessionId}`,
-      notebookUrl: `${origin}/api/notebook/ipynb?sessionId=${bundle.sessionId}`,
-      bundle,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        sessionId: bundle.sessionId,
+        datasetUrl: `${origin}/api/notebook/dataset?sessionId=${bundle.sessionId}`,
+        notebookUrl: `${origin}/api/notebook/ipynb?sessionId=${bundle.sessionId}`,
+        bundle,
+      },
+      {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers':
+            'Content-Type, Authorization, x-reportthy-session',
+        },
+      }
+    );
   } catch (error) {
     return NextResponse.json(
       { error: 'Failed to store dataset bundle', details: String(error) },
@@ -31,11 +49,12 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const bundle = getServerDatasetBundle();
+  const sessionId = extractSessionId(request);
+  const bundle = getServerDatasetBundle(sessionId);
   if (!bundle) {
     return NextResponse.json(
       {
-        sessionId: 'empty-session',
+        sessionId,
         updatedAt: new Date().toISOString(),
         preClean: [],
         postClean: [],
@@ -43,7 +62,15 @@ export async function GET(request: NextRequest) {
         quarantined: [],
         attritionAnalysis: null,
       },
-      { status: 200 }
+      {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers':
+            'Content-Type, Authorization, x-reportthy-session',
+        },
+      }
     );
   }
 
@@ -52,7 +79,20 @@ export async function GET(request: NextRequest) {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers':
+        'Content-Type, Authorization, x-reportthy-session',
+    },
+  });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers':
+        'Content-Type, Authorization, x-reportthy-session',
     },
   });
 }

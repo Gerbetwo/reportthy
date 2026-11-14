@@ -10,6 +10,8 @@ import HeaderNav from "@/components/HeaderNav";
 import { useTranslation } from "@/lib/LanguageContext";
 import { useDatasetStats } from "@/lib/useDatasetStats";
 import { generateFullPaperLatex } from "@/lib/paperLatexTemplate";
+import LocalCopilotPanel from "@/components/LocalCopilotPanel";
+import { PaperNarrativeSlotsResult } from "@/types/dataset";
 import {
   Download,
   Copy,
@@ -48,8 +50,14 @@ interface CompileErrorState {
 
 export default function PaperPage() {
   const { lang, t } = useTranslation();
-  const { pairedData, attritionAnalysis, quarantined, jupyterResults } =
-    useDatasetStats();
+  const {
+    pairedData,
+    attritionAnalysis,
+    quarantined,
+    jupyterResults,
+    studyMetadata,
+    setStudyMetadata,
+  } = useDatasetStats();
 
   const [copied, setCopied] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
@@ -84,8 +92,16 @@ export default function PaperPage() {
       lang,
       attritionAnalysis,
       quarantined,
+      studyMetadata,
     );
-  }, [jupyterResults, pairedData, lang, attritionAnalysis, quarantined]);
+  }, [
+    jupyterResults,
+    pairedData,
+    lang,
+    attritionAnalysis,
+    quarantined,
+    studyMetadata,
+  ]);
 
   const [latexSource, setLatexSource] = useState<string>(defaultLatex);
   const latexSourceRef = useRef(latexSource);
@@ -373,6 +389,27 @@ export default function PaperPage() {
             </button>
           </div>
         </header>
+
+        {/* Local AI Copilot Panel */}
+        <div className="mb-6">
+          <LocalCopilotPanel
+            mode="paper"
+            studyMetadata={studyMetadata}
+            onApplyNarrativeSlots={(slots: PaperNarrativeSlotsResult) => {
+              setStudyMetadata((prev) => ({
+                ...prev,
+                aiNarrativeSlots: {
+                  ...prev.aiNarrativeSlots,
+                  manuscriptTitle: slots.manuscriptTitle,
+                  theoreticalContext: slots.theoreticalContext,
+                  pedagogicalComparisonNote: slots.pedagogicalComparisonNote,
+                  keywords: slots.keywords,
+                },
+              }));
+              setIsDirty(false);
+            }}
+          />
+        </div>
 
         {/* Dual-Pane LaTeX Workbench */}
         <section className="bg-white border border-[#D0D7DE] rounded-xl overflow-hidden shadow-md">
