@@ -210,4 +210,37 @@ describe('Unified Springer Nature manuscript (lib/paperLatexTemplate.ts)', () =>
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it('API route POST /api/compile-pdf returns inline PDF with telemetry header and structured error on syntax error', async () => {
+    const { POST } = await import('@/app/api/compile-pdf/route');
+
+    const jupyterRes = makeJupyterResult(true, 4.2, 0.00001);
+    const validTex = generateFullPaperLatex(jupyterRes, paired, 'en', attrition, quarantined);
+
+    // 1. Success test
+    const req = new Request('http://localhost:3000/api/compile-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ latexContent: validTex }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Disposition')).toContain('inline');
+    expect(res.headers.get('X-Compile-Time-Ms')).toBeTruthy();
+
+    // 2. Syntax error test
+    const brokenTex = validTex.replace('\\begin{document}', '\\begin{document}\n\\undefinedCommandHere');
+    const errReq = new Request('http://localhost:3000/api/compile-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ latexContent: brokenTex }),
+    });
+    const errRes = await POST(errReq);
+    expect(errRes.status).toBe(422);
+    const errJson = await errRes.json();
+    expect(errJson.error).toBe('LaTeX typesetting failure.');
+    expect(errJson.details).toContain('undefinedCommandHere');
+    expect(typeof errJson.line).toBe('number');
+    expect(errJson.rawLog).toContain('Undefined control sequence');
+  });
 });

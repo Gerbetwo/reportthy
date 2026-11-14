@@ -9,6 +9,7 @@ import crypto from 'crypto';
 const execFileAsync = promisify(execFile);
 
 export async function POST(request: Request) {
+  const startTime = Date.now();
   let tmpDir = '';
   try {
     const { latexContent } = await request.json();
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     const jobId = crypto.randomBytes(6).toString('hex');
     const texFilePath = path.join(tmpDir, `report_${jobId}.tex`);
     const pdfFilePath = path.join(tmpDir, `report_${jobId}.pdf`);
+    const logFilePath = path.join(tmpDir, `report_${jobId}.log`);
 
     // Copy bundled sn-jnl.cls into tmpDir if available
     const clsSource = path.join(process.cwd(), 'lib', 'tex', 'sn-jnl.cls');
@@ -42,36 +44,64 @@ export async function POST(request: Request) {
       await execFileAsync('pdflatex', pdfArgs, { timeout: 12000 });
     } catch (execErr: unknown) {
       console.error('[pdflatex compilation process error]:', execErr);
-      let snippet = '';
       const errObj = execErr as { stdout?: string; stderr?: string; message?: string };
-      if (errObj.stdout) {
-        const lines = errObj.stdout.split('\n');
-        const errorLines = lines.filter(l => l.startsWith('!') || l.includes('Error:'));
-        snippet = errorLines.length > 0 ? errorLines.slice(0, 5).join('\n') : lines.slice(-10).join('\n');
-      } else if (errObj.stderr) {
-        snippet = errObj.stderr.slice(0, 500);
-      } else if (errObj.message) {
-        snippet = errObj.message;
-      }
 
-      const logFilePath = path.join(tmpDir, `report_${jobId}.log`);
-      if (!snippet && fs.existsSync(/*turbopackIgnore: true*/ logFilePath)) {
+      let rawLog = '';
+      if (fs.existsSync(/*turbopackIgnore: true*/ logFilePath)) {
         try {
-          const logContent = fs.readFileSync(logFilePath, 'utf-8');
-          const lines = logContent.split('\n');
-          const errorLines = lines.filter(l => l.startsWith('!'));
-          snippet = errorLines.length > 0 ? errorLines.slice(0, 5).join('\n') : lines.slice(-10).join('\n');
+          rawLog = fs.readFileSync(logFilePath, 'utf-8');
         } catch {
-          // ignore
+          rawLog = '';
         }
       }
+      if (!rawLog && errObj.stdout) {
+        rawLog = errObj.stdout;
+      }
+
+      // Extract failing line number parsed from `l.(\d+)`
+      let line: number | null = null;
+      const lineMatch = rawLog.match(/l\.(\d+)/);
+      if (lineMatch) {
+        line = parseInt(lineMatch[1], 10);
+      }
+
+      // Extract clean error details
+      let details = '';
+      const logLines = rawLog.split('\n');
+      const errorLines: string[] = [];
+      for (let i = 0; i < logLines.length; i++) {
+        const l = logLines[i];
+        if (l.startsWith('!')) {
+          errorLines.push(l);
+          if (logLines[i + 1] && !logLines[i + 1].startsWith('!') && logLines[i + 1].trim().length > 0) {
+            errorLines.push(logLines[i + 1].trim());
+          }
+          if (errorLines.length >= 4) break;
+        }
+      }
+
+      if (errorLines.length > 0) {
+        details = errorLines.join('\n');
+      } else if (errObj.stderr) {
+        details = errObj.stderr.slice(0, 500);
+      } else if (errObj.message) {
+        details = errObj.message;
+      } else {
+        details = 'LaTeX compilation failed without explicit error trace.';
+      }
+
+      const safeRawLog = rawLog.length > 12000 ? rawLog.slice(-12000) : rawLog;
+      const isSyntaxError = rawLog.includes('!') || details.includes('!') || line !== null;
+      const status = isSyntaxError ? 422 : 500;
 
       return NextResponse.json(
         {
           error: 'LaTeX typesetting failure.',
-          details: snippet.trim() || 'Ensure LaTeX engine and required packages are available in host environment.'
+          details: details.trim(),
+          line,
+          rawLog: safeRawLog,
         },
-        { status: 500 }
+        { status }
       );
     }
 
@@ -79,14 +109,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'PDF compilation produced no output binary.' }, { status: 500 });
     }
 
+    const elapsedMs = Date.now() - startTime;
     const pdfBuffer = fs.readFileSync(pdfFilePath);
 
     return new NextResponse(pdfBuffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="springer_nature_manuscript.pdf"',
-        'Content-Length': pdfBuffer.length.toString()
+        'Content-Disposition': 'inline; filename="springer_nature_manuscript.pdf"',
+        'Content-Length': pdfBuffer.length.toString(),
+        'X-Compile-Time-Ms': String(elapsedMs),
       }
     });
   } catch (err: unknown) {
