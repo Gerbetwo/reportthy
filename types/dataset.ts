@@ -76,13 +76,3 @@ export interface JupyterExecutionResult {
   hypothesisConfirmed: boolean;
   executedCodeCells: string[];
 }
-
-export interface DistributionBin {
-  score: number;
-  preCount: number;
-  postCount: number;
-  g1PreCount: number;
-  g1PostCount: number;
-  g2PreCount: number;
-  g2PostCount: number;
-}

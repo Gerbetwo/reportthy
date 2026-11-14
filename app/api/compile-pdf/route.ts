@@ -40,10 +40,37 @@ export async function POST(request: Request) {
     try {
       await execFileAsync('pdflatex', pdfArgs, { timeout: 12000 });
       await execFileAsync('pdflatex', pdfArgs, { timeout: 12000 });
-    } catch (execErr) {
+    } catch (execErr: unknown) {
       console.error('[pdflatex compilation process error]:', execErr);
+      let snippet = '';
+      const errObj = execErr as { stdout?: string; stderr?: string; message?: string };
+      if (errObj.stdout) {
+        const lines = errObj.stdout.split('\n');
+        const errorLines = lines.filter(l => l.startsWith('!') || l.includes('Error:'));
+        snippet = errorLines.length > 0 ? errorLines.slice(0, 5).join('\n') : lines.slice(-10).join('\n');
+      } else if (errObj.stderr) {
+        snippet = errObj.stderr.slice(0, 500);
+      } else if (errObj.message) {
+        snippet = errObj.message;
+      }
+
+      const logFilePath = path.join(tmpDir, `report_${jobId}.log`);
+      if (!snippet && fs.existsSync(/*turbopackIgnore: true*/ logFilePath)) {
+        try {
+          const logContent = fs.readFileSync(logFilePath, 'utf-8');
+          const lines = logContent.split('\n');
+          const errorLines = lines.filter(l => l.startsWith('!'));
+          snippet = errorLines.length > 0 ? errorLines.slice(0, 5).join('\n') : lines.slice(-10).join('\n');
+        } catch {
+          // ignore
+        }
+      }
+
       return NextResponse.json(
-        { error: 'LaTeX typesetting failure. Ensure LaTeX engine is available in host environment.' },
+        {
+          error: 'LaTeX typesetting failure.',
+          details: snippet.trim() || 'Ensure LaTeX engine and required packages are available in host environment.'
+        },
         { status: 500 }
       );
     }

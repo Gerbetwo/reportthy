@@ -9,7 +9,6 @@ import { JupyterExecutionResult } from '@/types/dataset';
 import {
   Download,
   UploadCloud,
-  RefreshCw,
   CheckCircle2,
   XCircle,
   FileText,
@@ -35,15 +34,15 @@ export default function LabPage() {
   } = useDatasetStats();
 
   const [isProvisioning, setIsProvisioning] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [serverUnreachable, setServerUnreachable] = useState(false);
   const [connectionError, setConnectionError] = useState('');
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
+  const [fullLabUrl, setFullLabUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const provisioningRef = useRef(false);
 
   // 1. Provision JupyterHub single-user server & push notebook workspace
-  const provisionJupyterHub = useCallback(async () => {
+  const provisionJupyterHub = useCallback(async (forceReset = false) => {
     setIsProvisioning(true);
     setServerUnreachable(false);
     setConnectionError('');
@@ -58,12 +57,16 @@ export default function LabPage() {
           pairedData,
           quarantined,
           attritionAnalysis,
+          forceReset,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.embedUrl) {
         setIframeSrc(data.embedUrl);
+        if (data.fullLabUrl) {
+          setFullLabUrl(data.fullLabUrl);
+        }
         setServerUnreachable(false);
       } else {
         setServerUnreachable(true);
@@ -82,28 +85,41 @@ export default function LabPage() {
     if (provisioningRef.current) return;
     if (preClean.length > 0 || postClean.length > 0) {
       provisioningRef.current = true;
-      provisionJupyterHub();
+      provisionJupyterHub(false);
     }
   }, [provisionJupyterHub, preClean.length, postClean.length]);
 
-  // 2. Sync executed results directly from JupyterHub Contents API
-  const handleSyncFromJupyterHub = async () => {
-    setIsSyncing(true);
-    try {
-      const res = await fetch('/api/jupyterhub');
-      const data = await res.json();
-      if (res.ok && data.results) {
-        setJupyterResults(data.results);
-      } else {
-        alert(data.error || t.lab.noRemoteResults);
+  // 2. Real-time polling loop to automatically detect Jupyter execution results
+  useEffect(() => {
+    let isMounted = true;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/notebook/results');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.results && isMounted) {
+            setJupyterResults(data.results);
+            return;
+          }
+        }
+        // Fallback to checking JupyterHub contents if notebook was saved
+        const hubRes = await fetch('/api/jupyterhub');
+        if (hubRes.ok) {
+          const hubData = await hubRes.json();
+          if (hubData.results && isMounted) {
+            setJupyterResults(hubData.results);
+          }
+        }
+      } catch {
+        // Silently ignore transient network errors during background polling
       }
-    } catch (err) {
-      console.error('Failed to sync results:', err);
-      alert('Error communicating with JupyterHub Contents API.');
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+    }, 2500);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [setJupyterResults]);
 
   // 3. Fallback parser: upload executed .ipynb file directly
   const handleUploadExecutedIpynb = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,42 +207,49 @@ export default function LabPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            {/* 1. Reset & Push Dataset */}
             <button
-              onClick={provisionJupyterHub}
+              onClick={() => provisionJupyterHub(true)}
               disabled={isProvisioning}
               className="bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#002B49] px-3.5 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
-              title="Push active pre/post dataset into JupyterHub workspace via Contents API"
+              title="Reset notebook and re-push active dataset into JupyterHub workspace"
             >
               <Server className={`w-3.5 h-3.5 ${isProvisioning ? 'animate-pulse text-amber-600' : 'text-[#002B49]'}`} />
-              <span>{isProvisioning ? t.lab.pushing : t.lab.pushDataset}</span>
+              <span>{isProvisioning ? t.lab.pushing : t.lab.resetAndPush}</span>
             </button>
 
-            <button
-              onClick={handleSyncFromJupyterHub}
-              disabled={isSyncing}
-              className="bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#002B49] px-3.5 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
-              title="Fetch executed notebook outputs from JupyterHub"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>{isSyncing ? t.lab.syncing : t.lab.syncHub}</span>
-            </button>
+            {/* 2. Open in New Tab */}
+            {(fullLabUrl || iframeSrc) && (
+              <a
+                href={fullLabUrl || iframeSrc || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#002B49] px-3.5 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
+                title="Open full JupyterLab workspace with multi-tab terminal & editor in new tab"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-[#002B49]" />
+                <span>{t.lab.openInNewTab}</span>
+              </a>
+            )}
 
-            <button
-              onClick={handleDownloadNotebook}
-              className="bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#002B49] px-3.5 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>{t.lab.downloadIpynb}</span>
-            </button>
-
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#002B49] px-3.5 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
-              title="Upload notebook file executed outside the container"
-            >
-              <UploadCloud className="w-3.5 h-3.5" />
-              <span>{t.lab.uploadExecuted}</span>
-            </button>
+            {/* 3. Compact Download / Upload .ipynb */}
+            <div className="flex items-center border border-[#CBD5E1] rounded overflow-hidden bg-white">
+              <button
+                onClick={handleDownloadNotebook}
+                className="hover:bg-slate-50 text-[#002B49] px-2.5 py-2 text-xs font-semibold flex items-center gap-1 transition border-r border-[#CBD5E1]"
+                title={t.lab.downloadIpynb}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>.ipynb</span>
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="hover:bg-slate-50 text-[#002B49] px-2.5 py-2 text-xs font-semibold flex items-center gap-1 transition"
+                title={t.lab.uploadExecuted}
+              >
+                <UploadCloud className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <input
               type="file"
               ref={fileInputRef}
@@ -235,6 +258,7 @@ export default function LabPage() {
               onChange={handleUploadExecutedIpynb}
             />
 
+            {/* 4. Synthesize Springer Nature Paper */}
             {jupyterResults && (
               <button
                 onClick={() => router.push('/paper')}
@@ -262,9 +286,9 @@ export default function LabPage() {
                 </p>
               </div>
             </div>
-            {iframeSrc && (
+            {(fullLabUrl || iframeSrc) && (
               <a
-                href={iframeSrc}
+                href={fullLabUrl || iframeSrc || '#'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-semibold text-amber-900 hover:text-amber-950 inline-flex items-center gap-1 shrink-0 bg-white border border-amber-300 px-3 py-1.5 rounded"
@@ -368,9 +392,9 @@ export default function LabPage() {
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
               <span>{t.lab.pendingVerification}</span>
             </div>
-            {iframeSrc && (
+            {(fullLabUrl || iframeSrc) && (
               <a
-                href={iframeSrc}
+                href={fullLabUrl || iframeSrc || '#'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-semibold text-[#002B49] hover:underline inline-flex items-center gap-1 shrink-0"

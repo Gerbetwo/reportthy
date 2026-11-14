@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { generateIpynbJson, computeScoreHistogram } from '@/lib/statsEngine';
+import { generateIpynbJson } from '@/lib/statsEngine';
 import { PairedParticipant, CleanedParticipant, AttritionAnalysis } from '@/types/dataset';
 
-describe('Jupyter Notebook Generator & Visual Histogram Engine (lib/statsEngine.ts)', () => {
+describe('Jupyter Notebook Generator (lib/statsEngine.ts)', () => {
   const paired: PairedParticipant[] = [
     { preName: 'Alexander Yama', postName: 'Alexander Yama', similarity: 1, group: 'Listado 1', preScore: 3, postScore: 8, delta: 5 },
     { preName: 'Darwin Meneses', postName: 'Darwin Meneses', similarity: 0.95, group: 'Listado 2', preScore: 2, postScore: 10, delta: 8 },
@@ -70,26 +70,5 @@ describe('Jupyter Notebook Generator & Visual Histogram Engine (lib/statsEngine.
     expect(ipynbStr).not.toMatch(/\bimport\s+js\b/);
     expect(ipynbStr).not.toContain('pyodide.http');
     expect(ipynbStr).not.toContain('postMessage');
-  });
-
-  it('computes 0-10 frequency bins for visual distribution histograms without external dependencies', () => {
-    const pre: CleanedParticipant[] = [
-      { id: '1', originalName: 'A', normalizedName: 'a', group: 'Listado 1', score: 2, timestamp: '', isFlaggedCorrupted: false },
-      { id: '2', originalName: 'B', normalizedName: 'b', group: 'Listado 2', score: 2, timestamp: '', isFlaggedCorrupted: false },
-      { id: '3', originalName: 'C', normalizedName: 'c', group: 'Listado 1', score: 5, timestamp: '', isFlaggedCorrupted: false }
-    ];
-    const post: CleanedParticipant[] = [
-      { id: '4', originalName: 'A', normalizedName: 'a', group: 'Listado 1', score: 9, timestamp: '', isFlaggedCorrupted: false },
-      { id: '5', originalName: 'B', normalizedName: 'b', group: 'Listado 2', score: 10, timestamp: '', isFlaggedCorrupted: false }
-    ];
-
-    const bins = computeScoreHistogram(pre, post);
-    expect(bins).toHaveLength(11);
-    expect(bins[2].preCount).toBe(2);
-    expect(bins[2].g1PreCount).toBe(1);
-    expect(bins[2].g2PreCount).toBe(1);
-    expect(bins[5].preCount).toBe(1);
-    expect(bins[9].postCount).toBe(1);
-    expect(bins[10].postCount).toBe(1);
   });
 });

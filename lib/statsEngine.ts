@@ -1,42 +1,8 @@
 import {
-  DistributionBin,
   CleanedParticipant,
   PairedParticipant,
   AttritionAnalysis
 } from '@/types/dataset';
-
-export function computeScoreHistogram(
-  preData: CleanedParticipant[],
-  postData: CleanedParticipant[]
-): DistributionBin[] {
-  const bins: DistributionBin[] = Array.from({ length: 11 }, (_, i) => ({
-    score: i,
-    preCount: 0,
-    postCount: 0,
-    g1PreCount: 0,
-    g1PostCount: 0,
-    g2PreCount: 0,
-    g2PostCount: 0,
-  }));
-
-  preData.forEach(p => {
-    if (p.score >= 0 && p.score <= 10) {
-      bins[p.score].preCount++;
-      if (p.group === 'Listado 1') bins[p.score].g1PreCount++;
-      else if (p.group === 'Listado 2') bins[p.score].g2PreCount++;
-    }
-  });
-
-  postData.forEach(p => {
-    if (p.score >= 0 && p.score <= 10) {
-      bins[p.score].postCount++;
-      if (p.group === 'Listado 1') bins[p.score].g1PostCount++;
-      else if (p.group === 'Listado 2') bins[p.score].g2PostCount++;
-    }
-  });
-
-  return bins;
-}
 
 export function generateIpynbJson(
   pairedData: PairedParticipant[],

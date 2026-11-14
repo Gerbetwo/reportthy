@@ -171,4 +171,43 @@ describe('Unified Springer Nature manuscript (lib/paperLatexTemplate.ts)', () =>
     ], 'en');
     expect(tex).toContain('A\\_B \\& C\\%');
   });
+
+  it('successfully compiles the generated manuscript to a valid PDF via pdflatex', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const os = await import('os');
+    const { execFile } = await import('child_process');
+    const { promisify } = await import('util');
+    const execFileAsync = promisify(execFile);
+
+    const jupyterRes = makeJupyterResult(true, 4.2, 0.00001);
+    const tex = generateFullPaperLatex(jupyterRes, paired, 'en', attrition, quarantined);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reportthy-test-pdf-'));
+    try {
+      const clsSource = path.join(process.cwd(), 'lib', 'tex', 'sn-jnl.cls');
+      fs.copyFileSync(clsSource, path.join(tmpDir, 'sn-jnl.cls'));
+      fs.writeFileSync(path.join(tmpDir, 'paper.tex'), tex, 'utf-8');
+
+      await execFileAsync(
+        'pdflatex',
+        ['-interaction=nonstopmode', '-no-shell-escape', '-output-directory=' + tmpDir, path.join(tmpDir, 'paper.tex')],
+        { timeout: 15000 }
+      );
+      expect(fs.existsSync(path.join(tmpDir, 'paper.pdf'))).toBe(true);
+      expect(fs.statSync(path.join(tmpDir, 'paper.pdf')).size).toBeGreaterThan(1000);
+
+      // Verify Spanish compilation
+      fs.writeFileSync(path.join(tmpDir, 'paper_es.tex'), generateFullPaperLatex(jupyterRes, paired, 'es', attrition, quarantined), 'utf-8');
+      await execFileAsync(
+        'pdflatex',
+        ['-interaction=nonstopmode', '-no-shell-escape', '-output-directory=' + tmpDir, path.join(tmpDir, 'paper_es.tex')],
+        { timeout: 15000 }
+      );
+      expect(fs.existsSync(path.join(tmpDir, 'paper_es.pdf'))).toBe(true);
+      expect(fs.statSync(path.join(tmpDir, 'paper_es.pdf')).size).toBeGreaterThan(1000);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });

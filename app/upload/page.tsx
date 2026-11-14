@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import HeaderNav from '@/components/HeaderNav';
@@ -25,6 +25,7 @@ export default function UploadPage() {
     postClean,
     pairedData,
     quarantined,
+    attritionAnalysis,
     setDatasets,
     unlinkPair,
     reconcileCohorts
@@ -77,6 +78,24 @@ export default function UploadPage() {
     reconcileCohorts();
     setIsProcessing(false);
   };
+
+  // Sync uploaded & reconciled datasets to the server session in the background
+  useEffect(() => {
+    if (preClean.length > 0 && postClean.length > 0) {
+      fetch('/api/notebook/dataset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'workspace',
+          preClean,
+          postClean,
+          pairedData,
+          quarantined,
+          attritionAnalysis,
+        }),
+      }).catch(() => {});
+    }
+  }, [preClean, postClean, pairedData, quarantined, attritionAnalysis]);
 
   const isReadyToProceed = preClean.length > 0 && postClean.length > 0;
 
@@ -277,7 +296,9 @@ export default function UploadPage() {
                       </td>
                       <td className="font-semibold">{p.preScore} / 10</td>
                       <td className="font-semibold text-[#002B49]">{p.postScore} / 10</td>
-                      <td className="font-bold text-emerald-700">+{p.delta}</td>
+                      <td className={`font-bold ${p.delta >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                        {p.delta >= 0 ? `+${p.delta}` : `${p.delta}`}
+                      </td>
                       <td>
                         <button
                           onClick={() => unlinkPair(idx)}

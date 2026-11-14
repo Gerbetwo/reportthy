@@ -60,6 +60,17 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
       }
       if (savedJupyter) {
         setJupyterResultsState(JSON.parse(savedJupyter));
+      } else {
+        // Hydrate from server if not yet in localStorage
+        fetch('/api/notebook/results')
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.results) {
+              setJupyterResultsState(data.results);
+              localStorage.setItem('reportthy_jupyter_results', JSON.stringify(data.results));
+            }
+          })
+          .catch(() => {});
       }
     } catch (e) {
       console.warn('DatasetContext failed to load stored datasets:', e);
@@ -121,10 +132,40 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
   };
 
   const unlinkPair = (index: number) => {
+    const unlinked = pairedData[index];
     const updated = [...pairedData];
     updated.splice(index, 1);
     setPairedData(updated);
     localStorage.setItem('reportthy_paired', JSON.stringify(updated));
+
+    // Recalculate attritionAnalysis on unlinkPair
+    if (attritionAnalysis) {
+      const pairedCount = updated.length;
+      const preCount = attritionAnalysis.preCount;
+      const postCount = attritionAnalysis.postCount;
+      const unmatchedPreCount = Math.max(preCount - pairedCount, 0);
+      const unmatchedPostCount = Math.max(postCount - pairedCount, 0);
+      const attritionCount = unmatchedPreCount;
+      const attritionRate = preCount > 0 ? (attritionCount / preCount) * 100 : 0;
+      const unmatchedPreNames = [...attritionAnalysis.unmatchedPreNames];
+      if (unlinked && !unmatchedPreNames.includes(unlinked.preName)) {
+        unmatchedPreNames.push(unlinked.preName);
+      }
+
+      const updatedAttr: AttritionAnalysis = {
+        preCount,
+        postCount,
+        pairedCount,
+        unmatchedPreCount,
+        unmatchedPostCount,
+        attritionCount,
+        attritionRate,
+        unmatchedPreNames,
+      };
+      setAttritionAnalysis(updatedAttr);
+      localStorage.setItem('reportthy_attrition', JSON.stringify(updatedAttr));
+    }
+
     // When pair linkage changes, clear execution results to avoid discrepancy
     setJupyterResultsState(null);
     localStorage.removeItem('reportthy_jupyter_results');

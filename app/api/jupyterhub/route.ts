@@ -163,30 +163,53 @@ export async function POST(request: NextRequest) {
       if (tokenData.token) userToken = tokenData.token;
     }
 
-    // Step D: Upload notebook via official Jupyter Server Contents API
+    // Step D: Upload notebook via official Jupyter Server Contents API if needed
     const contentsUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/quantum_hypothesis_verification.ipynb`;
-    const putRes = await fetch(contentsUrl, {
-      method: 'PUT',
-      headers: {
-        Authorization: `token ${userToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'notebook',
-        format: 'json',
-        content: JSON.parse(notebookJsonStr),
-      }),
-    }).catch(() => null);
+    let shouldUpload = true;
 
-    if (!putRes || !putRes.ok) {
-      console.warn(`[JupyterHub Contents API] PUT notebook status: ${putRes?.status}`);
+    const forceReset = Boolean(body.forceReset);
+    if (!forceReset) {
+      const checkRes = await fetch(`${contentsUrl}?content=1`, {
+        headers: {
+          Authorization: `token ${userToken}`,
+        },
+      }).catch(() => null);
+
+      if (checkRes && checkRes.ok) {
+        const existingData = await checkRes.json().catch(() => null);
+        const existingStr = JSON.stringify(existingData?.content || {});
+        if (existingStr.includes('__REPORTTHY_JSON_START__')) {
+          shouldUpload = false;
+        }
+      }
     }
 
-    const embedUrl = `${JUPYTERHUB_PUBLIC_URL}/user/${JUPYTERHUB_USER}/lab/tree/quantum_hypothesis_verification.ipynb?token=${userToken}`;
+    if (shouldUpload) {
+      const putRes = await fetch(contentsUrl, {
+        method: 'PUT',
+        headers: {
+          Authorization: `token ${userToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'notebook',
+          format: 'json',
+          content: JSON.parse(notebookJsonStr),
+        }),
+      }).catch(() => null);
+
+      if (!putRes || !putRes.ok) {
+        console.warn(`[JupyterHub Contents API] PUT notebook status: ${putRes?.status}`);
+      }
+    }
+
+    const embedUrl = `${JUPYTERHUB_PUBLIC_URL}/user/${JUPYTERHUB_USER}/doc/tree/quantum_hypothesis_verification.ipynb?token=${userToken}`;
+    const fullLabUrl = `${JUPYTERHUB_PUBLIC_URL}/user/${JUPYTERHUB_USER}/lab/tree/quantum_hypothesis_verification.ipynb?token=${userToken}`;
 
     return NextResponse.json({
       ok: true,
       embedUrl,
+      fullLabUrl,
       user: JUPYTERHUB_USER,
       serverReady: true,
     });

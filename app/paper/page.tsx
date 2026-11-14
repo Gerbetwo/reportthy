@@ -36,6 +36,7 @@ export default function PaperPage() {
 
   const [copied, setCopied] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
+  const [compileError, setCompileError] = useState<string | null>(null);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
 
   // If no Jupyter execution results are found, block paper synthesis
@@ -115,6 +116,7 @@ export default function PaperPage() {
 
   const handleCompilePdf = async () => {
     setIsCompiling(true);
+    setCompileError(null);
     try {
       const response = await fetch('/api/compile-pdf', {
         method: 'POST',
@@ -122,7 +124,13 @@ export default function PaperPage() {
         body: JSON.stringify({ latexContent: fullPaperTex }),
       });
 
-      if (!response.ok) throw new Error('PDF compilation failed');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const errMessage = errData.details
+          ? `${errData.error || 'PDF compilation failed'}: ${errData.details}`
+          : errData.error || 'PDF compilation failed on server.';
+        throw new Error(errMessage);
+      }
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -131,8 +139,9 @@ export default function PaperPage() {
       a.download = 'springer_nature_manuscript.pdf';
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      window.print();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setCompileError(msg);
     } finally {
       setIsCompiling(false);
     }
@@ -142,6 +151,24 @@ export default function PaperPage() {
     <div className="min-h-screen bg-scientific-grid text-[#1F2328]">
       <HeaderNav />
       <main className="max-w-6xl mx-auto px-6 pb-20 pt-6">
+        {compileError && (
+          <div className="mb-6 bg-rose-50 border border-rose-300 rounded-lg p-4 text-xs text-rose-900 shadow-xs flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertOctagon className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">{t.paper.compileErrorTitle}</p>
+                <p className="font-mono text-[11px] text-rose-700 mt-1 whitespace-pre-wrap">{compileError}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setCompileError(null)}
+              className="text-rose-500 hover:text-rose-700 font-bold text-base px-1.5"
+              aria-label="Dismiss error"
+            >
+              &times;
+            </button>
+          </div>
+        )}
         <header className="border-b border-[#D0D7DE] pb-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
