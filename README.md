@@ -16,10 +16,10 @@ Reportthy is an academic computational platform designed for quasi-experimental 
 
 ## Quickstart with Docker Compose
 
-Launch the full stack (Next.js web application + JupyterHub server + SciPy/NumPy environment):
+Launch the full stack (Next.js web application + JupyterHub server + SciPy/NumPy environment) with maximum BuildKit parallel caching:
 
 ```bash
-docker compose up --build
+DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose up --build
 ```
 
 - **Reportthy Web App**: [http://localhost:3000](http://localhost:3000)

@@ -29,6 +29,7 @@ c.JupyterHub.spawner_class = 'simple'
 c.Spawner.cmd = ['jupyter-labhub']
 c.Spawner.default_url = '/lab'
 c.Spawner.notebook_dir = '/home/{username}/work'
+c.Spawner.env_keep.extend(['PATH', 'REPORTTHY_INTERNAL_URL'])
 
 # Enable seamless iframe embedding in Reportthy Next.js UI
 c.JupyterHub.tornado_settings = {

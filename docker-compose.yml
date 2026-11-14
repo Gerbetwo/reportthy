@@ -1,6 +1,8 @@
 services:
   web:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
@@ -10,12 +12,21 @@ services:
       - JUPYTERHUB_USER=researcher
       - REPORTTHY_INTERNAL_URL=http://web:3000
     depends_on:
-      - jupyterhub
+      jupyterhub:
+        condition: service_healthy
 
   jupyterhub:
-    build: ./jupyterhub
+    build:
+      context: ./jupyterhub
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
       - JUPYTERHUB_API_TOKEN=reportthy-dev-token
       - REPORTTHY_INTERNAL_URL=http://web:3000
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/hub/api', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
