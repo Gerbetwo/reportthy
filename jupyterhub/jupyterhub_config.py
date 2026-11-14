@@ -20,7 +20,13 @@ c.JupyterHub.services = [
     {
         'name': 'reportthy-bridge',
         'api_token': api_token,
-        'admin': True,
+    }
+]
+c.JupyterHub.load_roles = [
+    {
+        'name': 'reportthy-bridge-role',
+        'scopes': ['admin:users', 'admin:servers', 'access:servers', 'tokens'],
+        'services': ['reportthy-bridge'],
     }
 ]
 
@@ -40,7 +46,9 @@ c.JupyterHub.tornado_settings = {
 }
 
 c.Spawner.args = [
+    '--allow-root',
     '--ServerApp.allow_origin=*',
     '--ServerApp.disable_check_xsrf=True',
     '--ServerApp.tornado_settings={"headers":{"Content-Security-Policy":"frame-ancestors *"}}',
+    '--HubAuth.allow_token_in_url=True',
 ]

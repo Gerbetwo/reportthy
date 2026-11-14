@@ -21,6 +21,7 @@ const REPORTTHY_INTERNAL_URL =
 
 interface JupyterHubServerInfo {
   ready?: boolean;
+  pending?: boolean | string | null;
 }
 
 interface JupyterHubUserResponse {
@@ -106,16 +107,20 @@ export async function POST(request: NextRequest) {
     const userData = (await userRes.json()) as JupyterHubUserResponse;
 
     // Step B: Ensure user server is spawned and ready
-    const defaultServer = userData.servers?.[''];
-    if (!defaultServer || !defaultServer.ready) {
-      await fetch(
-        `${JUPYTERHUB_INTERNAL_URL}/hub/api/users/${JUPYTERHUB_USER}/server`,
-        { method: 'POST', headers: authHeaders, body: JSON.stringify({}) }
-      ).catch(() => {});
+    const server = userData.servers?.[''];
 
-      // Poll until server is ready (max 10 seconds)
+    if (!server?.ready) {
+      if (!server?.pending) {
+        // Trigger server spawn only if it's neither ready nor already pending
+        await fetch(
+          `${JUPYTERHUB_INTERNAL_URL}/hub/api/users/${JUPYTERHUB_USER}/server`,
+          { method: 'POST', headers: authHeaders, body: JSON.stringify({}) }
+        ).catch(() => {});
+      }
+
+      // Poll until server is ready (every 500ms, up to 45s = 90 polls)
       let ready = false;
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 90; i++) {
         await new Promise((resolve) => setTimeout(resolve, 500));
         const pollRes = await fetch(
           `${JUPYTERHUB_INTERNAL_URL}/hub/api/users/${JUPYTERHUB_USER}`,

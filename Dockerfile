@@ -24,7 +24,9 @@ FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
-    DEBIAN_FRONTEND=noninteractive
+    DEBIAN_FRONTEND=noninteractive \
+    PORT=3000 \
+    HOSTNAME="0.0.0.0"
 
 # Install TeX Live typesetting tools with BuildKit apt cache mounts for PDF compilation
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
@@ -35,12 +37,11 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     texlive-fonts-recommended \
     && rm -rf /var/lib/apt/lists/*
 
-COPY package*.json ./
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/lib/tex ./lib/tex
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]

@@ -38,8 +38,9 @@ export default function LabPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [serverUnreachable, setServerUnreachable] = useState(false);
   const [connectionError, setConnectionError] = useState('');
-  const [iframeSrc, setIframeSrc] = useState<string>('http://localhost:8000/user/researcher/lab/tree/quantum_hypothesis_verification.ipynb');
+  const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const provisioningRef = useRef(false);
 
   // 1. Provision JupyterHub single-user server & push notebook workspace
   const provisionJupyterHub = useCallback(async () => {
@@ -73,11 +74,14 @@ export default function LabPage() {
       setConnectionError(String(err));
     } finally {
       setIsProvisioning(false);
+      provisioningRef.current = false;
     }
   }, [preClean, postClean, pairedData, quarantined, attritionAnalysis]);
 
   useEffect(() => {
+    if (provisioningRef.current) return;
     if (preClean.length > 0 || postClean.length > 0) {
+      provisioningRef.current = true;
       provisionJupyterHub();
     }
   }, [provisionJupyterHub, preClean.length, postClean.length]);
@@ -258,15 +262,17 @@ export default function LabPage() {
                 </p>
               </div>
             </div>
-            <a
-              href={iframeSrc}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-amber-900 hover:text-amber-950 inline-flex items-center gap-1 shrink-0 bg-white border border-amber-300 px-3 py-1.5 rounded"
-            >
-              <span>{t.lab.openInNewTab}</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
+            {iframeSrc && (
+              <a
+                href={iframeSrc}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-amber-900 hover:text-amber-950 inline-flex items-center gap-1 shrink-0 bg-white border border-amber-300 px-3 py-1.5 rounded"
+              >
+                <span>{t.lab.openInNewTab}</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
           </div>
         )}
 
@@ -362,15 +368,17 @@ export default function LabPage() {
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
               <span>{t.lab.pendingVerification}</span>
             </div>
-            <a
-              href={iframeSrc}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-[#002B49] hover:underline inline-flex items-center gap-1 shrink-0"
-            >
-              <span>{t.lab.openInNewTab}</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </a>
+            {iframeSrc && (
+              <a
+                href={iframeSrc}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-[#002B49] hover:underline inline-flex items-center gap-1 shrink-0"
+              >
+                <span>{t.lab.openInNewTab}</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </a>
+            )}
           </div>
         )}
 
@@ -378,7 +386,7 @@ export default function LabPage() {
         <div className="bg-[#001A2C] border border-slate-700 rounded-lg overflow-hidden shadow-lg">
           <div className="bg-[#002B49] px-4 py-2.5 flex items-center justify-between border-b border-slate-700">
             <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className={`w-2 h-2 rounded-full ${iframeSrc ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
               <span>JupyterHub / JupyterLab Scientific Workstation</span>
             </div>
             <span className="text-[11px] text-slate-400 font-mono">
@@ -386,12 +394,24 @@ export default function LabPage() {
             </span>
           </div>
 
-          <iframe
-            src={iframeSrc}
-            title="JupyterHub Research Environment"
-            className="w-full h-[760px] border-none bg-white"
-            allow="clipboard-read; clipboard-write"
-          />
+          {iframeSrc ? (
+            <iframe
+              src={iframeSrc}
+              title="JupyterHub Research Environment"
+              className="w-full h-[760px] border-none bg-white"
+              allow="clipboard-read; clipboard-write"
+            />
+          ) : (
+            <div className="w-full h-[760px] bg-slate-900 flex flex-col items-center justify-center text-slate-400">
+              <Server className="w-10 h-10 animate-pulse text-amber-500 mb-3" />
+              <p className="text-sm font-semibold text-slate-200">
+                {isProvisioning ? t.lab.pushing : t.lab.provisioningMsg}
+              </p>
+              <p className="text-xs text-slate-400 mt-1 font-mono">
+                {t.lab.pendingVerification}
+              </p>
+            </div>
+          )}
         </div>
       </main>
     </div>

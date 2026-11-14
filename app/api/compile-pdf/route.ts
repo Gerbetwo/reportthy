@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     const message = err instanceof Error ? err.message : 'Internal Server Error';
     return NextResponse.json({ error: message }, { status: 500 });
   } finally {
-    if (tmpDir && fs.existsSync(tmpDir)) {
+    if (tmpDir && fs.existsSync(/*turbopackIgnore: true*/ tmpDir)) {
       try {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       } catch (cleanupErr) {
