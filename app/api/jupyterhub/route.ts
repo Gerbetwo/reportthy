@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 import {
   getServerDatasetBundle,
   saveServerDatasetBundle,
@@ -6,20 +6,19 @@ import {
   saveServerJupyterResult,
   extractSessionId,
   sanitizeSessionId,
-} from '@/lib/notebookStore';
-import { generateIpynbJson } from '@/lib/statsEngine';
-import { JupyterExecutionResult } from '@/types/dataset';
+} from "@/lib/notebookStore";
+import { generateIpynbJson } from "@/lib/statsEngine";
+import { JupyterExecutionResult } from "@/types/dataset";
 
 const JUPYTERHUB_INTERNAL_URL =
-  process.env.JUPYTERHUB_INTERNAL_URL || 'http://localhost:8000';
+  process.env.JUPYTERHUB_INTERNAL_URL || "http://localhost:8000";
 const JUPYTERHUB_PUBLIC_URL =
-  process.env.JUPYTERHUB_PUBLIC_URL || 'http://localhost:8000';
+  process.env.JUPYTERHUB_PUBLIC_URL || "http://localhost:8000";
 const JUPYTERHUB_API_TOKEN =
-  process.env.JUPYTERHUB_API_TOKEN || 'reportthy-dev-token';
-const JUPYTERHUB_USER =
-  process.env.JUPYTERHUB_USER || 'researcher';
+  process.env.JUPYTERHUB_API_TOKEN || "reportthy-dev-token";
+const JUPYTERHUB_USER = process.env.JUPYTERHUB_USER || "researcher";
 const REPORTTHY_INTERNAL_URL =
-  process.env.REPORTTHY_INTERNAL_URL || 'http://localhost:3000';
+  process.env.REPORTTHY_INTERNAL_URL || "http://localhost:3000";
 
 interface JupyterHubServerInfo {
   ready?: boolean;
@@ -52,14 +51,14 @@ export async function POST(request: NextRequest) {
           quarantined: body.quarantined || [],
           attritionAnalysis: body.attritionAnalysis || null,
         },
-        safeSessionId
+        safeSessionId,
       );
     }
 
     if (!bundle) {
       return NextResponse.json(
-        { error: 'No survey dataset available to provision in JupyterHub.' },
-        { status: 400 }
+        { error: "No survey dataset available to provision in JupyterHub." },
+        { status: 400 },
       );
     }
 
@@ -69,26 +68,28 @@ export async function POST(request: NextRequest) {
       bundle.postClean,
       bundle.quarantined,
       bundle.attritionAnalysis,
-      'greater',
-      0.05,
-      REPORTTHY_INTERNAL_URL
+      bundle.studyMetadata?.wilcoxonAlternative || "greater",
+      bundle.studyMetadata?.alpha || 0.05,
+      REPORTTHY_INTERNAL_URL,
+      bundle.studyMetadata, // Pass user-configured study metadata
+      safeSessionId, // Pass session-scoped ID for isolated API sync
     );
 
     const authHeaders = {
       Authorization: `token ${JUPYTERHUB_API_TOKEN}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     // Step A: Ensure user exists in JupyterHub
     let userRes = await fetch(
       `${JUPYTERHUB_INTERNAL_URL}/hub/api/users/${JUPYTERHUB_USER}`,
-      { headers: authHeaders }
+      { headers: authHeaders },
     ).catch(() => null);
 
     if (!userRes || userRes.status === 404) {
       const createRes = await fetch(
         `${JUPYTERHUB_INTERNAL_URL}/hub/api/users/${JUPYTERHUB_USER}`,
-        { method: 'POST', headers: authHeaders, body: JSON.stringify({}) }
+        { method: "POST", headers: authHeaders, body: JSON.stringify({}) },
       ).catch(() => null);
 
       if (!createRes || !createRes.ok) {
@@ -97,12 +98,12 @@ export async function POST(request: NextRequest) {
             error: `Failed to connect or create user in JupyterHub at ${JUPYTERHUB_INTERNAL_URL}. Ensure JupyterHub is running.`,
             unreachable: true,
           },
-          { status: 503 }
+          { status: 503 },
         );
       }
       userRes = await fetch(
         `${JUPYTERHUB_INTERNAL_URL}/hub/api/users/${JUPYTERHUB_USER}`,
-        { headers: authHeaders }
+        { headers: authHeaders },
       );
     } else if (!userRes.ok) {
       return NextResponse.json(
@@ -110,21 +111,21 @@ export async function POST(request: NextRequest) {
           error: `JupyterHub returned HTTP ${userRes.status}. Check JUPYTERHUB_API_TOKEN permissions.`,
           unreachable: true,
         },
-        { status: 502 }
+        { status: 502 },
       );
     }
 
     const userData = (await userRes.json()) as JupyterHubUserResponse;
 
     // Step B: Ensure user server is spawned and ready
-    const server = userData.servers?.[''];
+    const server = userData.servers?.[""];
 
     if (!server?.ready) {
       if (!server?.pending) {
         // Trigger server spawn only if it's neither ready nor already pending
         await fetch(
           `${JUPYTERHUB_INTERNAL_URL}/hub/api/users/${JUPYTERHUB_USER}/server`,
-          { method: 'POST', headers: authHeaders, body: JSON.stringify({}) }
+          { method: "POST", headers: authHeaders, body: JSON.stringify({}) },
         ).catch(() => {});
       }
 
@@ -134,12 +135,12 @@ export async function POST(request: NextRequest) {
         await new Promise((resolve) => setTimeout(resolve, 500));
         const pollRes = await fetch(
           `${JUPYTERHUB_INTERNAL_URL}/hub/api/users/${JUPYTERHUB_USER}`,
-          { headers: authHeaders }
+          { headers: authHeaders },
         ).catch(() => null);
 
         if (pollRes && pollRes.ok) {
           const pollData = (await pollRes.json()) as JupyterHubUserResponse;
-          if (pollData.servers?.['']?.ready) {
+          if (pollData.servers?.[""]?.ready) {
             ready = true;
             break;
           }
@@ -149,10 +150,11 @@ export async function POST(request: NextRequest) {
       if (!ready) {
         return NextResponse.json(
           {
-            error: 'Timed out waiting for JupyterHub single-user server to become ready.',
+            error:
+              "Timed out waiting for JupyterHub single-user server to become ready.",
             unreachable: true,
           },
-          { status: 504 }
+          { status: 504 },
         );
       }
     }
@@ -162,10 +164,13 @@ export async function POST(request: NextRequest) {
     const tokenRes = await fetch(
       `${JUPYTERHUB_INTERNAL_URL}/hub/api/users/${JUPYTERHUB_USER}/tokens`,
       {
-        method: 'POST',
+        method: "POST",
         headers: authHeaders,
-        body: JSON.stringify({ expires_in: 86400, note: `reportthy-${safeSessionId}` }),
-      }
+        body: JSON.stringify({
+          expires_in: 86400,
+          note: `reportthy-${safeSessionId}`,
+        }),
+      },
     ).catch(() => null);
 
     if (tokenRes && tokenRes.ok) {
@@ -188,7 +193,7 @@ export async function POST(request: NextRequest) {
       if (checkRes && checkRes.ok) {
         const existingData = await checkRes.json().catch(() => null);
         const existingStr = JSON.stringify(existingData?.content || {});
-        if (existingStr.includes('__REPORTTHY_JSON_START__')) {
+        if (existingStr.includes("__REPORTTHY_JSON_START__")) {
           shouldUpload = false;
         }
       }
@@ -196,20 +201,22 @@ export async function POST(request: NextRequest) {
 
     if (shouldUpload) {
       const putRes = await fetch(contentsUrl, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
           Authorization: `token ${userToken}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: 'notebook',
-          format: 'json',
+          type: "notebook",
+          format: "json",
           content: JSON.parse(notebookJsonStr),
         }),
       }).catch(() => null);
 
       if (!putRes || !putRes.ok) {
-        console.warn(`[JupyterHub Contents API] PUT notebook status: ${putRes?.status}`);
+        console.warn(
+          `[JupyterHub Contents API] PUT notebook status: ${putRes?.status}`,
+        );
       }
     }
 
@@ -227,11 +234,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: 'Failed to provision JupyterHub workspace',
+        error: "Failed to provision JupyterHub workspace",
         details: String(error),
         unreachable: true,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -245,13 +252,13 @@ export async function GET(request: NextRequest) {
 
     const authHeaders = {
       Authorization: `token ${JUPYTERHUB_API_TOKEN}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     const contentsUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/${notebookFileName}?content=1`;
     const res = await fetch(contentsUrl, {
       headers: authHeaders,
-      cache: 'no-store',
+      cache: "no-store",
     }).catch(() => null);
 
     let parsedResult: JupyterExecutionResult | null = null;
@@ -264,9 +271,9 @@ export async function GET(request: NextRequest) {
       if (notebook && Array.isArray(notebook.cells)) {
         // Collect exact source code of code cells from the Jupyter workspace
         codeCellSources = notebook.cells
-          .filter((c: { cell_type: string }) => c.cell_type === 'code')
+          .filter((c: { cell_type: string }) => c.cell_type === "code")
           .map((c: { source: string | string[] }) =>
-            Array.isArray(c.source) ? c.source.join('') : c.source
+            Array.isArray(c.source) ? c.source.join("") : c.source,
           );
 
         // Search cell outputs for Reportthy execution delimiter
@@ -274,21 +281,23 @@ export async function GET(request: NextRequest) {
           if (!Array.isArray(cell.outputs)) continue;
           for (const out of cell.outputs) {
             const rawText =
-              (Array.isArray(out.text) ? out.text.join('') : out.text) ||
-              (out.data && out.data['text/plain']
-                ? Array.isArray(out.data['text/plain'])
-                  ? out.data['text/plain'].join('')
-                  : out.data['text/plain']
-                : '');
+              (Array.isArray(out.text) ? out.text.join("") : out.text) ||
+              (out.data && out.data["text/plain"]
+                ? Array.isArray(out.data["text/plain"])
+                  ? out.data["text/plain"].join("")
+                  : out.data["text/plain"]
+                : "");
 
-            if (typeof rawText === 'string') {
-              const startMarker = '__REPORTTHY_JSON_START__';
-              const endMarker = '__REPORTTHY_JSON_END__';
+            if (typeof rawText === "string") {
+              const startMarker = "__REPORTTHY_JSON_START__";
+              const endMarker = "__REPORTTHY_JSON_END__";
               const sIdx = rawText.indexOf(startMarker);
               const eIdx = rawText.indexOf(endMarker);
 
               if (sIdx !== -1 && eIdx !== -1) {
-                const jsonText = rawText.slice(sIdx + startMarker.length, eIdx).trim();
+                const jsonText = rawText
+                  .slice(sIdx + startMarker.length, eIdx)
+                  .trim();
                 parsedResult = JSON.parse(jsonText);
                 break;
               }
@@ -308,7 +317,7 @@ export async function GET(request: NextRequest) {
         ok: true,
         sessionId: safeSessionId,
         results: parsedResult,
-        source: 'jupyterhub-contents',
+        source: "jupyterhub-contents",
       });
     }
 
@@ -319,7 +328,7 @@ export async function GET(request: NextRequest) {
         ok: true,
         sessionId: safeSessionId,
         results: cached,
-        source: 'server-cache',
+        source: "server-cache",
       });
     }
 
@@ -328,14 +337,17 @@ export async function GET(request: NextRequest) {
         ok: false,
         sessionId: safeSessionId,
         error:
-          'No executed statistical results detected in JupyterHub notebook. Run all cells in JupyterLab.',
+          "No executed statistical results detected in JupyterHub notebook. Run all cells in JupyterLab.",
       },
-      { status: 404 }
+      { status: 404 },
     );
   } catch (error) {
     return NextResponse.json(
-      { error: 'Failed to fetch notebook from JupyterHub', details: String(error) },
-      { status: 500 }
+      {
+        error: "Failed to fetch notebook from JupyterHub",
+        details: String(error),
+      },
+      { status: 500 },
     );
   }
 }
