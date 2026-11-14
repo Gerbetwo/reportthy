@@ -65,8 +65,8 @@ export default function StudyProtocolForm() {
 
   const isProtocolValid = validationErrors.length === 0;
 
-  // Preset definitions
-  const applyPreset = (presetKey: 'linux' | 'git' | 'quantum' | 'custom') => {
+  // Preset definitions (Quantum & Custom only)
+  const applyPreset = (presetKey: 'quantum' | 'custom') => {
     if (presetKey === 'custom') {
       const customMeta: StudyMetadata = {
         studyTitle: '',
@@ -91,78 +91,6 @@ export default function StudyProtocolForm() {
       };
       setStudyMetadata(customMeta);
       updateCohortMapping({});
-      return;
-    }
-
-    if (presetKey === 'linux') {
-      const mapping = {
-        'Guía PDF': 'Control' as const,
-        Gamificación: 'Experimental' as const,
-        'Listado 1': 'Control' as const,
-        'Listado 2': 'Experimental' as const,
-      };
-      setStudyMetadata((prev) => ({
-        ...prev,
-        studyTitle:
-          'Gamified Learning of Basic Linux Commands in Higher Education',
-        topicDomain: 'Linux Command-Line Administration',
-        controlPedagogy:
-          'Traditional self-paced study using static PDF reference guides and man-pages',
-        experimentalPedagogy:
-          'Interactive gamified CLI simulator with immediate automated feedback and reward mechanics',
-        hypothesisStatement:
-          'Students participating in gamified interactive CLI challenges achieve statistically significant command mastery over students utilizing traditional static PDF reference guides.',
-        designMode: 'combined',
-        alpha: 0.05,
-        wilcoxonAlternative: 'greater',
-        mannWhitneyAlternative: 'greater',
-        authors: [
-          {
-            fullName: 'Dr. Marcus Vance',
-            email: 'm.vance@computing.ac.uk',
-            affiliation: 'Department of Computer Science, University of Manchester',
-            country: 'United Kingdom',
-          },
-        ],
-        cohortMapping: mapping,
-      }));
-      updateCohortMapping(mapping);
-      return;
-    }
-
-    if (presetKey === 'git') {
-      const mapping = {
-        'Clase Demostrativa': 'Control' as const,
-        'Tutor IA': 'Experimental' as const,
-        'Grupo A': 'Control' as const,
-        'Grupo B': 'Experimental' as const,
-      };
-      setStudyMetadata((prev) => ({
-        ...prev,
-        studyTitle:
-          'AI-Guided Conversational Scaffolding for Version Control Competence',
-        topicDomain: 'Git Version Control Workflows',
-        controlPedagogy:
-          'Synchronous demonstrative lecture and slide presentations covering git branching',
-        experimentalPedagogy:
-          'Conversational AI tutor providing real-time interactive troubleshooting during live terminal branching exercises',
-        hypothesisStatement:
-          'Learners supported by conversational AI interactive scaffolding exhibit statistically superior git workflow execution compared to students attending demonstrative lectures.',
-        designMode: 'between_group',
-        alpha: 0.05,
-        wilcoxonAlternative: 'greater',
-        mannWhitneyAlternative: 'greater',
-        authors: [
-          {
-            fullName: 'Prof. Sofia Albarracin',
-            email: 's.albarracin@polytech.edu',
-            affiliation: 'Department of Software Engineering, Tech Institute',
-            country: 'Spain',
-          },
-        ],
-        cohortMapping: mapping,
-      }));
-      updateCohortMapping(mapping);
       return;
     }
 
@@ -311,22 +239,6 @@ export default function StudyProtocolForm() {
               <span>{t.protocol.loadPreset}:</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => applyPreset('linux')}
-                className="px-2.5 py-1 text-xs font-medium bg-white hover:bg-slate-100 text-[#002B49] border border-[#CBD5E1] rounded shadow-2xs transition flex items-center gap-1.5"
-              >
-                <BookmarkCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{t.protocol.presets.linux}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset('git')}
-                className="px-2.5 py-1 text-xs font-medium bg-white hover:bg-slate-100 text-[#002B49] border border-[#CBD5E1] rounded shadow-2xs transition flex items-center gap-1.5"
-              >
-                <BookmarkCheck className="w-3.5 h-3.5 text-blue-600" />
-                <span>{t.protocol.presets.git}</span>
-              </button>
               <button
                 type="button"
                 onClick={() => applyPreset('quantum')}

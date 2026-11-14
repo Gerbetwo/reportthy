@@ -65,8 +65,6 @@ export const en = {
     loadPreset: 'Load Case Preset',
     presets: {
       custom: 'Clear / Custom Study',
-      linux: 'Case 08 • Linux Commands (Gamification vs. PDF Guide)',
-      git: 'Case 09 • Git Commands (AI-Guided vs. Demonstrative Class)',
       quantum: 'Case 10 • Quantum Computing (Generative AI vs. Master Class)',
     },
     sections: {

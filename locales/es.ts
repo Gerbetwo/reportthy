@@ -67,8 +67,6 @@ export const es: Translations = {
     loadPreset: 'Cargar Preajuste de Caso',
     presets: {
       custom: 'Limpiar / Estudio Personalizado',
-      linux: 'Caso 08 • Comandos Linux (Gamificación vs. Guía PDF)',
-      git: 'Caso 09 • Comandos Git (Guiado por IA vs. Clase Demostrativa)',
       quantum: 'Caso 10 • Computación Cuántica (IA Generativa vs. Master Class)',
     },
     sections: {
