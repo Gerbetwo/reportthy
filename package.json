@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.7",
+    "@tailwindcss/postcss": "^4.3.5",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^24.19.2",
     "@types/papaparse": "^5.5.2",
