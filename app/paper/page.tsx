@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import Link from 'next/link';
-import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror';
-import { StreamLanguage } from '@codemirror/language';
-import { stex } from '@codemirror/legacy-modes/mode/stex';
-import { EditorView, keymap } from '@codemirror/view';
-import HeaderNav from '@/components/HeaderNav';
-import { useTranslation } from '@/lib/LanguageContext';
-import { useDatasetStats } from '@/lib/useDatasetStats';
-import { generateFullPaperLatex } from '@/lib/paperLatexTemplate';
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import Link from "next/link";
+import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import { StreamLanguage } from "@codemirror/language";
+import { stex } from "@codemirror/legacy-modes/mode/stex";
+import { EditorView, keymap } from "@codemirror/view";
+import HeaderNav from "@/components/HeaderNav";
+import { useTranslation } from "@/lib/LanguageContext";
+import { useDatasetStats } from "@/lib/useDatasetStats";
+import { generateFullPaperLatex } from "@/lib/paperLatexTemplate";
 import {
   Download,
   Copy,
@@ -36,8 +36,8 @@ import {
   SquareCode,
   FileCheck,
   CornerDownRight,
-  RotateCcw
-} from 'lucide-react';
+  RotateCcw,
+} from "lucide-react";
 
 interface CompileErrorState {
   error: string;
@@ -48,17 +48,15 @@ interface CompileErrorState {
 
 export default function PaperPage() {
   const { lang, t } = useTranslation();
-  const {
-    pairedData,
-    attritionAnalysis,
-    quarantined,
-    jupyterResults
-  } = useDatasetStats();
+  const { pairedData, attritionAnalysis, quarantined, jupyterResults } =
+    useDatasetStats();
 
   const [copied, setCopied] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileTimeMs, setCompileTimeMs] = useState<number | null>(null);
-  const [compileError, setCompileError] = useState<CompileErrorState | null>(null);
+  const [compileError, setCompileError] = useState<CompileErrorState | null>(
+    null,
+  );
   const [showLogs, setShowLogs] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [lastCompiledTex, setLastCompiledTex] = useState<string | null>(null);
@@ -66,7 +64,9 @@ export default function PaperPage() {
   const [isAuditOpen, setIsAuditOpen] = useState(false);
 
   // Workbench layout state
-  const [activeView, setActiveView] = useState<'split' | 'editor' | 'preview'>('split');
+  const [activeView, setActiveView] = useState<"split" | "editor" | "preview">(
+    "split",
+  );
   const [splitWidth, setSplitWidth] = useState<number>(50);
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
@@ -77,13 +77,13 @@ export default function PaperPage() {
 
   // Initial LaTeX generation
   const defaultLatex = useMemo(() => {
-    if (!jupyterResults) return '';
+    if (!jupyterResults) return "";
     return generateFullPaperLatex(
       jupyterResults,
       pairedData,
       lang,
       attritionAnalysis,
-      quarantined
+      quarantined,
     );
   }, [jupyterResults, pairedData, lang, attritionAnalysis, quarantined]);
 
@@ -107,13 +107,13 @@ export default function PaperPage() {
     setCompileError(null);
 
     try {
-      const response = await fetch('/api/compile-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/compile-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ latexContent: source }),
       });
 
-      const compileTime = response.headers.get('x-compile-time-ms');
+      const compileTime = response.headers.get("x-compile-time-ms");
       if (compileTime) {
         setCompileTimeMs(parseInt(compileTime, 10));
       }
@@ -121,10 +121,10 @@ export default function PaperPage() {
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         const errPayload: CompileErrorState = {
-          error: errData.error || 'LaTeX typesetting failure.',
-          details: errData.details || 'Compilation failed.',
-          line: typeof errData.line === 'number' ? errData.line : null,
-          rawLog: errData.rawLog || '',
+          error: errData.error || "LaTeX typesetting failure.",
+          details: errData.details || "Compilation failed.",
+          line: typeof errData.line === "number" ? errData.line : null,
+          rawLog: errData.rawLog || "",
         };
         setCompileError(errPayload);
         setShowLogs(true);
@@ -143,10 +143,10 @@ export default function PaperPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setCompileError({
-        error: 'Network / Client Error',
+        error: "Network / Client Error",
         details: msg,
         line: null,
-        rawLog: '',
+        rawLog: "",
       });
       setShowLogs(true);
     } finally {
@@ -191,12 +191,12 @@ export default function PaperPage() {
     };
 
     if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
     }
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [isDragging]);
 
@@ -205,19 +205,19 @@ export default function PaperPage() {
     () =>
       keymap.of([
         {
-          key: 'Mod-s',
+          key: "Mod-s",
           run: () => {
             handleCompile();
             return true;
           },
         },
       ]),
-    [handleCompile]
+    [handleCompile],
   );
 
   const cmExtensions = useMemo(
     () => [StreamLanguage.define(stex), EditorView.lineWrapping, compileKeymap],
-    [compileKeymap]
+    [compileKeymap],
   );
 
   // Editor formatting helpers
@@ -238,13 +238,13 @@ export default function PaperPage() {
     if (!view) return;
     const { from } = view.state.selection.main;
     const line = view.state.doc.lineAt(from);
-    if (line.text.startsWith('% ')) {
+    if (line.text.startsWith("% ")) {
       view.dispatch({
-        changes: { from: line.from, to: line.from + 2, insert: '' },
+        changes: { from: line.from, to: line.from + 2, insert: "" },
       });
     } else {
       view.dispatch({
-        changes: { from: line.from, to: line.from, insert: '% ' },
+        changes: { from: line.from, to: line.from, insert: "% " },
       });
     }
     view.focus();
@@ -276,9 +276,9 @@ export default function PaperPage() {
 
   const handleDownloadPdf = () => {
     if (!pdfUrl) return;
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = pdfUrl;
-    a.download = 'springer_nature_manuscript.pdf';
+    a.download = "springer_nature_manuscript.pdf";
     a.click();
   };
 
@@ -321,18 +321,20 @@ export default function PaperPage() {
     hypothesisConfirmed,
     executedCodeCells,
     kernelInfo,
-    executedAt
+    executedAt,
   } = jupyterResults;
 
-  const isNonNormal = !preMetrics.shapiroWilk.isNormal || !postMetrics.shapiroWilk.isNormal;
+  const isNonNormal =
+    !preMetrics.shapiroWilk.isNormal || !postMetrics.shapiroWilk.isNormal;
   const attritionRate = attritionAnalysis
     ? attritionAnalysis.attritionRate
     : preMetrics.n > 0
       ? (Math.max(preMetrics.n - postMetrics.n, 0) / preMetrics.n) * 100
       : 0;
 
-  const formatP = (p: number): string => (p < 0.001 ? '< 0.001' : p.toFixed(3));
-  const hasUncompiledEdits = lastCompiledTex !== null && latexSource !== lastCompiledTex;
+  const formatP = (p: number): string => (p < 0.001 ? "< 0.001" : p.toFixed(3));
+  const hasUncompiledEdits =
+    lastCompiledTex !== null && latexSource !== lastCompiledTex;
 
   return (
     <div className="min-h-screen bg-scientific-grid text-[#1F2328]">
@@ -346,14 +348,14 @@ export default function PaperPage() {
                 {t.paper.badge}
               </span>
               <span className="text-slate-300">•</span>
-              <span className="text-xs text-[#57606A] font-mono">{t.paper.templateSpec}</span>
+              <span className="text-xs text-[#57606A] font-mono">
+                {t.paper.templateSpec}
+              </span>
             </div>
             <h1 className="text-3xl font-serif font-bold text-[#002B49] mt-1 tracking-tight">
               {t.paper.title}
             </h1>
-            <p className="text-xs text-[#57606A] mt-1">
-              {t.paper.subtitle}
-            </p>
+            <p className="text-xs text-[#57606A] mt-1">{t.paper.subtitle}</p>
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-auto">
@@ -362,119 +364,15 @@ export default function PaperPage() {
               className="bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#002B49] px-3.5 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
               title={t.paper.copyLatex}
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
               <span>{copied ? t.paper.copied : t.paper.copyLatex}</span>
             </button>
           </div>
         </header>
-
-        {/* Quality Assurance & Hypothesis Verdict Summary Banner */}
-        <section className="mb-6">
-          <h2 className="text-sm font-serif font-bold text-[#002B49] mb-3">{t.paper.qaTitle}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white border border-[#D0D7DE] rounded-lg p-4 shadow-xs">
-              <div className="flex items-center gap-2 text-xs font-semibold text-[#002B49] uppercase font-mono">
-                <ShieldCheck className="w-4 h-4" />
-                <span>{t.paper.integrityTitle}</span>
-              </div>
-              <ul className="mt-3 space-y-1 text-xs text-[#1F2328]">
-                <li><strong className="font-mono">{quarantined.length}</strong> {t.paper.anomaliesIsolated}</li>
-                <li>{t.paper.attritionRate}: <strong className="font-mono">{attritionRate.toFixed(1)}%</strong></li>
-                <li>{t.paper.pairedN}: <strong className="font-mono">{pairedData.length}</strong></li>
-              </ul>
-            </div>
-
-            <div className="bg-white border border-[#D0D7DE] rounded-lg p-4 shadow-xs">
-              <div className="flex items-center gap-2 text-xs font-semibold text-[#002B49] uppercase font-mono">
-                <Activity className="w-4 h-4" />
-                <span>{t.paper.normalityTitle}</span>
-              </div>
-              <span
-                className={
-                  isNonNormal
-                    ? 'inline-block mt-3 text-xs font-bold px-2 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-300'
-                    : 'inline-block mt-3 text-xs font-bold px-2 py-0.5 rounded border bg-sky-50 text-sky-800 border-sky-300'
-                }
-              >
-                {isNonNormal ? t.paper.nonNormal : t.paper.normal}
-              </span>
-              <p className="mt-2 text-[11px] text-[#57606A] leading-relaxed">
-                {isNonNormal ? t.paper.nonParametricDirective : t.paper.parametricEligible}
-              </p>
-            </div>
-
-            <div
-              className={
-                hypothesisConfirmed
-                  ? 'rounded-lg p-4 shadow-xs border bg-emerald-50 border-emerald-300'
-                  : 'rounded-lg p-4 shadow-xs border bg-rose-50 border-[#C0392B]/40'
-              }
-            >
-              <div className="text-xs font-semibold text-[#002B49] uppercase font-mono">{t.paper.verdictTitle}</div>
-              <div
-                className={
-                  hypothesisConfirmed
-                    ? 'mt-3 flex items-center gap-2 text-sm font-bold text-emerald-700'
-                    : 'mt-3 flex items-center gap-2 text-sm font-bold text-[#C0392B]'
-                }
-              >
-                {hypothesisConfirmed ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
-                <span>{hypothesisConfirmed ? t.paper.corroborated : t.paper.rejected}</span>
-              </div>
-              <ul className="mt-2 space-y-0.5 text-[11px] font-mono text-[#1F2328]">
-                <li>{t.paper.wilcoxonP}: {formatP(wilcoxon.pValue)}</li>
-                <li>{t.paper.effectSize}: {wilcoxon.effectSize.toFixed(3)}</li>
-                <li>{t.paper.mannWhitneyP}: {formatP(mannWhitney.pValue)}</li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* Collapsible Audit Drawer: Executed Python Cells */}
-        <div className="bg-white border border-[#D0D7DE] rounded-lg mb-6 shadow-xs overflow-hidden">
-          <button
-            onClick={() => setIsAuditOpen(!isAuditOpen)}
-            className="w-full px-4 py-3 bg-[#F8F9FA] hover:bg-slate-100 flex items-center justify-between transition text-left"
-          >
-            <div className="flex items-center gap-2">
-              <Code2 className="w-4 h-4 text-[#002B49]" />
-              <span className="text-xs font-semibold text-[#002B49]">{t.paper.auditDrawerTitle}</span>
-              <span className="text-[11px] text-[#57606A] hidden sm:inline">• {t.paper.auditDrawerSub}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] uppercase font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300">
-                Verified
-              </span>
-              {isAuditOpen ? <ChevronUp className="w-4 h-4 text-[#57606A]" /> : <ChevronDown className="w-4 h-4 text-[#57606A]" />}
-            </div>
-          </button>
-
-          {isAuditOpen && (
-            <div className="p-4 border-t border-[#D0D7DE] bg-slate-900 text-slate-100 font-mono text-xs">
-              <div className="flex flex-wrap gap-4 pb-3 mb-3 border-b border-slate-800 text-[11px] text-slate-400">
-                <span className="flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-emerald-400" />
-                  {t.paper.kernelInfo}: {kernelInfo}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-cyan-400" />
-                  {t.paper.executionTimestamp}: {new Date(executedAt).toLocaleString()}
-                </span>
-              </div>
-              <p className="text-[11px] text-emerald-400/90 mb-3 font-sans">
-                {t.paper.reproducibilityNotice}
-              </p>
-              <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                {executedCodeCells.map((codeStr, idx) => (
-                  <div key={idx} className="bg-slate-950 p-3 rounded border border-slate-800">
-                    <div className="text-[10px] text-slate-500 mb-1"># Executed Python Cell [{idx + 2}]</div>
-                    <pre className="overflow-x-auto text-emerald-300 leading-relaxed text-[11px]">{codeStr}</pre>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Dual-Pane LaTeX Workbench */}
         <section className="bg-white border border-[#D0D7DE] rounded-xl overflow-hidden shadow-md">
@@ -486,15 +384,19 @@ export default function PaperPage() {
                 {t.paper.workbenchTitle}
               </span>
               <span className="text-slate-400 text-xs">•</span>
-              <span className="text-[11px] font-mono text-slate-300">sn-jnl.cls</span>
+              <span className="text-[11px] font-mono text-slate-300">
+                sn-jnl.cls
+              </span>
             </div>
 
             {/* View Mode Segmented Controls */}
             <div className="flex items-center bg-[#001A2C] border border-slate-700 rounded-md p-0.5 text-xs font-medium">
               <button
-                onClick={() => setActiveView('split')}
+                onClick={() => setActiveView("split")}
                 className={`px-3 py-1 rounded transition flex items-center gap-1.5 ${
-                  activeView === 'split' ? 'bg-[#002B49] text-white shadow-xs' : 'text-slate-300 hover:text-white'
+                  activeView === "split"
+                    ? "bg-[#002B49] text-white shadow-xs"
+                    : "text-slate-300 hover:text-white"
                 }`}
                 title={t.paper.splitView}
               >
@@ -502,9 +404,11 @@ export default function PaperPage() {
                 <span className="hidden sm:inline">{t.paper.splitView}</span>
               </button>
               <button
-                onClick={() => setActiveView('editor')}
+                onClick={() => setActiveView("editor")}
                 className={`px-3 py-1 rounded transition flex items-center gap-1.5 ${
-                  activeView === 'editor' ? 'bg-[#002B49] text-white shadow-xs' : 'text-slate-300 hover:text-white'
+                  activeView === "editor"
+                    ? "bg-[#002B49] text-white shadow-xs"
+                    : "text-slate-300 hover:text-white"
                 }`}
                 title={t.paper.editorOnly}
               >
@@ -512,9 +416,11 @@ export default function PaperPage() {
                 <span className="hidden sm:inline">{t.paper.editorOnly}</span>
               </button>
               <button
-                onClick={() => setActiveView('preview')}
+                onClick={() => setActiveView("preview")}
                 className={`px-3 py-1 rounded transition flex items-center gap-1.5 ${
-                  activeView === 'preview' ? 'bg-[#002B49] text-white shadow-xs' : 'text-slate-300 hover:text-white'
+                  activeView === "preview"
+                    ? "bg-[#002B49] text-white shadow-xs"
+                    : "text-slate-300 hover:text-white"
                 }`}
                 title={t.paper.pdfOnly}
               >
@@ -527,13 +433,18 @@ export default function PaperPage() {
           {/* Workbench Body Container */}
           <div
             ref={containerRef}
-            className={`flex w-full h-[820px] overflow-hidden ${isDragging ? 'select-none' : ''}`}
+            className={`flex w-full h-[820px] overflow-hidden ${isDragging ? "select-none" : ""}`}
           >
             {/* LEFT PANE: LaTeX CodeMirror Editor */}
             <div
               style={{
-                width: activeView === 'split' ? `${splitWidth}%` : activeView === 'editor' ? '100%' : '0%',
-                display: activeView === 'preview' ? 'none' : 'flex',
+                width:
+                  activeView === "split"
+                    ? `${splitWidth}%`
+                    : activeView === "editor"
+                      ? "100%"
+                      : "0%",
+                display: activeView === "preview" ? "none" : "flex",
               }}
               className="flex flex-col h-full bg-[#FFFFFF] border-r border-[#D0D7DE] overflow-hidden"
             >
@@ -560,21 +471,21 @@ export default function PaperPage() {
                   {/* Formatting Helpers */}
                   <div className="flex items-center border border-[#CBD5E1] rounded overflow-hidden bg-white">
                     <button
-                      onClick={() => applyWrap('\\textbf{', '}')}
+                      onClick={() => applyWrap("\\textbf{", "}")}
                       className="p-1.5 hover:bg-slate-100 text-[#002B49] transition border-r border-[#CBD5E1]"
                       title={t.paper.boldHelp}
                     >
                       <Bold className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => applyWrap('\\textit{', '}')}
+                      onClick={() => applyWrap("\\textit{", "}")}
                       className="p-1.5 hover:bg-slate-100 text-[#002B49] transition border-r border-[#CBD5E1]"
                       title={t.paper.italicHelp}
                     >
                       <Italic className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => applyWrap('$', '$')}
+                      onClick={() => applyWrap("$", "$")}
                       className="p-1.5 hover:bg-slate-100 text-[#002B49] transition border-r border-[#CBD5E1]"
                       title={t.paper.mathHelp}
                     >
@@ -598,7 +509,9 @@ export default function PaperPage() {
                       title={t.paper.resetTemplate}
                     >
                       <RotateCcw className="w-3 h-3" />
-                      <span className="hidden sm:inline">{t.paper.resetTemplate}</span>
+                      <span className="hidden sm:inline">
+                        {t.paper.resetTemplate}
+                      </span>
                     </button>
                   )}
                   <button
@@ -606,7 +519,11 @@ export default function PaperPage() {
                     className="p-1.5 text-slate-600 hover:text-slate-900 border border-[#CBD5E1] rounded bg-white hover:bg-slate-50 transition"
                     title={t.paper.copyLatex}
                   >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -650,7 +567,7 @@ export default function PaperPage() {
             </div>
 
             {/* RESIZABLE SPLIT DIVIDER */}
-            {activeView === 'split' && (
+            {activeView === "split" && (
               <div
                 onMouseDown={handleMouseDown}
                 className="w-1.5 hover:w-2 bg-[#D0D7DE] hover:bg-[#002B49] cursor-col-resize transition-all duration-100 flex items-center justify-center shrink-0 group relative z-10"
@@ -663,8 +580,13 @@ export default function PaperPage() {
             {/* RIGHT PANE: Live PDF Preview & Compiler Output */}
             <div
               style={{
-                width: activeView === 'split' ? `${100 - splitWidth}%` : activeView === 'preview' ? '100%' : '0%',
-                display: activeView === 'editor' ? 'none' : 'flex',
+                width:
+                  activeView === "split"
+                    ? `${100 - splitWidth}%`
+                    : activeView === "preview"
+                      ? "100%"
+                      : "0%",
+                display: activeView === "editor" ? "none" : "flex",
               }}
               className="flex flex-col h-full bg-slate-50 overflow-hidden relative"
             >
@@ -700,7 +622,7 @@ export default function PaperPage() {
                       <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                       <span>
                         {t.paper.compiledSuccess}
-                        {compileTimeMs ? ` (${compileTimeMs}ms)` : ''}
+                        {compileTimeMs ? ` (${compileTimeMs}ms)` : ""}
                       </span>
                     </span>
                   )}
@@ -712,8 +634,8 @@ export default function PaperPage() {
                     onClick={() => setShowLogs(!showLogs)}
                     className={`px-2.5 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 border transition ${
                       showLogs
-                        ? 'bg-slate-800 text-white border-slate-700'
-                        : 'bg-white hover:bg-slate-50 text-slate-700 border-[#CBD5E1]'
+                        ? "bg-slate-800 text-white border-slate-700"
+                        : "bg-white hover:bg-slate-50 text-slate-700 border-[#CBD5E1]"
                     }`}
                     title={showLogs ? t.paper.hideLogs : t.paper.viewLogs}
                   >
@@ -742,13 +664,17 @@ export default function PaperPage() {
                   <iframe
                     src={`${pdfUrl}#toolbar=1&navpanes=0&view=FitH`}
                     title={t.paper.pdfPreviewTitle}
-                    className={`w-full h-full border-0 bg-white ${isDragging ? 'pointer-events-none' : ''}`}
+                    className={`w-full h-full border-0 bg-white ${isDragging ? "pointer-events-none" : ""}`}
                   />
                 ) : isCompiling ? (
                   <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 bg-white">
                     <Loader2 className="w-8 h-8 animate-spin text-[#002B49] mb-3" />
-                    <p className="text-sm font-semibold text-[#002B49]">{t.paper.compilingPdf}</p>
-                    <p className="text-xs text-slate-400 mt-1 font-mono">Running pdflatex typesetting passes...</p>
+                    <p className="text-sm font-semibold text-[#002B49]">
+                      {t.paper.compilingPdf}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1 font-mono">
+                      Running pdflatex typesetting passes...
+                    </p>
                   </div>
                 ) : compileError ? (
                   <div className="w-full h-full p-8 flex flex-col items-center justify-center text-center bg-white overflow-y-auto">
@@ -776,7 +702,9 @@ export default function PaperPage() {
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-white">
                     <FileText className="w-10 h-10 text-slate-300 mb-3" />
-                    <p className="text-xs font-mono">{t.paper.noPdfAvailable}</p>
+                    <p className="text-xs font-mono">
+                      {t.paper.noPdfAvailable}
+                    </p>
                   </div>
                 )}
               </div>
@@ -787,7 +715,9 @@ export default function PaperPage() {
                   <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs font-mono">
                     <div className="flex items-center gap-2">
                       <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="font-semibold text-slate-200">{t.paper.viewLogs}</span>
+                      <span className="font-semibold text-slate-200">
+                        {t.paper.viewLogs}
+                      </span>
                       {compileError?.line && (
                         <button
                           onClick={() => jumpToLine(compileError.line!)}
@@ -812,20 +742,179 @@ export default function PaperPage() {
                     <div className="px-4 py-2 bg-rose-950/70 border-b border-rose-900/50 text-[11px] font-mono text-rose-200 flex items-start gap-2">
                       <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                       <div>
-                        <span className="font-bold text-rose-300">{compileError.error}</span>
-                        <p className="text-rose-200/90 mt-0.5 whitespace-pre-wrap">{compileError.details}</p>
+                        <span className="font-bold text-rose-300">
+                          {compileError.error}
+                        </span>
+                        <p className="text-rose-200/90 mt-0.5 whitespace-pre-wrap">
+                          {compileError.details}
+                        </p>
                       </div>
                     </div>
                   )}
 
                   <pre className="p-4 text-[11px] font-mono text-slate-300 leading-relaxed overflow-auto flex-1 select-text bg-slate-950">
-                    {compileError?.rawLog || 'pdflatex compilation successful. No errors detected.'}
+                    {compileError?.rawLog ||
+                      "pdflatex compilation successful. No errors detected."}
                   </pre>
                 </div>
               )}
             </div>
           </div>
         </section>
+        {/* Quality Assurance & Hypothesis Verdict Summary Banner */}
+        <section className="mb-6">
+          <h2 className="text-sm font-serif font-bold text-[#002B49] mb-3">
+            {t.paper.qaTitle}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white border border-[#D0D7DE] rounded-lg p-4 shadow-xs">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#002B49] uppercase font-mono">
+                <ShieldCheck className="w-4 h-4" />
+                <span>{t.paper.integrityTitle}</span>
+              </div>
+              <ul className="mt-3 space-y-1 text-xs text-[#1F2328]">
+                <li>
+                  <strong className="font-mono">{quarantined.length}</strong>{" "}
+                  {t.paper.anomaliesIsolated}
+                </li>
+                <li>
+                  {t.paper.attritionRate}:{" "}
+                  <strong className="font-mono">
+                    {attritionRate.toFixed(1)}%
+                  </strong>
+                </li>
+                <li>
+                  {t.paper.pairedN}:{" "}
+                  <strong className="font-mono">{pairedData.length}</strong>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-white border border-[#D0D7DE] rounded-lg p-4 shadow-xs">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#002B49] uppercase font-mono">
+                <Activity className="w-4 h-4" />
+                <span>{t.paper.normalityTitle}</span>
+              </div>
+              <span
+                className={
+                  isNonNormal
+                    ? "inline-block mt-3 text-xs font-bold px-2 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-300"
+                    : "inline-block mt-3 text-xs font-bold px-2 py-0.5 rounded border bg-sky-50 text-sky-800 border-sky-300"
+                }
+              >
+                {isNonNormal ? t.paper.nonNormal : t.paper.normal}
+              </span>
+              <p className="mt-2 text-[11px] text-[#57606A] leading-relaxed">
+                {isNonNormal
+                  ? t.paper.nonParametricDirective
+                  : t.paper.parametricEligible}
+              </p>
+            </div>
+
+            <div
+              className={
+                hypothesisConfirmed
+                  ? "rounded-lg p-4 shadow-xs border bg-emerald-50 border-emerald-300"
+                  : "rounded-lg p-4 shadow-xs border bg-rose-50 border-[#C0392B]/40"
+              }
+            >
+              <div className="text-xs font-semibold text-[#002B49] uppercase font-mono">
+                {t.paper.verdictTitle}
+              </div>
+              <div
+                className={
+                  hypothesisConfirmed
+                    ? "mt-3 flex items-center gap-2 text-sm font-bold text-emerald-700"
+                    : "mt-3 flex items-center gap-2 text-sm font-bold text-[#C0392B]"
+                }
+              >
+                {hypothesisConfirmed ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                ) : (
+                  <XCircle className="w-4 h-4 shrink-0" />
+                )}
+                <span>
+                  {hypothesisConfirmed
+                    ? t.paper.corroborated
+                    : t.paper.rejected}
+                </span>
+              </div>
+              <ul className="mt-2 space-y-0.5 text-[11px] font-mono text-[#1F2328]">
+                <li>
+                  {t.paper.wilcoxonP}: {formatP(wilcoxon.pValue)}
+                </li>
+                <li>
+                  {t.paper.effectSize}: {wilcoxon.effectSize.toFixed(3)}
+                </li>
+                <li>
+                  {t.paper.mannWhitneyP}: {formatP(mannWhitney.pValue)}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* Collapsible Audit Drawer: Executed Python Cells */}
+        <div className="bg-white border border-[#D0D7DE] rounded-lg mb-6 shadow-xs overflow-hidden">
+          <button
+            onClick={() => setIsAuditOpen(!isAuditOpen)}
+            className="w-full px-4 py-3 bg-[#F8F9FA] hover:bg-slate-100 flex items-center justify-between transition text-left"
+          >
+            <div className="flex items-center gap-2">
+              <Code2 className="w-4 h-4 text-[#002B49]" />
+              <span className="text-xs font-semibold text-[#002B49]">
+                {t.paper.auditDrawerTitle}
+              </span>
+              <span className="text-[11px] text-[#57606A] hidden sm:inline">
+                • {t.paper.auditDrawerSub}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] uppercase font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300">
+                Verified
+              </span>
+              {isAuditOpen ? (
+                <ChevronUp className="w-4 h-4 text-[#57606A]" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-[#57606A]" />
+              )}
+            </div>
+          </button>
+
+          {isAuditOpen && (
+            <div className="p-4 border-t border-[#D0D7DE] bg-slate-900 text-slate-100 font-mono text-xs">
+              <div className="flex flex-wrap gap-4 pb-3 mb-3 border-b border-slate-800 text-[11px] text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                  {t.paper.kernelInfo}: {kernelInfo}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                  {t.paper.executionTimestamp}:{" "}
+                  {new Date(executedAt).toLocaleString()}
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-400/90 mb-3 font-sans">
+                {t.paper.reproducibilityNotice}
+              </p>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {executedCodeCells.map((codeStr, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-slate-950 p-3 rounded border border-slate-800"
+                  >
+                    <div className="text-[10px] text-slate-500 mb-1">
+                      # Executed Python Cell [{idx + 2}]
+                    </div>
+                    <pre className="overflow-x-auto text-emerald-300 leading-relaxed text-[11px]">
+                      {codeStr}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );
