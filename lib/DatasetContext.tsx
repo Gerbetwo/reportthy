@@ -1,7 +1,12 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { CleanedParticipant, PairedParticipant, AttritionAnalysis } from '@/types/dataset';
+import {
+  CleanedParticipant,
+  PairedParticipant,
+  AttritionAnalysis,
+  JupyterExecutionResult
+} from '@/types/dataset';
 import { pairPreAndPost } from '@/lib/csvCleaner';
 
 interface DatasetContextType {
@@ -10,6 +15,8 @@ interface DatasetContextType {
   pairedData: PairedParticipant[];
   quarantined: CleanedParticipant[];
   attritionAnalysis: AttritionAnalysis | null;
+  jupyterResults: JupyterExecutionResult | null;
+  setJupyterResults: (res: JupyterExecutionResult | null) => void;
   setDatasets: (data: {
     preClean?: CleanedParticipant[];
     postClean?: CleanedParticipant[];
@@ -30,6 +37,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
   const [pairedData, setPairedData] = useState<PairedParticipant[]>([]);
   const [quarantined, setQuarantined] = useState<CleanedParticipant[]>([]);
   const [attritionAnalysis, setAttritionAnalysis] = useState<AttritionAnalysis | null>(null);
+  const [jupyterResults, setJupyterResultsState] = useState<JupyterExecutionResult | null>(null);
 
   useEffect(() => {
     try {
@@ -38,6 +46,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
       const savedPaired = localStorage.getItem('reportthy_paired');
       const savedQuarantined = localStorage.getItem('reportthy_quarantined');
       const savedAttrition = localStorage.getItem('reportthy_attrition');
+      const savedJupyter = localStorage.getItem('reportthy_jupyter_results');
 
       if (savedPre) setPreClean(JSON.parse(savedPre));
       if (savedPost) setPostClean(JSON.parse(savedPost));
@@ -45,10 +54,12 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
       if (savedQuarantined) setQuarantined(JSON.parse(savedQuarantined));
       if (savedAttrition) {
         const parsedAttrition: unknown = JSON.parse(savedAttrition);
-        // Discard legacy (Excel roster-based) attrition payloads with an incompatible shape
         if (parsedAttrition && typeof parsedAttrition === 'object' && 'attritionRate' in parsedAttrition) {
           setAttritionAnalysis(parsedAttrition as AttritionAnalysis);
         }
+      }
+      if (savedJupyter) {
+        setJupyterResultsState(JSON.parse(savedJupyter));
       }
     } catch (e) {
       console.warn('DatasetContext failed to load stored datasets:', e);
@@ -69,6 +80,15 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     if (attr) localStorage.setItem('reportthy_attrition', JSON.stringify(attr));
   };
 
+  const setJupyterResults = (res: JupyterExecutionResult | null) => {
+    setJupyterResultsState(res);
+    if (res) {
+      localStorage.setItem('reportthy_jupyter_results', JSON.stringify(res));
+    } else {
+      localStorage.removeItem('reportthy_jupyter_results');
+    }
+  };
+
   const setDatasets: DatasetContextType['setDatasets'] = (data) => {
     const nextPre = data.preClean ?? preClean;
     const nextPost = data.postClean ?? postClean;
@@ -76,6 +96,12 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
 
     let nextPaired = data.pairedData ?? pairedData;
     let nextAttr = data.attritionAnalysis ?? attritionAnalysis;
+
+    // Invalidate stale Jupyter verification whenever new survey inputs are loaded
+    if (data.preClean || data.postClean) {
+      setJupyterResultsState(null);
+      localStorage.removeItem('reportthy_jupyter_results');
+    }
 
     if ((data.preClean || data.postClean) && !data.pairedData) {
       if (nextPre.length > 0 && nextPost.length > 0) {
@@ -99,6 +125,9 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     updated.splice(index, 1);
     setPairedData(updated);
     localStorage.setItem('reportthy_paired', JSON.stringify(updated));
+    // When pair linkage changes, clear execution results to avoid discrepancy
+    setJupyterResultsState(null);
+    localStorage.removeItem('reportthy_jupyter_results');
   };
 
   const reconcileCohorts = () => {
@@ -107,6 +136,8 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
       setPairedData(result.paired);
       setAttritionAnalysis(result.attritionAnalysis);
       saveToStorage(preClean, postClean, result.paired, quarantined, result.attritionAnalysis);
+      setJupyterResultsState(null);
+      localStorage.removeItem('reportthy_jupyter_results');
     }
   };
 
@@ -116,11 +147,13 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     setPairedData([]);
     setQuarantined([]);
     setAttritionAnalysis(null);
+    setJupyterResultsState(null);
     localStorage.removeItem('reportthy_pre_data');
     localStorage.removeItem('reportthy_post_data');
     localStorage.removeItem('reportthy_paired');
     localStorage.removeItem('reportthy_quarantined');
     localStorage.removeItem('reportthy_attrition');
+    localStorage.removeItem('reportthy_jupyter_results');
   };
 
   return (
@@ -131,6 +164,8 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
         pairedData,
         quarantined,
         attritionAnalysis,
+        jupyterResults,
+        setJupyterResults,
         setDatasets,
         unlinkPair,
         reconcileCohorts,

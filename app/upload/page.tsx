@@ -285,7 +285,7 @@ export default function UploadPage() {
                           title="Unlink pair"
                         >
                           <Unlink className="w-3 h-3" />
-                          <span>Unlink</span>
+                          <span>{t.upload.unlink}</span>
                         </button>
                       </td>
                     </tr>

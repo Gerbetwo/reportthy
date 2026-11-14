@@ -64,6 +64,19 @@ export interface HypothesisTestResult {
   n2?: number;
 }
 
+export interface JupyterExecutionResult {
+  executedAt: string;
+  kernelInfo: string;
+  alpha: number;
+  wilcoxonAlternative: 'greater' | 'less' | 'two-sided';
+  preMetrics: DescriptiveMetrics;
+  postMetrics: DescriptiveMetrics;
+  wilcoxon: HypothesisTestResult;
+  mannWhitney: HypothesisTestResult;
+  hypothesisConfirmed: boolean;
+  executedCodeCells: string[];
+}
+
 export interface DistributionBin {
   score: number;
   preCount: number;

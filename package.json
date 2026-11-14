@@ -10,19 +10,18 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "setup:jupyter": "pip install jupyterlite-core jupyterlite-pyodide-kernel && jupyter lite build --output-dir public/jupyterlite",
     "verify": "npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",
     "clsx": "^2.1.1",
-    "jstat": "^1.9.6",
     "jszip": "^3.10.2",
     "lucide-react": "^1.70.0",
     "next": "^16.4.5",
     "papaparse": "^5.7.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "simple-statistics": "^8.0.0",
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {

@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Reportthy Scientific Assessment Platform
+
+Reportthy is an academic computational platform designed for quasi-experimental educational evaluations. It streamlines pre/post intervention assessment, fuzzy cohort alignment, Jupyter notebook hypothesis testing, and automated Springer Nature (`sn-jnl`) manuscript synthesis.
+
+## Core Architectural Invariants
+
+1. **Jupyter as Sole Computational Authority**:
+   - Zero statistical math is computed or emulated in Next.js / TypeScript.
+   - All descriptive statistics, Shapiro-Wilk normality diagnostics, Wilcoxon signed-rank tests, and Mann-Whitney U cohort comparisons are executed inside a real, researcher-editable Python Jupyter kernel.
+   - Execution outputs flow securely via the Reportthy sync bridge (`REPORTTHY_JUPYTER_RESULTS` / `POST /api/notebook/results`) into the Springer Nature manuscript generator.
+
+2. **Unified 3-Stage Pipeline**:
+   - `/upload` -> 1. Import & Clean: 2-CSV Ingestion (Pretest + Posttest), automated quarantine filter, Levenshtein fuzzy matching ($\ge 0.85$), and pre-to-post attrition audit.
+   - `/lab` -> 2. Jupyter Analysis Lab: Interactive embedded Jupyter workstation (JupyterLite Pyodide or JupyterHub) executing SciPy / NumPy hypothesis verification.
+   - `/paper` -> 3. Unified Paper & QA: Springer Nature manuscript markup (`sn-jnl`), QA audit summary, booktabs tables, student validation matrix (`longtable`), and data-driven hypothesis verdict.
+
+## Jupyter Environments
+
+### 1. Self-Hosted JupyterLite (Pyodide WebAssembly)
+Build the local JupyterLite distribution directly into `public/jupyterlite`:
+
+```bash
+npm run setup:jupyter
+```
+*(Runs `pip install jupyterlite-core jupyterlite-pyodide-kernel && jupyter lite build --output-dir public/jupyterlite`)*
+
+### 2. External JupyterHub Connection
+To connect Reportthy to an institutional JupyterHub server, set the environment variable in `.env.local`:
+
+```bash
+NEXT_PUBLIC_JUPYTERHUB_URL="https://your-jupyterhub.org/user/username/lab/tree"
+```
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Quality Verification
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run verify
+```
+Runs strict TypeScript type checking (`tsc --noEmit`), ESLint, and Vitest test suites.

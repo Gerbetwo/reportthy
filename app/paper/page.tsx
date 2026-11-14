@@ -1,55 +1,100 @@
 'use client';
+
 import { useState } from 'react';
+import Link from 'next/link';
 import HeaderNav from '@/components/HeaderNav';
 import { useTranslation } from '@/lib/LanguageContext';
 import { useDatasetStats } from '@/lib/useDatasetStats';
 import { generateFullPaperLatex } from '@/lib/paperLatexTemplate';
-import { Download, Copy, Check, FileCheck, FileText, Loader2, ShieldCheck, Activity, CheckCircle2, XCircle } from 'lucide-react';
-import { DescriptiveMetrics } from '@/types/dataset';
+import {
+  Download,
+  Copy,
+  Check,
+  FileCheck,
+  FileText,
+  Loader2,
+  ShieldCheck,
+  Activity,
+  CheckCircle2,
+  XCircle,
+  AlertOctagon,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+  Clock,
+  Code2
+} from 'lucide-react';
 
 export default function PaperPage() {
   const { lang, t } = useTranslation();
   const {
     pairedData,
-    preMetrics,
-    postMetrics,
-    wilcoxon,
-    mannWhitney,
     attritionAnalysis,
-    quarantined
+    quarantined,
+    jupyterResults
   } = useDatasetStats();
 
   const [copied, setCopied] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
+  const [isAuditOpen, setIsAuditOpen] = useState(false);
 
-  const fallbackPreMetrics: DescriptiveMetrics = preMetrics || {
-    n: 40, mean: 1.925, variance: 0.789, stdDev: 0.888, median: 2.0, iqr: 2.0, skewness: -0.54, kurtosis: -0.28,
-    shapiroWilk: { statistic: 0.853, pValue: 0.0001, isNormal: false }
-  };
-
-  const fallbackPostMetrics: DescriptiveMetrics = postMetrics || {
-    n: 31, mean: 8.323, variance: 4.826, stdDev: 2.197, median: 9.0, iqr: 2.5, skewness: -1.57, kurtosis: 1.9,
-    shapiroWilk: { statistic: 0.768, pValue: 0.00001, isNormal: false }
-  };
+  // If no Jupyter execution results are found, block paper synthesis
+  if (!jupyterResults) {
+    return (
+      <div className="min-h-screen bg-scientific-grid text-[#1F2328]">
+        <HeaderNav />
+        <main className="max-w-4xl mx-auto px-6 py-20">
+          <div className="bg-white border-2 border-dashed border-amber-300 rounded-xl p-8 text-center shadow-xs">
+            <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200">
+              <AlertOctagon className="w-6 h-6" />
+            </div>
+            <h1 className="text-2xl font-serif font-bold text-[#002B49]">
+              {t.paper.requireExecutionTitle}
+            </h1>
+            <p className="text-sm text-[#57606A] mt-2 max-w-xl mx-auto leading-relaxed">
+              {t.paper.requireExecutionDesc}
+            </p>
+            <div className="mt-6 flex justify-center">
+              <Link
+                href="/lab"
+                className="bg-[#002B49] hover:bg-[#001A2C] text-white px-5 py-2.5 rounded-md text-xs font-semibold flex items-center gap-2 transition shadow-xs"
+              >
+                <span>{t.paper.goToLab}</span>
+                <span aria-hidden="true">&rarr;</span>
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const fullPaperTex = generateFullPaperLatex(
-    fallbackPreMetrics,
-    fallbackPostMetrics,
-    wilcoxon,
-    mannWhitney,
+    jupyterResults,
     pairedData,
     lang,
     attritionAnalysis,
     quarantined
   );
 
-  const hypothesisConfirmed = wilcoxon.isSignificant && wilcoxon.zValue > 0;
-  const isNonNormal = !fallbackPreMetrics.shapiroWilk.isNormal || !fallbackPostMetrics.shapiroWilk.isNormal;
+  const {
+    preMetrics,
+    postMetrics,
+    wilcoxon,
+    mannWhitney,
+    hypothesisConfirmed,
+    executedCodeCells,
+    kernelInfo,
+    executedAt
+  } = jupyterResults;
+
+  const isNonNormal = !preMetrics.shapiroWilk.isNormal || !postMetrics.shapiroWilk.isNormal;
   const attritionRate = attritionAnalysis
     ? attritionAnalysis.attritionRate
-    : fallbackPreMetrics.n > 0
-      ? (Math.max(fallbackPreMetrics.n - fallbackPostMetrics.n, 0) / fallbackPreMetrics.n) * 100
+    : preMetrics.n > 0
+      ? (Math.max(preMetrics.n - postMetrics.n, 0) / preMetrics.n) * 100
       : 0;
+
   const formatP = (p: number): string => (p < 0.001 ? '< 0.001' : p.toFixed(3));
 
   const handleCopyLatex = () => {
@@ -155,6 +200,7 @@ export default function PaperPage() {
                 <li>{t.paper.pairedN}: <strong className="font-mono">{pairedData.length}</strong></li>
               </ul>
             </div>
+
             <div className="bg-white border border-[#D0D7DE] rounded-lg p-4 shadow-xs">
               <div className="flex items-center gap-2 text-xs font-semibold text-[#002B49] uppercase font-mono">
                 <Activity className="w-4 h-4" />
@@ -173,6 +219,7 @@ export default function PaperPage() {
                 {isNonNormal ? t.paper.nonParametricDirective : t.paper.parametricEligible}
               </p>
             </div>
+
             <div
               className={
                 hypothesisConfirmed
@@ -199,6 +246,52 @@ export default function PaperPage() {
             </div>
           </div>
         </section>
+
+        {/* Collapsible Audit Drawer: Executed Python Cells */}
+        <div className="bg-white border border-[#D0D7DE] rounded-lg mb-6 shadow-xs overflow-hidden">
+          <button
+            onClick={() => setIsAuditOpen(!isAuditOpen)}
+            className="w-full px-4 py-3 bg-[#F8F9FA] hover:bg-slate-100 flex items-center justify-between transition text-left"
+          >
+            <div className="flex items-center gap-2">
+              <Code2 className="w-4 h-4 text-[#002B49]" />
+              <span className="text-xs font-semibold text-[#002B49]">{t.paper.auditDrawerTitle}</span>
+              <span className="text-[11px] text-[#57606A] hidden sm:inline">• {t.paper.auditDrawerSub}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] uppercase font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300">
+                Verified
+              </span>
+              {isAuditOpen ? <ChevronUp className="w-4 h-4 text-[#57606A]" /> : <ChevronDown className="w-4 h-4 text-[#57606A]" />}
+            </div>
+          </button>
+
+          {isAuditOpen && (
+            <div className="p-4 border-t border-[#D0D7DE] bg-slate-900 text-slate-100 font-mono text-xs">
+              <div className="flex flex-wrap gap-4 pb-3 mb-3 border-b border-slate-800 text-[11px] text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                  {t.paper.kernelInfo}: {kernelInfo}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                  {t.paper.executionTimestamp}: {new Date(executedAt).toLocaleString()}
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-400/90 mb-3 font-sans">
+                {t.paper.reproducibilityNotice}
+              </p>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {executedCodeCells.map((codeStr, idx) => (
+                  <div key={idx} className="bg-slate-950 p-3 rounded border border-slate-800">
+                    <div className="text-[10px] text-slate-500 mb-1"># Executed Python Cell [{idx + 2}]</div>
+                    <pre className="overflow-x-auto text-emerald-300 leading-relaxed text-[11px]">{codeStr}</pre>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Paper Source Code Viewer */}
         <div className="bg-white border border-[#D0D7DE] rounded-lg overflow-hidden shadow-xs">

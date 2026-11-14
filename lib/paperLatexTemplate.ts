@@ -1,18 +1,11 @@
 import {
-  DescriptiveMetrics,
   PairedParticipant,
   CleanedParticipant,
-  HypothesisTestResult,
-  AttritionAnalysis
+  AttritionAnalysis,
+  JupyterExecutionResult,
+  DescriptiveMetrics,
+  HypothesisTestResult
 } from '@/types/dataset';
-
-/**
- * Unified Springer Nature (sn-jnl) manuscript generator.
- * Merges data quality assurance diagnostics (ingestion audit, quarantine,
- * fuzzy reconciliation, attrition), distribution diagnostics, non-parametric
- * hypothesis verification and the longitudinal student validation matrix
- * into a single end-to-end LaTeX document.
- */
 
 export function escapeLatex(str: string): string {
   if (!str) return '';
@@ -35,10 +28,7 @@ const fp = (p: number): string => (Number.isFinite(p) ? (p < 0.001 ? '< 0.001' :
 const fpCell = (p: number): string => (Number.isFinite(p) ? (p < 0.001 ? '$<0.001$' : p.toFixed(3)) : '1.000');
 
 export function generateFullPaperLatex(
-  preMetrics: DescriptiveMetrics,
-  postMetrics: DescriptiveMetrics,
-  wilcoxon: HypothesisTestResult,
-  mannWhitney: HypothesisTestResult,
+  jupyterResults: JupyterExecutionResult,
   pairedData: PairedParticipant[],
   lang: 'en' | 'es' = 'en',
   attritionAnalysis?: AttritionAnalysis | null,
@@ -47,8 +37,19 @@ export function generateFullPaperLatex(
   const isEs = lang === 'es';
   const tr = (en: string, es: string): string => (isEs ? es : en);
 
+  const {
+    preMetrics,
+    postMetrics,
+    wilcoxon,
+    mannWhitney,
+    alpha,
+    wilcoxonAlternative,
+    kernelInfo,
+    executedAt,
+    hypothesisConfirmed
+  } = jupyterResults;
+
   // ---------- Derived QA & inferential facts ----------
-  const hypothesisConfirmed = wilcoxon.isSignificant && wilcoxon.zValue > 0;
   const preNormal = preMetrics.shapiroWilk.isNormal;
   const postNormal = postMetrics.shapiroWilk.isNormal;
   const anyNonNormal = !preNormal || !postNormal;
@@ -126,8 +127,8 @@ ${reasons.map(r => String.raw`\item ${escapeLatex(r.length > 120 ? `${r.slice(0,
   );
   const unmatchedPost = attritionAnalysis?.unmatchedPostCount ?? 0;
   const reconText = tr(
-    String.raw`Participant identities were normalized (lowercasing, diacritic stripping, whitespace collapsing) and longitudinally paired using token-sorted normalized Levenshtein similarity ($\ge 0.85$), producing ${pairedN} matched participants. Attrition was computed directly by contrasting the Pretest and Posttest CSV surveys: ${desertionCount} pretest respondents had no posttest counterpart, yielding a pre-to-post attrition rate of ${rateStr}\%${unmatchedPost > 0 ? `, while ${unmatchedPost} posttest respondents could not be matched to a pretest record` : ''}.`,
-    String.raw`Las identidades de los participantes se normalizaron (minúsculas, eliminación de diacríticos, colapso de espacios) y se emparejaron longitudinalmente mediante similitud de Levenshtein normalizada con tokens ordenados ($\ge 0.85$), produciendo ${pairedN} participantes emparejados. La deserción se calculó contrastando directamente las encuestas CSV de Pretest y Posttest: ${desertionCount} encuestados del pretest no tuvieron contraparte en el posttest, lo que arroja una tasa de deserción pre-post de ${rateStr}\%${unmatchedPost > 0 ? `, mientras que ${unmatchedPost} encuestados del posttest no pudieron emparejarse con un registro del pretest` : ''}.`
+    String.raw`Participant identities were normalized (lowercasing, diacritic stripping, whitespace collapsing) and longitudinally paired using token-sorted normalized Levenshtein similarity ($\ge 0.85$), producing ${pairedN} matched participants. Attrition was computed directly by contrasting the Pretest and Posttest CSV surveys: ${desertionCount} pretest respondents had no posttest counterpart, yielding a pre-to-post attrition rate of ${rateStr}\%${unmatchedPost > 0 ? `, while ${unmatchedPost} posttest respondents could not be matched to a pretest record` : ''}. All statistical calculations were executed in an interactive, reproducible Jupyter environment (\texttt{${escapeLatex(kernelInfo)}}, timestamp \texttt{${escapeLatex(executedAt)}}) using SciPy and NumPy.`,
+    String.raw`Las identidades de los participantes se normalizaron (minúsculas, eliminación de diacríticos, colapso de espacios) y se emparejaron longitudinalmente mediante similitud de Levenshtein normalizada con tokens ordenados ($\ge 0.85$), produciendo ${pairedN} participantes emparejados. La deserción se calculó contrastando directamente las encuestas CSV de Pretest y Posttest: ${desertionCount} encuestados del pretest no tuvieron contraparte en el posttest, lo que arroja una tasa de deserción pre-post de ${rateStr}\%${unmatchedPost > 0 ? `, mientras que ${unmatchedPost} encuestados del posttest no pudieron emparejarse con un registro del pretest` : ''}. Todos los cálculos estadísticos se ejecutaron en un entorno Jupyter interactivo y reproducible (\texttt{${escapeLatex(kernelInfo)}}, marca temporal \texttt{${escapeLatex(executedAt)}}) usando SciPy y NumPy.`
   );
 
   // ---------- 3. Results ----------
@@ -157,15 +158,21 @@ ${reasons.map(r => String.raw`\item ${escapeLatex(r.length > 120 ? `${r.slice(0,
     );
 
   const hypCaption = tr(
-    'Inferential summary of non-parametric hypothesis tests',
-    'Resumen inferencial de las pruebas de hipótesis no paramétricas'
+    String.raw`Inferential summary of non-parametric hypothesis tests ($\alpha=${alpha}$)`,
+    String.raw`Resumen inferencial de las pruebas de hipótesis no paramétricas ($\alpha=${alpha}$)`
   );
   const hypHeader = tr(
     String.raw`Test & $N$ / $(n_1, n_2)$ & Statistic & $Z$ & $p$ & $r$ & Decision`,
     String.raw`Prueba & $N$ / $(n_1, n_2)$ & Estadístico & $Z$ & $p$ & $r$ & Decisión`
   );
-  const wRowLabel = tr('Paired Wilcoxon Signed-Rank (within-subject)', 'Wilcoxon de rangos con signo (intra-sujeto)');
-  const uRowLabel = tr(String.raw`Mann-Whitney $U$ (Listado 1 vs 2, $\Delta$)`, String.raw`Mann-Whitney $U$ (Listado 1 vs 2, $\Delta$)`);
+  const wRowLabel = tr(
+    String.raw`Paired Wilcoxon Signed-Rank (${wilcoxonAlternative})`,
+    String.raw`Wilcoxon de rangos con signo (${wilcoxonAlternative})`
+  );
+  const uRowLabel = tr(
+    String.raw`Mann-Whitney $U$ (Listado 1 vs 2, $\Delta$)`,
+    String.raw`Mann-Whitney $U$ (Listado 1 vs 2, $\Delta$)`
+  );
 
   // ---------- 4. Student matrix ----------
   const secMatrix = tr('Longitudinal Student Score and Validation Matrix', 'Matriz Longitudinal de Puntajes y Validación Estudiantil');
@@ -208,7 +215,7 @@ ${studentRows}
   const magnitude = absR >= 0.5 ? tr('large', 'grande') : absR >= 0.3 ? tr('medium', 'mediano') : absR >= 0.1 ? tr('small', 'pequeño') : tr('negligible', 'despreciable');
   const discText = tr(
     String.raw`Pretest skewness (${f3(preMetrics.skewness)}) and posttest skewness (${f3(postMetrics.skewness)}) indicate floor and ceiling effects that constrain score discrimination at the scale extremes. The pre-to-post attrition rate of ${rateStr}\% and the ${quarantineCount} quarantined submissions constitute potential selection threats, partially mitigated by the paired design ($N=${pairedN}$). The rank-biserial effect size $r=${f3(wilcoxon.effectSize)}$ corresponds to a ${magnitude} effect magnitude. The absence of a randomized control group limits causal attribution.`,
-    String.raw`La asimetría del pretest (${f3(preMetrics.skewness)}) y del posttest (${f3(postMetrics.skewness)}) indica efectos suelo y techo que limitan la discriminación de puntajes en los extremos de la escala. La tasa de deserción pre-post de ${rateStr}\% y las ${quarantineCount} entregas aisladas constituyen amenazas potenciales de selección, parcialmente mitigadas por el diseño emparejado ($N=${pairedN}$). El tamaño de efecto biserial por rangos $r=${f3(wilcoxon.effectSize)}$ corresponde a una magnitud de efecto ${magnitude}. La ausencia de un grupo control aleatorizado limita la atribución causal.`
+    String.raw`La asimetría del pretest (${f3(preMetrics.skewness)}) y del posttest (${f3(postMetrics.skewness)}) indica efectos suelo y techo que limitan la discriminación de puntajes en los extremos de la escala. La tasa de deserción de ${rateStr}\% y las ${quarantineCount} entregas aisladas constituyen amenazas potenciales de selección, parcialmente mitigadas por el diseño emparejado ($N=${pairedN}$). El tamaño de efecto biserial por rangos $r=${f3(wilcoxon.effectSize)}$ corresponde a una magnitud de efecto ${magnitude}. La ausencia de un grupo control aleatorizado limita la atribución causal.`
   );
 
   // ---------- 6. Conclusion (strictly data-driven) ----------
@@ -224,12 +231,12 @@ ${studentRows}
     );
   const concText = hypothesisConfirmed
     ? tr(
-      String.raw`The empirical evidence \textbf{corroborates} the research hypothesis ($H_1$): the intervention produced a statistically significant positive learning gain ($W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$, $p ${fp(wilcoxon.pValue)}$, $p < 0.05$, $r=${f3(wilcoxon.effectSize)}$). ${cohortSentence}`,
-      String.raw`La evidencia empírica \textbf{corrobora} la hipótesis de investigación ($H_1$): la intervención produjo una ganancia de aprendizaje positiva estadísticamente significativa ($W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$, $p ${fp(wilcoxon.pValue)}$, $p < 0.05$, $r=${f3(wilcoxon.effectSize)}$). ${cohortSentence}`
+      String.raw`The empirical evidence \textbf{corroborates} the research hypothesis ($H_1$): the intervention produced a statistically significant positive learning gain ($W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$, $p ${fp(wilcoxon.pValue)}$, $p < ${alpha}$, $r=${f3(wilcoxon.effectSize)}$). ${cohortSentence}`,
+      String.raw`La evidencia empírica \textbf{corrobora} la hipótesis de investigación ($H_1$): la intervención produjo una ganancia de aprendizaje positiva estadísticamente significativa ($W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$, $p ${fp(wilcoxon.pValue)}$, $p < ${alpha}$, $r=${f3(wilcoxon.effectSize)}$). ${cohortSentence}`
     )
     : tr(
-      String.raw`The empirical evidence \textbf{fails to corroborate} and therefore \textbf{rejects} the research hypothesis ($H_1$): with $W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$ and $p ${fp(wilcoxon.pValue)}$ ($p \ge 0.05$ or a non-positive shift), no statistically significant instructional gain was established. ${cohortSentence}`,
-      String.raw`La evidencia empírica \textbf{no logra corroborar} y por tanto \textbf{rechaza} la hipótesis de investigación ($H_1$): con $W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$ y $p ${fp(wilcoxon.pValue)}$ ($p \ge 0.05$ o un desplazamiento no positivo), no se estableció una ganancia instruccional estadísticamente significativa. ${cohortSentence}`
+      String.raw`The empirical evidence \textbf{fails to corroborate} and therefore \textbf{rejects} the research hypothesis ($H_1$): with $W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$ and $p ${fp(wilcoxon.pValue)}$ ($p \ge ${alpha}$ or a non-positive shift), no statistically significant instructional gain was established. ${cohortSentence}`,
+      String.raw`La evidencia empírica \textbf{no logra corroborar} y por tanto \textbf{rechaza} la hipótesis de investigación ($H_1$): con $W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$ y $p ${fp(wilcoxon.pValue)}$ ($p \ge ${alpha}$ o un desplazamiento no positivo), no se estableció una ganancia instruccional estadísticamente significativa. ${cohortSentence}`
     );
 
   return String.raw`\documentclass[default,sn-basic]{sn-jnl}

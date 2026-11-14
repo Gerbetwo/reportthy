@@ -5,7 +5,8 @@ import {
   PairedParticipant,
   HypothesisTestResult,
   AttritionAnalysis,
-  CleanedParticipant
+  CleanedParticipant,
+  JupyterExecutionResult
 } from '@/types/dataset';
 
 const pre: DescriptiveMetrics = {
@@ -18,14 +19,49 @@ const post: DescriptiveMetrics = {
 };
 
 const makeWilcoxon = (isSignificant: boolean, zValue: number, pValue: number): HypothesisTestResult => ({
-  testName: 'Wilcoxon Signed-Rank', statisticName: 'W', statisticValue: 435, zValue, pValue,
-  effectSize: 0.87, interpretation: '', isSignificant, alternative: 'greater', n1: 2
+  testName: 'Within-Subject Longitudinal Paired Wilcoxon Signed-Rank Test',
+  statisticName: 'W',
+  statisticValue: 435,
+  zValue,
+  pValue,
+  effectSize: 0.87,
+  interpretation: '',
+  isSignificant,
+  alternative: 'greater',
+  n1: 2
 });
 
 const mannWhitney: HypothesisTestResult = {
-  testName: 'Mann-Whitney U', statisticName: 'U', statisticValue: 98.5, zValue: 0.42, pValue: 0.672,
-  effectSize: 0.08, interpretation: '', isSignificant: false, alternative: 'two-sided', n1: 1, n2: 1
+  testName: 'Between-Cohort Mann-Whitney U Test',
+  statisticName: 'U',
+  statisticValue: 98.5,
+  zValue: 0.42,
+  pValue: 0.672,
+  effectSize: 0.08,
+  interpretation: '',
+  isSignificant: false,
+  alternative: 'two-sided',
+  n1: 1,
+  n2: 1
 };
+
+const makeJupyterResult = (
+  wilcoxonSig: boolean,
+  wilcoxonZ: number,
+  wilcoxonP: number,
+  mannSig: boolean = false
+): JupyterExecutionResult => ({
+  executedAt: '2026-11-14T18:00:00.000Z',
+  kernelInfo: 'Python 3.11 (Pyodide) / Scipy 1.11 / Numpy 1.26',
+  alpha: 0.05,
+  wilcoxonAlternative: 'greater',
+  preMetrics: pre,
+  postMetrics: post,
+  wilcoxon: makeWilcoxon(wilcoxonSig, wilcoxonZ, wilcoxonP),
+  mannWhitney: { ...mannWhitney, isSignificant: mannSig },
+  hypothesisConfirmed: wilcoxonSig && wilcoxonZ > 0,
+  executedCodeCells: ['import scipy.stats', 'stats.wilcoxon(post, pre)'],
+});
 
 const paired: PairedParticipant[] = [
   { preName: 'Alexander Yama', postName: 'Alexander Yama', similarity: 1, group: 'Listado 1', preScore: 3, postScore: 8, delta: 5 },
@@ -49,8 +85,9 @@ const quarantined: CleanedParticipant[] = [
 ];
 
 describe('Unified Springer Nature manuscript (lib/paperLatexTemplate.ts)', () => {
-  it('renders unified sn-jnl output with QA metrics, descriptive and hypothesis tables, and student longtable', () => {
-    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(true, 4.2, 0.00001), mannWhitney, paired, 'en', attrition, quarantined);
+  it('renders unified sn-jnl output with QA metrics, Jupyter reproducibility metadata, descriptive and hypothesis tables, and student longtable', () => {
+    const jupyterRes = makeJupyterResult(true, 4.2, 0.00001);
+    const tex = generateFullPaperLatex(jupyterRes, paired, 'en', attrition, quarantined);
 
     expect(tex).toContain('\\documentclass[default,sn-basic]{sn-jnl}');
     ['booktabs', 'amsmath', 'longtable', 'graphicx'].forEach(pkg => expect(tex).toContain(`\\usepackage{${pkg}}`));
@@ -66,14 +103,14 @@ describe('Unified Springer Nature manuscript (lib/paperLatexTemplate.ts)', () =>
     expect(tex).toContain('Wilcoxon');
     expect(tex).toContain('Mann-Whitney');
     expect(tex).toContain('$U=98.500$');
-    // QA metrics
+    // QA & Jupyter reproducibility metrics
     expect(tex).toContain('quarantined 2 anomalous submissions');
     expect(tex).toContain('1 distinct corruption reasons');
     expect(tex).toContain('Code keyword detected');
     expect(tex).toContain('producing 2 matched participants');
     expect(tex).toContain('11 pretest respondents had no posttest counterpart');
     expect(tex).toContain('27.5\\%');
-    expect(tex).toContain('2 posttest respondents could not be matched');
+    expect(tex).toContain('Python 3.11 (Pyodide)');
     expect(tex).not.toMatch(/master roster|matrícula oficial|Excel|xlsx/i);
     // Student matrix
     expect(tex).toContain('Alexander Yama');
@@ -84,19 +121,22 @@ describe('Unified Springer Nature manuscript (lib/paperLatexTemplate.ts)', () =>
   });
 
   it('omits the student longtable when there are no paired participants', () => {
-    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(true, 4.2, 0.00001), mannWhitney, [], 'en');
+    const jupyterRes = makeJupyterResult(true, 4.2, 0.00001);
+    const tex = generateFullPaperLatex(jupyterRes, [], 'en');
     expect(tex).not.toContain('\\begin{longtable}');
   });
 
   it('concludes the hypothesis is corroborated when Wilcoxon is significant with a positive shift', () => {
-    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(true, 4.2, 0.00001), mannWhitney, paired, 'en', attrition, quarantined);
+    const jupyterRes = makeJupyterResult(true, 4.2, 0.00001);
+    const tex = generateFullPaperLatex(jupyterRes, paired, 'en', attrition, quarantined);
     expect(tex).toContain('\\textbf{corroborates} the research hypothesis');
     expect(tex).toContain('Cohort gains were consistent');
     expect(tex).not.toContain('\\textbf{fails to corroborate}');
   });
 
   it('concludes the hypothesis is rejected when Wilcoxon is not significant', () => {
-    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(false, 0.8, 0.21), mannWhitney, paired, 'en', attrition, quarantined);
+    const jupyterRes = makeJupyterResult(false, 0.8, 0.21);
+    const tex = generateFullPaperLatex(jupyterRes, paired, 'en', attrition, quarantined);
     expect(tex).toContain('\\textbf{fails to corroborate}');
     expect(tex).toContain('\\textbf{rejects}');
     expect(tex).toContain('no statistically significant instructional gain');
@@ -104,25 +144,29 @@ describe('Unified Springer Nature manuscript (lib/paperLatexTemplate.ts)', () =>
   });
 
   it('treats a significant but non-positive shift as not corroborating the hypothesis', () => {
-    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(true, -3.1, 0.002), mannWhitney, paired, 'en');
+    const jupyterRes = makeJupyterResult(true, -3.1, 0.002);
+    const tex = generateFullPaperLatex(jupyterRes, paired, 'en');
     expect(tex).toContain('\\textbf{fails to corroborate}');
   });
 
   it('renders in Spanish when lang = es', () => {
-    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(true, 4.2, 0.00001), mannWhitney, paired, 'es', attrition, quarantined);
+    const jupyterRes = makeJupyterResult(true, 4.2, 0.00001);
+    const tex = generateFullPaperLatex(jupyterRes, paired, 'es', attrition, quarantined);
     expect(tex).toContain('Introducción y Marco Teórico');
     expect(tex).toContain('Materiales, Métodos y Aseguramiento de Calidad de Datos');
     expect(tex).toContain('No Normal');
     expect(tex).toContain('\\textbf{corrobora} la hipótesis');
     expect(tex).toContain('Estudiante & Grupo');
 
-    const rejected = generateFullPaperLatex(pre, post, makeWilcoxon(false, 0.5, 0.3), mannWhitney, paired, 'es');
+    const rejectedRes = makeJupyterResult(false, 0.5, 0.3);
+    const rejected = generateFullPaperLatex(rejectedRes, paired, 'es');
     expect(rejected).toContain('\\textbf{no logra corroborar}');
     expect(rejected).toContain('\\textbf{rechaza}');
   });
 
   it('escapes LaTeX special characters in participant names', () => {
-    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(true, 4.2, 0.00001), mannWhitney, [
+    const jupyterRes = makeJupyterResult(true, 4.2, 0.00001);
+    const tex = generateFullPaperLatex(jupyterRes, [
       { ...paired[0], preName: 'A_B & C%' }
     ], 'en');
     expect(tex).toContain('A\\_B \\& C\\%');

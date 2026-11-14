@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reportthy JupyterLite Pyodide Environment</title>
+  <style>
+    :root {
+      --navy: #002B49;
+      --crimson: #C0392B;
+      --bg: #001320;
+      --cell-bg: #001A2C;
+      --border: #334155;
+      --text: #F8FAFC;
+      --muted: #94A3B8;
+      --emerald: #10B981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      font-size: 13px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 14px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--emerald);
+      border: 1px solid var(--emerald);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: monospace;
+      font-weight: bold;
+    }
+    .kernel-status {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: monospace;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      background: var(--emerald);
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+    button:hover { background: #059669; }
+    button:disabled { background: #475569; cursor: not-allowed; }
+    button.secondary {
+      background: #1E293B;
+      color: #CBD5E1;
+      border: 1px solid var(--border);
+    }
+    button.secondary:hover { background: #334155; }
+    .cell {
+      background: var(--cell-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .cell-header {
+      background: #00223A;
+      padding: 6px 12px;
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+    }
+    .markdown-cell {
+      padding: 16px;
+      background: #001F35;
+      color: #E2E8F0;
+      line-height: 1.6;
+    }
+    .markdown-cell h1 { font-size: 18px; color: #fff; margin-bottom: 8px; font-family: serif; }
+    .markdown-cell h2 { font-size: 14px; color: #94A3B8; margin-bottom: 8px; }
+    .markdown-cell h3 { font-size: 13px; color: var(--emerald); margin-top: 10px; margin-bottom: 4px; }
+    .markdown-cell ul { margin-left: 20px; font-size: 12px; }
+    textarea.code-editor {
+      width: 100%;
+      height: auto;
+      min-height: 120px;
+      background: transparent;
+      border: none;
+      color: #A7F3D0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      padding: 12px;
+      resize: vertical;
+      outline: none;
+    }
+    .output-area {
+      background: #000B14;
+      border-top: 1px solid var(--border);
+      padding: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      white-space: pre-wrap;
+      color: #CBD5E1;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .output-area:empty { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="badge">Pyodide WebAssembly</span>
+      <span style="font-weight:bold; font-size:14px;">JupyterLite Notebook</span>
+      <span class="kernel-status" id="kernelStatus">Initializing Kernel...</span>
+    </div>
+    <div class="actions">
+      <button class="secondary" id="btnDownload" onclick="downloadNotebook()">Download .ipynb</button>
+      <button id="btnRunAll" onclick="runAllCells()">▶ Run All Cells (Shift+Enter)</button>
+    </div>
+  </header>
+
+  <main id="notebookContainer">
+    <div style="padding: 20px; text-align: center; color: #94A3B8;">Loading notebook cells from Reportthy API...</div>
+  </main>
+
+  <!-- Load Pyodide from CDN for browser runtime -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js" onerror="handlePyodideFail()"></script>
+  <script>
+    let pyodideInstance = null;
+    let notebookData = null;
+    let isPyodideReady = false;
+
+    async function initPyodide() {
+      const statusEl = document.getElementById('kernelStatus');
+      try {
+        if (typeof loadPyodide === 'function') {
+          statusEl.textContent = 'Loading Python runtime (WebAssembly)...';
+          pyodideInstance = await loadPyodide();
+          statusEl.textContent = 'Installing numpy, scipy, pandas...';
+          await pyodideInstance.loadPackage(['numpy', 'scipy', 'pandas']);
+          isPyodideReady = true;
+          statusEl.textContent = '● Python 3 / Pyodide Kernel Ready';
+          statusEl.style.color = 'var(--emerald)';
+        } else {
+          handlePyodideFail();
+        }
+      } catch (e) {
+        console.warn('Pyodide CDN load error:', e);
+        handlePyodideFail();
+      }
+    }
+
+    function handlePyodideFail() {
+      const statusEl = document.getElementById('kernelStatus');
+      statusEl.textContent = '○ Standalone / Offline Mode (Use JupyterHub or local Python)';
+      statusEl.style.color = '#F59E0B';
+    }
+
+    async function loadNotebook() {
+      try {
+        const resp = await fetch('/api/notebook/ipynb');
+        notebookData = await resp.json();
+        renderNotebook();
+      } catch (e) {
+        console.error('Failed to load notebook JSON:', e);
+        document.getElementById('notebookContainer').innerHTML =
+          '<div style="color:#EF4444; padding:20px;">Failed to load notebook from /api/notebook/ipynb. Please ensure pretest/posttest datasets are loaded.</div>';
+      }
+    }
+
+    function renderNotebook() {
+      if (!notebookData || !notebookData.cells) return;
+      const container = document.getElementById('notebookContainer');
+      container.innerHTML = '';
+
+      notebookData.cells.forEach((cell, idx) => {
+        const cellEl = document.createElement('div');
+        cellEl.className = 'cell';
+
+        if (cell.cell_type === 'markdown') {
+          const content = Array.isArray(cell.source) ? cell.source.join('') : cell.source;
+          cellEl.innerHTML = `<div class="markdown-cell">${renderSimpleMarkdown(content)}</div>`;
+        } else if (cell.cell_type === 'code') {
+          const code = Array.isArray(cell.source) ? cell.source.join('') : cell.source;
+          const lineCount = code.split('\n').length;
+          const height = Math.min(Math.max(lineCount * 18, 90), 320);
+
+          cellEl.innerHTML = `
+            <div class="cell-header">
+              <span>In [${idx}]: Python Code</span>
+              <button style="padding: 2px 8px; font-size:10px;" onclick="runSingleCell(${idx})">▶ Run</button>
+            </div>
+            <textarea class="code-editor" id="editor-${idx}" style="height:${height}px;">${escapeHtml(code)}</textarea>
+            <div class="output-area" id="output-${idx}"></div>
+          `;
+        }
+        container.appendChild(cellEl);
+      });
+    }
+
+    function renderSimpleMarkdown(md) {
+      return md
+        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+        .replace(/^\- (.*$)/gim, '<li>$1</li>')
+        .replace(/\n\n/gim, '<br/><br/>');
+    }
+
+    function escapeHtml(str) {
+      return (str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    async function runSingleCell(cellIdx) {
+      const editor = document.getElementById(`editor-${cellIdx}`);
+      const output = document.getElementById(`output-${cellIdx}`);
+      if (!editor || !output) return;
+
+      const code = editor.value;
+      output.style.display = 'block';
+      output.textContent = 'Executing...';
+
+      if (!isPyodideReady || !pyodideInstance) {
+        output.textContent = 'Pyodide WebAssembly kernel not loaded or offline. Please download the .ipynb and execute in local Jupyter or connect to JupyterHub.';
+        return;
+      }
+
+      try {
+        pyodideInstance.setStdout({
+          batched: (text) => {
+            output.textContent = text;
+            inspectOutputForReportthyResults(text);
+          }
+        });
+        await pyodideInstance.runPythonAsync(code);
+      } catch (err) {
+        output.textContent = `Python Execution Error:\n${err}`;
+      }
+    }
+
+    async function runAllCells() {
+      const btn = document.getElementById('btnRunAll');
+      btn.disabled = true;
+      btn.textContent = 'Running All Cells...';
+
+      if (!notebookData || !notebookData.cells) return;
+      for (let i = 0; i < notebookData.cells.length; i++) {
+        if (notebookData.cells[i].cell_type === 'code') {
+          await runSingleCell(i);
+        }
+      }
+
+      btn.disabled = false;
+      btn.textContent = '▶ Run All Cells (Shift+Enter)';
+    }
+
+    function inspectOutputForReportthyResults(text) {
+      if (!text || typeof text !== 'string') return;
+      const startMarker = '__REPORTTHY_JSON_START__';
+      const endMarker = '__REPORTTHY_JSON_END__';
+      const sIdx = text.indexOf(startMarker);
+      const eIdx = text.indexOf(endMarker);
+
+      if (sIdx !== -1 && eIdx !== -1) {
+        try {
+          const jsonStr = text.slice(sIdx + startMarker.length, eIdx).trim();
+          const results = JSON.parse(jsonStr);
+
+          // Post to parent Next.js window
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({
+              type: 'REPORTTHY_JUPYTER_RESULTS',
+              payload: results
+            }, '*');
+          }
+
+          // Sync to Reportthy API
+          fetch('/api/notebook/results', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(results)
+          }).catch(console.warn);
+        } catch (e) {
+          console.warn('Failed to parse REPORTTHY JSON marker:', e);
+        }
+      }
+    }
+
+    function downloadNotebook() {
+      window.open('/api/notebook/ipynb?download=true', '_blank');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initPyodide();
+      loadNotebook();
+    });
+  </script>
+</body>
+</html>
