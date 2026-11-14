@@ -33,10 +33,11 @@ You are an Elite Principal Full-Stack Engineer and Computational Statistician. Y
 
 ## 4. Route Structure
 - `/` -> Presentation & Pipeline Stepper (HU-01)
-- `/upload` -> 1. Import & Clean: Dual CSV Ingestion, Anomaly Quarantine, Fuzzy Matcher & Attrition Audit (HU-02) -> proceeds to `/lab`
+- `/upload` -> 1. Import & Clean: Dual CSV Ingestion (Pretest + Posttest only), Anomaly Quarantine, Fuzzy Matcher & Pre-vs-Post Attrition Audit (HU-02) -> proceeds to `/lab`
 - `/lab` -> 2. Jupyter Analysis Lab: Wilcoxon / Mann-Whitney hypothesis verification on aligned paired vectors & .ipynb Downloader (HU-05) -> proceeds to `/paper`
 - `/paper` -> 3. Unified Paper & QA: QA & Hypothesis Verdict banner plus the single Springer Nature manuscript (data quality audit, booktabs descriptive & hypothesis tables, longtable student matrix, data-driven verdict) with LaTeX/PDF export (HU-03, HU-04)
 - The legacy `/report` route and `lib/latexTemplate.ts` have been removed; `lib/paperLatexTemplate.ts` is the sole LaTeX generator.
+- **2-CSV Ingestion Only**: There is no Excel/`.xlsx` master roster (the `xlsx` dependency is removed). Longitudinal pairing and attrition are computed exclusively by contrasting the Pretest CSV against the Posttest CSV in `pairPreAndPost` (`attritionCount` = unmatched pretest respondents, `attritionRate` = `attritionCount / preCount * 100`).
 
 ## 5. Internationalization & Localization (i18n) Mandate
 - **Bilingual Architecture Requirement**: The application supports full real-time bilingual switching (**English & Spanish**) managed client-side via `@/lib/LanguageContext.tsx`.

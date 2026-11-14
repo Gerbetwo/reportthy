@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { CleanedParticipant, PairedParticipant, AttritionAnalysis, AttendanceRecord } from '@/types/dataset';
+import { CleanedParticipant, PairedParticipant, AttritionAnalysis } from '@/types/dataset';
 import { pairPreAndPost } from '@/lib/csvCleaner';
 
 interface DatasetContextType {
@@ -10,14 +10,12 @@ interface DatasetContextType {
   pairedData: PairedParticipant[];
   quarantined: CleanedParticipant[];
   attritionAnalysis: AttritionAnalysis | null;
-  attendanceRoster: AttendanceRecord[];
   setDatasets: (data: {
     preClean?: CleanedParticipant[];
     postClean?: CleanedParticipant[];
     pairedData?: PairedParticipant[];
     quarantined?: CleanedParticipant[];
     attritionAnalysis?: AttritionAnalysis | null;
-    attendanceRoster?: AttendanceRecord[];
   }) => void;
   unlinkPair: (index: number) => void;
   reconcileCohorts: () => void;
@@ -32,7 +30,6 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
   const [pairedData, setPairedData] = useState<PairedParticipant[]>([]);
   const [quarantined, setQuarantined] = useState<CleanedParticipant[]>([]);
   const [attritionAnalysis, setAttritionAnalysis] = useState<AttritionAnalysis | null>(null);
-  const [attendanceRoster, setAttendanceRoster] = useState<AttendanceRecord[]>([]);
 
   useEffect(() => {
     try {
@@ -46,7 +43,13 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
       if (savedPost) setPostClean(JSON.parse(savedPost));
       if (savedPaired) setPairedData(JSON.parse(savedPaired));
       if (savedQuarantined) setQuarantined(JSON.parse(savedQuarantined));
-      if (savedAttrition) setAttritionAnalysis(JSON.parse(savedAttrition));
+      if (savedAttrition) {
+        const parsedAttrition: unknown = JSON.parse(savedAttrition);
+        // Discard legacy (Excel roster-based) attrition payloads with an incompatible shape
+        if (parsedAttrition && typeof parsedAttrition === 'object' && 'attritionRate' in parsedAttrition) {
+          setAttritionAnalysis(parsedAttrition as AttritionAnalysis);
+        }
+      }
     } catch (e) {
       console.warn('DatasetContext failed to load stored datasets:', e);
     }
@@ -70,14 +73,13 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     const nextPre = data.preClean ?? preClean;
     const nextPost = data.postClean ?? postClean;
     const nextQuar = data.quarantined ?? quarantined;
-    const nextRoster = data.attendanceRoster ?? attendanceRoster;
 
     let nextPaired = data.pairedData ?? pairedData;
     let nextAttr = data.attritionAnalysis ?? attritionAnalysis;
 
-    if ((data.preClean || data.postClean || data.attendanceRoster) && !data.pairedData) {
+    if ((data.preClean || data.postClean) && !data.pairedData) {
       if (nextPre.length > 0 && nextPost.length > 0) {
-        const result = pairPreAndPost(nextPre, nextPost, nextRoster);
+        const result = pairPreAndPost(nextPre, nextPost);
         nextPaired = result.paired;
         nextAttr = result.attritionAnalysis;
       }
@@ -87,7 +89,6 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     setPostClean(nextPost);
     setPairedData(nextPaired);
     setQuarantined(nextQuar);
-    setAttendanceRoster(nextRoster);
     setAttritionAnalysis(nextAttr);
 
     saveToStorage(nextPre, nextPost, nextPaired, nextQuar, nextAttr);
@@ -102,7 +103,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
 
   const reconcileCohorts = () => {
     if (preClean.length > 0 && postClean.length > 0) {
-      const result = pairPreAndPost(preClean, postClean, attendanceRoster);
+      const result = pairPreAndPost(preClean, postClean);
       setPairedData(result.paired);
       setAttritionAnalysis(result.attritionAnalysis);
       saveToStorage(preClean, postClean, result.paired, quarantined, result.attritionAnalysis);
@@ -115,7 +116,6 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     setPairedData([]);
     setQuarantined([]);
     setAttritionAnalysis(null);
-    setAttendanceRoster([]);
     localStorage.removeItem('reportthy_pre_data');
     localStorage.removeItem('reportthy_post_data');
     localStorage.removeItem('reportthy_paired');
@@ -131,7 +131,6 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
         pairedData,
         quarantined,
         attritionAnalysis,
-        attendanceRoster,
         setDatasets,
         unlinkPair,
         reconcileCohorts,

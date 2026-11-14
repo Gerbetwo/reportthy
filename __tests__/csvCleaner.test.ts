@@ -81,4 +81,29 @@ describe('Data Ingestion & Pre-flight Sanitization Engine (lib/csvCleaner.ts)', 
     expect(paired[0].delta).toBe(5);
     expect(paired[1].delta).toBe(8);
   });
+
+  it('computes attrition strictly by contrasting Pretest vs Posttest CSVs (no external roster)', () => {
+    const mk = (id: string, name: string, score: number): CleanedParticipant => ({
+      id, originalName: name, normalizedName: name.toLowerCase(), group: 'Listado 1', score, timestamp: '', isFlaggedCorrupted: false
+    });
+    const preClean = [mk('pre-1', 'Alexander Yama', 3), mk('pre-2', 'Darwin Meneses', 2), mk('pre-3', 'Laura Ortiz', 1), mk('pre-4', 'Sofia Rivas', 2)];
+    const postClean = [mk('post-1', 'Alexander Yama', 8), mk('post-2', 'Darwin Meneses', 9), mk('post-3', 'Unrelated Person', 7)];
+
+    const { attritionAnalysis } = pairPreAndPost(preClean, postClean);
+
+    expect(attritionAnalysis).toEqual({
+      preCount: 4,
+      postCount: 3,
+      pairedCount: 2,
+      unmatchedPreCount: 2,
+      unmatchedPostCount: 1,
+      attritionCount: 2,
+      attritionRate: 50,
+      unmatchedPreNames: ['Laura Ortiz', 'Sofia Rivas']
+    });
+  });
+
+  it('returns a zero attrition rate for an empty pretest', () => {
+    expect(pairPreAndPost([], []).attritionAnalysis.attritionRate).toBe(0);
+  });
 });

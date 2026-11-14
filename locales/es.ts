@@ -22,7 +22,7 @@ export const es: Translations = {
     verified: 'Verificado',
     howItWorks: 'Cómo Funciona Reportthy',
     steps: [
-      { id: '01', title: 'Importar y Limpiar', desc: 'Empareja automáticamente estudiantes pre y post-test, corrige errores tipográficos, aísla entradas corruptas y audita la deserción de la matrícula oficial.', action: 'Subir Encuestas', href: '/upload' },
+      { id: '01', title: 'Importar y Limpiar', desc: 'Empareja automáticamente estudiantes pre y post-test, corrige errores tipográficos, aísla entradas corruptas y calcula la deserción pre-post.', action: 'Subir Encuestas', href: '/upload' },
       { id: '02', title: 'Laboratorio de Análisis Jupyter', desc: 'Ejecuta pruebas no paramétricas de Wilcoxon y Mann-Whitney sobre cohortes alineadas y exporta el notebook .ipynb reproducible.', action: 'Abrir Lab', href: '/lab' },
       { id: '03', title: 'Artículo Unificado y QA', desc: 'Sintetiza un único manuscrito Springer Nature que unifica diagnósticos de calidad de datos, veredictos de hipótesis y la matriz de validación estudiantil.', action: 'Generar Artículo', href: '/paper' }
     ]
@@ -30,14 +30,9 @@ export const es: Translations = {
   upload: {
     phase: 'Fase 01 • Ingesta de Datos y Sanitización',
     title: 'Importar Datos de Encuesta',
-    subtitle: 'Sube tus archivos CSV de Pretest y Posttest o el Listado Oficial de Asistencia en Excel para analizar el progreso de aprendizaje.',
+    subtitle: 'Sube tus archivos CSV de Pretest y Posttest; el emparejamiento y la deserción se calculan contrastando ambas encuestas.',
     pretest: 'Evaluación Pre-Intervención (Pretest)',
     posttest: 'Evaluación Post-Intervención (Posttest)',
-    excelAttendance: 'Listado Oficial de Asistencia (.xlsx)',
-    dropExcel: 'Arrastra o selecciona el Excel de Asistencia (Listado_Asistencia_Pre_Post.xlsx)',
-    fingerprintExcel: 'Matrícula Oficial (Control de Asistencia y Verificación de Deserción)',
-    officialDesertion: 'Deserción Oficial Confirmada',
-    officialDropoutsCount: 'Estudiantes Desertores Confirmados',
     verified: 'Verificado',
     clean: 'Limpios',
     fingerprintPre: 'Huella: Score, Nombre y apellido, Listado',
@@ -87,7 +82,7 @@ export const es: Translations = {
     runCell: 'Ejecutar Celda',
     outputLabel: '# Salida [1]:',
     validatedMsg: 'Hipótesis de investigación corroborada: ganancia de conocimiento positiva estadísticamente significativa (p < 0.05).',
-    rejectedMsg: 'Hipótesis de investigación no respaldada: no se estableció una ganancia positiva estadísticamente significativa (p ≥ 0.05 o desplazamiento no positivo).',
+    rejectedMsg: 'No se puede rechazar H0: no se estableció una ganancia positiva estadísticamente significativa (p ≥ 0.05 o desplazamiento no positivo).',
     generatePaper: 'Generar Artículo Unificado Springer Nature'
   },
   paper: {
@@ -102,9 +97,9 @@ export const es: Translations = {
     downloadPdf: 'Compilar PDF Springer Nature',
     previewTitle: 'Código Fuente LaTeX y Marcado del Manuscrito',
     qaTitle: 'Resumen de Aseguramiento de Calidad y Veredicto de Hipótesis',
-    integrityTitle: 'Integridad de Datos y Deserción',
+    integrityTitle: 'Integridad de Datos y Deserción Pre/Post',
     anomaliesIsolated: 'anomalías aisladas',
-    attritionRate: 'Tasa de deserción',
+    attritionRate: 'Deserción pre-post',
     pairedN: 'N emparejado',
     normalityTitle: 'Diagnóstico de Normalidad',
     nonNormal: 'No Normal',

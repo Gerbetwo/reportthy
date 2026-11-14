@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Papa from 'papaparse';
 import HeaderNav from '@/components/HeaderNav';
-import { parseSurveyCSV, pairPreAndPost, parseAttendanceExcel, detectCSVRole } from '@/lib/csvCleaner';
+import { parseSurveyCSV, detectCSVRole } from '@/lib/csvCleaner';
 import { RawSurveyRow, CleanedParticipant } from '@/types/dataset';
 import { useTranslation } from '@/lib/LanguageContext';
 import { useDataset } from '@/lib/DatasetContext';
@@ -14,7 +14,6 @@ import {
   ArrowRight,
   ShieldCheck,
   FileCheck,
-  FileSpreadsheet,
   Unlink
 } from 'lucide-react';
 
@@ -26,7 +25,6 @@ export default function UploadPage() {
     postClean,
     pairedData,
     quarantined,
-    attendanceRoster,
     setDatasets,
     unlinkPair,
     reconcileCohorts
@@ -34,7 +32,6 @@ export default function UploadPage() {
 
   const [preFilename, setPreFilename] = useState('');
   const [postFilename, setPostFilename] = useState('');
-  const [excelFilename, setExcelFilename] = useState('');
   const [autoDetectMsg, setAutoDetectMsg] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -51,7 +48,7 @@ export default function UploadPage() {
         else setPostFilename(file.name);
 
         if (!explicitRole && detectedRole !== 'unknown') {
-          setAutoDetectMsg(t.upload.autoDetectSuccess || 'File roles automatically detected!');
+          setAutoDetectMsg(t.upload.autoDetectSuccess);
         }
 
         const { clean, quarantined: badRows } = parseSurveyCSV(results.data, role);
@@ -73,22 +70,6 @@ export default function UploadPage() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, role?: 'pre' | 'post') => {
     const file = e.target.files?.[0];
     if (file) processCSVFile(file, role);
-  };
-
-  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setExcelFilename(file.name);
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const buffer = evt.target?.result as ArrayBuffer;
-      if (buffer) {
-        const roster = parseAttendanceExcel(buffer);
-        setDatasets({ attendanceRoster: roster });
-      }
-    };
-    reader.readAsArrayBuffer(file);
   };
 
   const handleReconcile = () => {
@@ -125,31 +106,6 @@ export default function UploadPage() {
             <span>{autoDetectMsg}</span>
           </div>
         )}
-
-        {/* Excel Attendance Dropzone */}
-        <div className="bg-white p-6 rounded-lg border border-[#D0D7DE] shadow-xs mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="font-serif font-bold text-base text-[#002B49] flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5 text-[#002B49]" />
-              {t.upload.excelAttendance}
-            </h2>
-            {attendanceRoster.length > 0 && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-300 font-mono">
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> {attendanceRoster.length} Roster Records
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-[#57606A] mb-4 font-mono">
-            {t.upload.fingerprintExcel}
-          </p>
-          <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#CBD5E1] hover:border-[#002B49] rounded-lg p-4 cursor-pointer bg-[#F8F9FA] hover:bg-white transition group">
-            <FileSpreadsheet className="w-6 h-6 text-slate-400 group-hover:text-[#002B49] mb-1 transition-colors" />
-            <span className="text-xs font-medium text-slate-700 font-mono text-center truncate w-full">
-              {excelFilename || t.upload.dropExcel}
-            </span>
-            <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleExcelUpload} />
-          </label>
-        </div>
 
         {/* 2 Upload Cards Grid (Direct Pre & Post CSV Ingestion) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

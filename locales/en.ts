@@ -20,7 +20,7 @@ export const en = {
     verified: 'Verified',
     howItWorks: 'How Reportthy Works',
     steps: [
-      { id: '01', title: 'Import & Smart Clean', desc: 'Automatically pairs pre- and post-test students, corrects typos in names, quarantines corrupt entries, and audits master-roster attrition.', action: 'Upload Surveys', href: '/upload' },
+      { id: '01', title: 'Import & Smart Clean', desc: 'Automatically pairs pre- and post-test students, corrects typos in names, quarantines corrupt entries, and computes pre-to-post attrition.', action: 'Upload Surveys', href: '/upload' },
       { id: '02', title: 'Jupyter Analysis Lab', desc: 'Run non-parametric Wilcoxon and Mann-Whitney hypothesis tests on aligned cohorts and export the reproducible .ipynb notebook.', action: 'Open Lab', href: '/lab' },
       { id: '03', title: 'Unified Paper & QA', desc: 'Synthesize a single Springer Nature manuscript unifying data-quality diagnostics, hypothesis verdicts, and the student validation matrix.', action: 'Generate Paper', href: '/paper' }
     ]
@@ -28,14 +28,9 @@ export const en = {
   upload: {
     phase: 'Phase 01 • Data Ingestion & Sanitization',
     title: 'Import Survey Data',
-    subtitle: 'Upload your Pretest and Posttest CSV files or Master Excel Roster to analyze student learning progress.',
+    subtitle: 'Upload your Pretest and Posttest CSV files; pairing and attrition are computed by contrasting both surveys.',
     pretest: 'Pre-Intervention Test (Pretest)',
     posttest: 'Post-Intervention Test (Posttest)',
-    excelAttendance: 'Master Attendance Ledger (.xlsx)',
-    dropExcel: 'Drop or select Attendance Excel (Listado_Asistencia_Pre_Post.xlsx)',
-    fingerprintExcel: 'Master Roster (Official Attendance & Dropout Cross-Check)',
-    officialDesertion: 'Official Master Attrition / Desertion',
-    officialDropoutsCount: 'Official Dropouts Detected',
     verified: 'Verified',
     clean: 'Clean',
     fingerprintPre: 'Fingerprint: Score, Nombre y apellido, Listado',
@@ -85,7 +80,7 @@ export const en = {
     runCell: 'Run Cell',
     outputLabel: '# Output [1]:',
     validatedMsg: 'Research hypothesis corroborated: statistically significant positive knowledge gain (p < 0.05).',
-    rejectedMsg: 'Research hypothesis not supported: no statistically significant positive knowledge gain was established (p ≥ 0.05 or non-positive shift).',
+    rejectedMsg: 'H0 cannot be rejected: no statistically significant positive knowledge gain was established (p ≥ 0.05 or non-positive shift).',
     generatePaper: 'Generate Unified Springer Nature Paper'
   },
   paper: {
@@ -100,9 +95,9 @@ export const en = {
     downloadPdf: 'Compile Springer Nature PDF',
     previewTitle: 'LaTeX Source Code & Manuscript Markup',
     qaTitle: 'Quality Assurance & Hypothesis Verdict Summary',
-    integrityTitle: 'Data Integrity & Attrition',
+    integrityTitle: 'Data Integrity & Pre/Post Attrition',
     anomaliesIsolated: 'anomalies isolated',
-    attritionRate: 'Attrition rate',
+    attritionRate: 'Pre-to-post attrition',
     pairedN: 'Paired N',
     normalityTitle: 'Normality Diagnostic',
     nonNormal: 'Non-Normal',

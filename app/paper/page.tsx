@@ -46,7 +46,7 @@ export default function PaperPage() {
   const hypothesisConfirmed = wilcoxon.isSignificant && wilcoxon.zValue > 0;
   const isNonNormal = !fallbackPreMetrics.shapiroWilk.isNormal || !fallbackPostMetrics.shapiroWilk.isNormal;
   const attritionRate = attritionAnalysis
-    ? attritionAnalysis.officialDesertionRate
+    ? attritionAnalysis.attritionRate
     : fallbackPreMetrics.n > 0
       ? (Math.max(fallbackPreMetrics.n - fallbackPostMetrics.n, 0) / fallbackPreMetrics.n) * 100
       : 0;

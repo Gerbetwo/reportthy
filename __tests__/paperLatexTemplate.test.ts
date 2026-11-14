@@ -33,8 +33,8 @@ const paired: PairedParticipant[] = [
 ];
 
 const attrition: AttritionAnalysis = {
-  masterRosterCount: 43, officialPreCount: 40, officialPostCount: 31, officialDesertionCount: 9,
-  officialDesertionRate: 22.5, unmatchedSurveysCount: 2, officialDropouts: []
+  preCount: 40, postCount: 31, pairedCount: 29, unmatchedPreCount: 11, unmatchedPostCount: 2,
+  attritionCount: 11, attritionRate: 27.5, unmatchedPreNames: []
 };
 
 const quarantined: CleanedParticipant[] = [
@@ -70,9 +70,11 @@ describe('Unified Springer Nature manuscript (lib/paperLatexTemplate.ts)', () =>
     expect(tex).toContain('quarantined 2 anomalous submissions');
     expect(tex).toContain('1 distinct corruption reasons');
     expect(tex).toContain('Code keyword detected');
-    expect(tex).toContain('2 matched longitudinal pairs');
-    expect(tex).toContain('$N=43$');
-    expect(tex).toContain('22.5\\%');
+    expect(tex).toContain('producing 2 matched participants');
+    expect(tex).toContain('11 pretest respondents had no posttest counterpart');
+    expect(tex).toContain('27.5\\%');
+    expect(tex).toContain('2 posttest respondents could not be matched');
+    expect(tex).not.toMatch(/master roster|matrícula oficial|Excel|xlsx/i);
     // Student matrix
     expect(tex).toContain('Alexander Yama');
     expect(tex).toContain('+5');
