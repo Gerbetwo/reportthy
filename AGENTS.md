@@ -14,7 +14,7 @@ You are an Elite Principal Full-Stack Engineer and Computational Statistician. Y
 
 ## 2. Fundamental Architectural Standards
 - **Strict Types**: Zero `any`. All API and data transformations must map to explicit interfaces in `types/dataset.ts`.
-- **Jupyter as Sole Computational Authority**: ZERO statistical calculations or hypothesis verifications are computed or emulated in Next.js / TypeScript. All descriptive statistics, normality diagnostics, Wilcoxon signed-rank tests, and Mann-Whitney U tests are executed strictly in a real Jupyter environment (JupyterLite Pyodide WebAssembly or external JupyterHub).
+- **Jupyter as Sole Computational Authority**: ZERO statistical calculations or hypothesis verifications are computed or emulated in Next.js / TypeScript. All descriptive statistics, normality diagnostics, Wilcoxon signed-rank tests, and Mann-Whitney U tests are executed strictly in a real Jupyter environment (official JupyterHub service running real JupyterLab and communicating via JupyterHub & Jupyter Server REST APIs).
 - **Zero Server Overhead for Data Cleaning**: Ingestion, regex cleaning, Levenshtein reconciliation, and LaTeX/PDF generation execute purely client-side.
 - **Design Philosophy**: Springer Nature aesthetic. Use editorial serif headings (`font-serif`, Merriweather/Georgia), crisp modern body copy (`font-sans`), muted academic navy (`#002B49`), crimson accent (`#C0392B`), clean light slate backgrounds, and strict `booktabs` tabular borders.
 
@@ -35,7 +35,7 @@ You are an Elite Principal Full-Stack Engineer and Computational Statistician. Y
 ## 4. Route Structure
 - `/` -> Presentation & Pipeline Stepper (HU-01)
 - `/upload` -> 1. Import & Clean: Dual CSV Ingestion (Pretest + Posttest only), Anomaly Quarantine, Fuzzy Matcher & Pre-vs-Post Attrition Audit (HU-02) -> proceeds to `/lab`
-- `/lab` -> 2. Jupyter Analysis Lab: Embedded JupyterLite Pyodide & JupyterHub workstation executing non-parametric hypothesis verification on aligned paired vectors, real-time sync bridge, and .ipynb exporter/uploader (HU-05) -> proceeds to `/paper`
+- `/lab` -> 2. Jupyter Analysis Lab: Genuine embedded JupyterLab backed by JupyterHub, communicating via official JupyterHub & Contents REST APIs (HU-05) -> proceeds to `/paper`
 - `/paper` -> 3. Unified Paper & QA: Requires verified Jupyter execution; QA & Hypothesis Verdict banner plus the single Springer Nature manuscript (data quality audit, booktabs descriptive & hypothesis tables, longtable student matrix, code cell audit drawer, data-driven verdict) with LaTeX/PDF export (HU-03, HU-04)
 - The legacy `/report` route and `lib/latexTemplate.ts` have been removed; `lib/paperLatexTemplate.ts` is the sole LaTeX generator.
 - **2-CSV Ingestion Only**: There is no Excel/`.xlsx` master roster (the `xlsx` dependency is removed). Longitudinal pairing and attrition are computed exclusively by contrasting the Pretest CSV against the Posttest CSV in `pairPreAndPost` (`attritionCount` = unmatched pretest respondents, `attritionRate` = `attritionCount / preCount * 100`).

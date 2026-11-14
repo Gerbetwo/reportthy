@@ -1,0 +1,21 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - JUPYTERHUB_PUBLIC_URL=http://localhost:8000
+      - JUPYTERHUB_INTERNAL_URL=http://jupyterhub:8000
+      - JUPYTERHUB_API_TOKEN=reportthy-dev-token
+      - JUPYTERHUB_USER=researcher
+      - REPORTTHY_INTERNAL_URL=http://web:3000
+    depends_on:
+      - jupyterhub
+
+  jupyterhub:
+    build: ./jupyterhub
+    ports:
+      - "8000:8000"
+    environment:
+      - JUPYTERHUB_API_TOKEN=reportthy-dev-token
+      - REPORTTHY_INTERNAL_URL=http://web:3000

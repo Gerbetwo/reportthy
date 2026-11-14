@@ -6,38 +6,36 @@ Reportthy is an academic computational platform designed for quasi-experimental 
 
 1. **Jupyter as Sole Computational Authority**:
    - Zero statistical math is computed or emulated in Next.js / TypeScript.
-   - All descriptive statistics, Shapiro-Wilk normality diagnostics, Wilcoxon signed-rank tests, and Mann-Whitney U cohort comparisons are executed inside a real, researcher-editable Python Jupyter kernel.
-   - Execution outputs flow securely via the Reportthy sync bridge (`REPORTTHY_JUPYTER_RESULTS` / `POST /api/notebook/results`) into the Springer Nature manuscript generator.
+   - All descriptive statistics, Shapiro-Wilk normality diagnostics, Wilcoxon signed-rank tests, and Mann-Whitney U cohort comparisons are executed strictly in a real, unmodified JupyterLab workspace running in JupyterHub.
+   - All communication occurs via the official JupyterHub REST API (`/hub/api/...`) and Jupyter Server Contents API (`/user/{user}/api/contents/...`).
 
 2. **Unified 3-Stage Pipeline**:
    - `/upload` -> 1. Import & Clean: 2-CSV Ingestion (Pretest + Posttest), automated quarantine filter, Levenshtein fuzzy matching ($\ge 0.85$), and pre-to-post attrition audit.
-   - `/lab` -> 2. Jupyter Analysis Lab: Interactive embedded Jupyter workstation (JupyterLite Pyodide or JupyterHub) executing SciPy / NumPy hypothesis verification.
+   - `/lab` -> 2. Jupyter Analysis Lab: Interactive embedded JupyterLab workstation provisioned automatically via JupyterHub REST API.
    - `/paper` -> 3. Unified Paper & QA: Springer Nature manuscript markup (`sn-jnl`), QA audit summary, booktabs tables, student validation matrix (`longtable`), and data-driven hypothesis verdict.
 
-## Jupyter Environments
+## Quickstart with Docker Compose
 
-### 1. Self-Hosted JupyterLite (Pyodide WebAssembly)
-Build the local JupyterLite distribution directly into `public/jupyterlite`:
-
-```bash
-npm run setup:jupyter
-```
-*(Runs `pip install jupyterlite-core jupyterlite-pyodide-kernel && jupyter lite build --output-dir public/jupyterlite`)*
-
-### 2. External JupyterHub Connection
-To connect Reportthy to an institutional JupyterHub server, set the environment variable in `.env.local`:
+Launch the full stack (Next.js web application + JupyterHub server + SciPy/NumPy environment):
 
 ```bash
-NEXT_PUBLIC_JUPYTERHUB_URL="https://your-jupyterhub.org/user/username/lab/tree"
+docker compose up --build
 ```
 
-## Getting Started
+- **Reportthy Web App**: [http://localhost:3000](http://localhost:3000)
+- **JupyterHub Server**: [http://localhost:8000](http://localhost:8000)
 
-```bash
-npm run dev
-```
+## Environment Variables
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Copy `.env.example` to `.env.local` to customize service connections:
+
+| Variable | Description | Default |
+|---|---|---|
+| `JUPYTERHUB_PUBLIC_URL` | Public URL accessible from browser `<iframe>` | `http://localhost:8000` |
+| `JUPYTERHUB_INTERNAL_URL` | Internal URL for Next.js to call JupyterHub REST API | `http://localhost:8000` (`http://jupyterhub:8000` in Docker) |
+| `JUPYTERHUB_API_TOKEN` | Admin API token configured in JupyterHub services | `reportthy-dev-token` |
+| `JUPYTERHUB_USER` | Target JupyterHub username to spawn and manage | `researcher` |
+| `REPORTTHY_INTERNAL_URL` | Internal backend URL for Jupyter kernels to sync | `http://localhost:3000` (`http://web:3000` in Docker) |
 
 ## Quality Verification
 

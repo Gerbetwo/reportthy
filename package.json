@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "setup:jupyter": "pip install jupyterlite-core jupyterlite-pyodide-kernel && jupyter lite build --output-dir public/jupyterlite",
     "verify": "npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {
