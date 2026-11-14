@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="springer_nature_quality_report.pdf"',
+        'Content-Disposition': 'attachment; filename="springer_nature_manuscript.pdf"',
         'Content-Length': pdfBuffer.length.toString()
       }
     });

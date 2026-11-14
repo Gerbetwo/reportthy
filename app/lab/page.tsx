@@ -1,25 +1,29 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import HeaderNav from '@/components/HeaderNav';
 import { useTranslation } from '@/lib/LanguageContext';
 import { useDatasetStats } from '@/lib/useDatasetStats';
 import { generateIpynbJson } from '@/lib/statsEngine';
-import { Download, Play, Terminal, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Download, Play, Terminal, CheckCircle2, XCircle, RotateCcw, FileText } from 'lucide-react';
 
 export default function LabPage() {
   const { t } = useTranslation();
+  const router = useRouter();
   const {
     preClean,
     postClean,
     pairedData,
-    preScores,
-    postScores,
     wilcoxon,
     mannWhitney
   } = useDatasetStats();
 
   const [isRunning, setIsRunning] = useState(false);
   const [executed, setExecuted] = useState(false);
+
+  const hypothesisConfirmed = wilcoxon.isSignificant && wilcoxon.zValue > 0;
+  const alignedPre = pairedData.map(p => p.preScore);
+  const alignedPost = pairedData.map(p => p.postScore);
 
   const g1Deltas = pairedData.filter(p => p.group === 'Listado 1').map(p => p.delta);
   const g2Deltas = pairedData.filter(p => p.group === 'Listado 2').map(p => p.delta);
@@ -35,8 +39,9 @@ import scipy.stats as stats
 # 1. Longitudinal Paired Test (Wilcoxon Signed-Rank)
 # H0: The educational intervention produces no knowledge gain
 # H1: The intervention produces a significant positive knowledge shift
-pre_scores = ${JSON.stringify(preScores.length > 0 ? preScores.slice(0, 10) : Array(29).fill(1.925))}
-post_scores = ${JSON.stringify(postScores.length > 0 ? postScores.slice(0, 10) : Array(29).fill(8.323))}
+# Vectors are index-aligned from fuzzy-reconciled paired participants
+pre_scores = ${JSON.stringify(alignedPre)}
+post_scores = ${JSON.stringify(alignedPost)}
 
 stat_w, p_val_w = stats.wilcoxon(post_scores, pre_scores, alternative='greater')
 print(f"Wilcoxon W Statistic : {stat_w:.4f}")
@@ -87,13 +92,22 @@ print(f"Mann-Whitney p-value : {p_val_u:.4e}")`;
               {t.lab.title}
             </h1>
           </div>
-          <button
-            onClick={handleDownloadNotebook}
-            className="bg-[#002B49] hover:bg-[#001A2C] text-white px-4 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition shadow-xs self-start sm:self-auto"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>{t.lab.downloadIpynb}</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={handleDownloadNotebook}
+              className="bg-[#002B49] hover:bg-[#001A2C] text-white px-4 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition shadow-xs"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{t.lab.downloadIpynb}</span>
+            </button>
+            <button
+                onClick={() => router.push('/paper')}
+                className="bg-[#C0392B] hover:bg-[#A93226] text-white px-4 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition shadow-xs"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>{t.lab.generatePaper}</span>
+              </button>
+          </div>
         </header>
 
         {/* Jupyter Workstation Window */}
@@ -134,9 +148,25 @@ print(f"Mann-Whitney p-value : {p_val_u:.4e}")`;
               <div className="text-emerald-400">Wilcoxon p-value     : {wilcoxon.pValue.toExponential(4)}</div>
               <div className="text-cyan-300 mt-2">Mann-Whitney U Stat  : {mannWhitney.statisticValue.toFixed(4)}</div>
               <div className="text-cyan-300">Mann-Whitney p-value : {mannWhitney.pValue.toFixed(4)}</div>
-              <div className="mt-3 text-emerald-300 font-bold flex items-center gap-2 bg-emerald-950/60 border border-emerald-800 p-2.5 rounded">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>{t.lab.validatedMsg}</span>
+              {hypothesisConfirmed ? (
+                <div className="mt-3 text-emerald-300 font-bold flex items-center gap-2 bg-emerald-950/60 border border-emerald-800 p-2.5 rounded">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{t.lab.validatedMsg}</span>
+                </div>
+              ) : (
+                <div className="mt-3 text-rose-300 font-bold flex items-center gap-2 bg-rose-950/60 border border-rose-800 p-2.5 rounded">
+                  <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>{t.lab.rejectedMsg}</span>
+                </div>
+              )}
+              <div className="mt-4 flex justify-end">
+                <button
+                      onClick={() => router.push('/paper')}
+                      className="bg-[#C0392B] hover:bg-[#A93226] text-white px-4 py-2 rounded-md text-xs font-semibold flex items-center gap-1.5 transition shadow-xs"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>{t.lab.generatePaper}</span>
+                    </button>
               </div>
             </div>
           )}

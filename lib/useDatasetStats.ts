@@ -5,7 +5,7 @@ import { useDataset } from '@/lib/DatasetContext';
 import { computeDescriptiveStats, computeWilcoxonSignedRank, computeMannWhitneyU } from '@/lib/statsEngine';
 
 export function useDatasetStats() {
-  const { preClean, postClean, pairedData, attritionAnalysis } = useDataset();
+  const { preClean, postClean, pairedData, attritionAnalysis, quarantined } = useDataset();
 
   const preScores = useMemo(() => preClean.map(p => p.score), [preClean]);
   const postScores = useMemo(() => postClean.map(p => p.score), [postClean]);
@@ -42,5 +42,6 @@ export function useDatasetStats() {
     wilcoxon,
     mannWhitney,
     attritionAnalysis,
+    quarantined,
   };
 }

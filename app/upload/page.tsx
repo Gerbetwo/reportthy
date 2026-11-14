@@ -264,7 +264,7 @@ export default function UploadPage() {
               </button>
               {pairedData.length > 0 && (
                 <button
-                  onClick={() => router.push('/report')}
+                  onClick={() => router.push('/lab')}
                   className="bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-2.5 rounded-md text-xs font-semibold flex items-center gap-2 transition shadow-xs"
                 >
                   <FileCheck className="w-4 h-4" />

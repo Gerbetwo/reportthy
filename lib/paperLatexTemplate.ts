@@ -2,13 +2,22 @@ import {
   DescriptiveMetrics,
   PairedParticipant,
   CleanedParticipant,
-  HypothesisTestResult
+  HypothesisTestResult,
+  AttritionAnalysis
 } from '@/types/dataset';
 
-function escapeLatex(str: string): string {
+/**
+ * Unified Springer Nature (sn-jnl) manuscript generator.
+ * Merges data quality assurance diagnostics (ingestion audit, quarantine,
+ * fuzzy reconciliation, attrition), distribution diagnostics, non-parametric
+ * hypothesis verification and the longitudinal student validation matrix
+ * into a single end-to-end LaTeX document.
+ */
+
+export function escapeLatex(str: string): string {
   if (!str) return '';
   return str
-    .replace(/\\/g, '\\textbackslash{}')
+    .replace(/\\/g, '\u0000')
     .replace(/&/g, '\\&')
     .replace(/%/g, '\\%')
     .replace(/\$/g, '\\$')
@@ -17,8 +26,13 @@ function escapeLatex(str: string): string {
     .replace(/\{/g, '\\{')
     .replace(/\}/g, '\\}')
     .replace(/~/g, '\\textasciitilde{}')
-    .replace(/\^/g, '\\textasciicircum{}');
+    .replace(/\^/g, '\\textasciicircum{}')
+    .replace(/\u0000/g, '\\textbackslash{}');
 }
+
+const f3 = (v: number): string => (Number.isFinite(v) ? v.toFixed(3) : '0.000');
+const fp = (p: number): string => (Number.isFinite(p) ? (p < 0.001 ? '< 0.001' : `= ${p.toFixed(3)}`) : '= 1.000');
+const fpCell = (p: number): string => (Number.isFinite(p) ? (p < 0.001 ? '$<0.001$' : p.toFixed(3)) : '1.000');
 
 export function generateFullPaperLatex(
   preMetrics: DescriptiveMetrics,
@@ -26,78 +40,265 @@ export function generateFullPaperLatex(
   wilcoxon: HypothesisTestResult,
   mannWhitney: HypothesisTestResult,
   pairedData: PairedParticipant[],
-  lang: 'en' | 'es' = 'en'
+  lang: 'en' | 'es' = 'en',
+  attritionAnalysis?: AttritionAnalysis | null,
+  quarantined: CleanedParticipant[] = []
 ): string {
   const isEs = lang === 'es';
+  const tr = (en: string, es: string): string => (isEs ? es : en);
 
-  const rawTitle = isEs
-    ? 'Evaluación Empírica de la Pedagogía de Computación Cuántica: Un Análisis Casi-Experimental No Paramétrico'
-    : 'Empirical Evaluation of Introductory Quantum Computing Pedagogy: A Non-Parametric Quasi-Experimental Analysis';
-  const title = escapeLatex(rawTitle);
+  // ---------- Derived QA & inferential facts ----------
+  const hypothesisConfirmed = wilcoxon.isSignificant && wilcoxon.zValue > 0;
+  const preNormal = preMetrics.shapiroWilk.isNormal;
+  const postNormal = postMetrics.shapiroWilk.isNormal;
+  const anyNonNormal = !preNormal || !postNormal;
+  const pairedN = pairedData.length;
+  const quarantineCount = quarantined.length;
+  const cleanCount = preMetrics.n + postMetrics.n;
+  const reasons = Array.from(
+    new Set(quarantined.map(q => (q.corruptionReason ?? '').trim()).filter(r => r.length > 0))
+  );
+  const rosterCount = attritionAnalysis?.masterRosterCount ?? 0;
+  const desertionCount = attritionAnalysis?.officialDesertionCount ?? Math.max(preMetrics.n - postMetrics.n, 0);
+  const desertionRate = attritionAnalysis?.officialDesertionRate
+    ?? (preMetrics.n > 0 ? (Math.max(preMetrics.n - postMetrics.n, 0) / preMetrics.n) * 100 : 0);
+  const rateStr = desertionRate.toFixed(1);
+  const n1 = mannWhitney.n1;
+  const n2 = mannWhitney.n2 ?? 0;
 
-  const abstract = isEs
-    ? `Este estudio evalúa la efectividad instruccional de una intervención pedagógica en computación cuántica fundamental ($N_{\\text{pre}}=${preMetrics.n}$, $N_{\\text{post}}=${postMetrics.n}$, cohorte emparejada $N=${wilcoxon.n1}$). El análisis de normalidad (D'Agostino-Pearson $p < 0.001$) reveló un marcado efecto suelo inicial ($\\bar{x}=${preMetrics.mean}$) y un efecto techo posterior ($\\bar{x}=${postMetrics.mean}$), invalidando las pruebas $t$ paramétricas. La prueba de rangos con signo de Wilcoxon confirmó una ganancia de conocimiento estadísticamente significativa ($W=${wilcoxon.statisticValue}$, $p < 0.001$, tamaño de efecto $r=${wilcoxon.effectSize}$). La prueba $U$ de Mann-Whitney entre cohortes ($U=${mannWhitney.statisticValue}$, $p=${mannWhitney.pValue}$) indicó que las ganancias no difieren significativamente entre subgrupos.`
-    : `This study evaluates the instructional efficacy of an introductory quantum computing pedagogical intervention ($N_{\\text{pre}}=${preMetrics.n}$, $N_{\\text{post}}=${postMetrics.n}$, paired cohort $N=${wilcoxon.n1}$). Normality testing (D'Agostino-Pearson $p < 0.001$) revealed strong initial floor ($\\bar{x}=${preMetrics.mean}$) and post-intervention ceiling ($\\bar{x}=${postMetrics.mean}$), invalidating parametric $t$-tests. The longitudinal Wilcoxon signed-rank test confirmed statistically significant learning gains ($W=${wilcoxon.statisticValue}$, $p < 0.001$, effect size $r=${wilcoxon.effectSize}$). Between-cohort Mann-Whitney $U$ analysis ($U=${mannWhitney.statisticValue}$, $p=${mannWhitney.pValue}$) indicated no significant gain divergence across instructional sections.`;
+  const sig = (r: HypothesisTestResult): string =>
+    r.isSignificant ? tr('Reject $H_0$', 'Rechazar $H_0$') : tr('Retain $H_0$', 'Retener $H_0$');
+  const dist = (m: DescriptiveMetrics): string =>
+    m.shapiroWilk.isNormal ? tr('Normal', 'Normal') : tr('Non-Normal', 'No Normal');
 
-  const keywords = isEs
-    ? escapeLatex('Educación en Computación Cuántica, Pruebas No Paramétricas, Rangos de Wilcoxon, Mann-Whitney U, Diagnósticos de Distribución')
-    : escapeLatex('Quantum Computing Education, Non-Parametric Statistics, Wilcoxon Signed-Rank, Mann-Whitney U, Distribution Diagnostics');
+  // ---------- Front matter ----------
+  const title = escapeLatex(tr(
+    'Empirical Evaluation of Introductory Quantum Computing Pedagogy: A Unified Data-Quality and Non-Parametric Quasi-Experimental Analysis',
+    'Evaluación Empírica de la Pedagogía Introductoria en Computación Cuántica: Un Análisis Cuasi-Experimental Unificado de Calidad de Datos y Pruebas No Paramétricas'
+  ));
 
-  const secIntro = isEs ? '1. Introducción y Marco Teórico' : '1. Introduction and Theoretical Framework';
-  const secMethods = isEs ? '2. Materiales y Métodos' : '2. Materials and Methods';
-  const secResults = isEs ? '3. Resultados Empíricos' : '3. Empirical Results';
-  const secDisc = isEs ? '4. Discusión y Amenazas a la Validez' : '4. Discussion and Threats to Validity';
-  const secConc = isEs ? '5. Conclusión' : '5. Conclusion';
+  const normalitySentence = anyNonNormal
+    ? tr(
+      String.raw`Shapiro-Wilk diagnostics rejected Gaussian normality (pretest $p ${fp(preMetrics.shapiroWilk.pValue)}$, posttest $p ${fp(postMetrics.shapiroWilk.pValue)}$), mandating non-parametric inference.`,
+      String.raw`Los diagnósticos de Shapiro-Wilk rechazaron la normalidad gaussiana (pretest $p ${fp(preMetrics.shapiroWilk.pValue)}$, posttest $p ${fp(postMetrics.shapiroWilk.pValue)}$), exigiendo inferencia no paramétrica.`
+    )
+    : tr(
+      String.raw`Shapiro-Wilk diagnostics retained normality (pretest $p ${fp(preMetrics.shapiroWilk.pValue)}$, posttest $p ${fp(postMetrics.shapiroWilk.pValue)}$); non-parametric procedures were nonetheless retained for robustness.`,
+      String.raw`Los diagnósticos de Shapiro-Wilk retuvieron la normalidad (pretest $p ${fp(preMetrics.shapiroWilk.pValue)}$, posttest $p ${fp(postMetrics.shapiroWilk.pValue)}$); se mantuvieron procedimientos no paramétricos por robustez.`
+    );
 
-  return `\\documentclass[default,sn-basic]{sn-jnl}
-\\usepackage{graphicx}
-\\usepackage{booktabs}
-\\usepackage{amsmath}
-\\usepackage{longtable}
+  const outcomeSentence = hypothesisConfirmed
+    ? tr(
+      'The empirical evidence corroborates the research hypothesis of a statistically significant positive learning gain.',
+      'La evidencia empírica corrobora la hipótesis de investigación de una ganancia de aprendizaje positiva estadísticamente significativa.'
+    )
+    : tr(
+      'The empirical evidence fails to corroborate the research hypothesis; no statistically significant positive learning gain was established.',
+      'La evidencia empírica no logra corroborar la hipótesis de investigación; no se estableció una ganancia de aprendizaje positiva estadísticamente significativa.'
+    );
 
-\\jyear{2026}
+  const abstract = tr(
+    String.raw`This study evaluates the instructional efficacy of an introductory quantum computing intervention ($N_{\text{pre}}=${preMetrics.n}$, $N_{\text{post}}=${postMetrics.n}$, paired $N=${pairedN}$) with an official attrition rate of ${rateStr}\% and ${quarantineCount} quarantined anomalous submissions. ${normalitySentence} The paired Wilcoxon signed-rank test yielded $W=${f3(wilcoxon.statisticValue)}$, $p ${fp(wilcoxon.pValue)}$, $r=${f3(wilcoxon.effectSize)}$; the between-cohort Mann-Whitney test yielded $U=${f3(mannWhitney.statisticValue)}$, $p ${fp(mannWhitney.pValue)}$. ${outcomeSentence}`,
+    String.raw`Este estudio evalúa la efectividad instruccional de una intervención introductoria en computación cuántica ($N_{\text{pre}}=${preMetrics.n}$, $N_{\text{post}}=${postMetrics.n}$, $N$ emparejado $=${pairedN}$) con una tasa de deserción oficial de ${rateStr}\% y ${quarantineCount} entregas anómalas aisladas. ${normalitySentence} La prueba de rangos con signo de Wilcoxon arrojó $W=${f3(wilcoxon.statisticValue)}$, $p ${fp(wilcoxon.pValue)}$, $r=${f3(wilcoxon.effectSize)}$; la prueba de Mann-Whitney entre cohortes arrojó $U=${f3(mannWhitney.statisticValue)}$, $p ${fp(mannWhitney.pValue)}$. ${outcomeSentence}`
+  );
 
-\\begin{document}
+  const keywords = escapeLatex(tr(
+    'Quantum Computing Education, Data Quality Assurance, Non-Parametric Testing, Wilcoxon Signed-Rank, Mann-Whitney U, Attrition Analysis',
+    'Educación en Computación Cuántica, Aseguramiento de Calidad de Datos, Pruebas No Paramétricas, Rangos con Signo de Wilcoxon, U de Mann-Whitney, Análisis de Deserción'
+  ));
 
-\\title[Quantum Computing Pedagogy]{${title}}
+  // ---------- 1. Introduction ----------
+  const secIntro = tr('Introduction and Theoretical Framework', 'Introducción y Marco Teórico');
+  const introText = tr(
+    String.raw`Quantum computing requires learners to transition from classical Boolean logic to linear algebra and quantum state mechanics (qubits, superposition, entanglement and decoherence). This work reports a pre/post quasi-experimental evaluation of quantum computing literacy administered across two instructional cohorts (Listado 1 and Listado 2). Because educational score distributions frequently exhibit floor and ceiling effects, the analysis adopts a distribution-agnostic inferential framework preceded by a fully automated data quality assurance pipeline.`,
+    String.raw`La computación cuántica exige que los estudiantes transiten de la lógica booleana clásica al álgebra lineal y la mecánica de estados cuánticos (cúbits, superposición, entrelazamiento y decoherencia). Este trabajo reporta una evaluación cuasi-experimental pre/post de alfabetización en computación cuántica administrada en dos cohortes instruccionales (Listado 1 y Listado 2). Dado que las distribuciones de puntajes educativos presentan con frecuencia efectos suelo y techo, el análisis adopta un marco inferencial independiente de la distribución, precedido por un proceso automatizado de aseguramiento de calidad de datos.`
+  );
 
-\\author*[1]{\\fnm{Daniel Alejandro} \\sur{Lasso Molina}}\\email{daniel.lasso@university.edu}
-\\affil*[1]{\\orgname{Department of Computer Science}, \\orgaddress{\\country{Colombia}}}
+  // ---------- 2. Methods & QA ----------
+  const secMethods = tr('Materials, Methods, and Data Quality Assurance', 'Materiales, Métodos y Aseguramiento de Calidad de Datos');
+  const reasonsList = reasons.length > 0
+    ? String.raw`\begin{itemize}
+${reasons.map(r => String.raw`\item ${escapeLatex(r.length > 120 ? `${r.slice(0, 117)}...` : r)}`).join('\n')}
+\end{itemize}`
+    : '';
+  const methodsText = tr(
+    String.raw`Pretest scores were parsed from the \texttt{Score} field and posttest scores from the \texttt{Puntuación} field on a 10-point scale. The automated ingestion and sanitization audit retained ${cleanCount} clean records (${preMetrics.n} pretest, ${postMetrics.n} posttest) and quarantined ${quarantineCount} anomalous submissions (participant names exceeding 80 characters or containing code/algorithm dumps). ${reasons.length > 0 ? `${reasons.length} distinct corruption reasons were recorded:` : 'No distinct corruption reasons were recorded.'}`,
+    String.raw`Los puntajes del pretest se extrajeron del campo \texttt{Score} y los del posttest del campo \texttt{Puntuación} en una escala de 10 puntos. La auditoría automatizada de ingesta y sanitización retuvo ${cleanCount} registros limpios (${preMetrics.n} pretest, ${postMetrics.n} posttest) y aisló ${quarantineCount} entregas anómalas (nombres de participantes con más de 80 caracteres o con volcados de código/algoritmos). ${reasons.length > 0 ? `Se registraron ${reasons.length} motivos de corrupción distintos:` : 'No se registraron motivos de corrupción distintos.'}`
+  );
+  const reconText = tr(
+    String.raw`Participant identities were normalized (lowercasing, diacritic stripping, whitespace collapsing) and reconciled via normalized Levenshtein similarity ($\ge 0.85$), producing ${pairedN} matched longitudinal pairs. ${attritionAnalysis ? `Cross-referencing the official master roster ($N=${rosterCount}$) identified ${desertionCount} official dropouts, an attrition (desertion) rate of ${rateStr}\\%.` : `In the absence of an official master roster, attrition was estimated from cohort sizes at ${desertionCount} participants (${rateStr}\\%).`}`,
+    String.raw`Las identidades de los participantes se normalizaron (minúsculas, eliminación de diacríticos, colapso de espacios) y se reconciliaron mediante similitud de Levenshtein normalizada ($\ge 0.85$), produciendo ${pairedN} pares longitudinales emparejados. ${attritionAnalysis ? `El cruce con la matrícula oficial ($N=${rosterCount}$) identificó ${desertionCount} desertores oficiales, una tasa de deserción de ${rateStr}\\%.` : `En ausencia de matrícula oficial, la deserción se estimó a partir de los tamaños de cohorte en ${desertionCount} participantes (${rateStr}\\%).`}`
+  );
 
-\\abstract{${abstract}}
+  // ---------- 3. Results ----------
+  const secResults = tr(
+    'Empirical Results: Distribution Diagnostics and Hypothesis Verification',
+    'Resultados Empíricos: Diagnósticos de Distribución y Verificación de Hipótesis'
+  );
+  const descCaption = tr(
+    'Descriptive statistics and Shapiro-Wilk normality diagnostics',
+    'Estadística descriptiva y diagnósticos de normalidad de Shapiro-Wilk'
+  );
+  const descHeader = tr(
+    String.raw`Phase & $N$ & $\bar{x}$ & $s^2$ & $s$ & Median & IQR & Skew. & Kurt. & SW $p$ & Distribution`,
+    String.raw`Fase & $N$ & $\bar{x}$ & $s^2$ & $s$ & Mediana & RIC & Asim. & Curt. & SW $p$ & Distribución`
+  );
+  const descRow = (label: string, m: DescriptiveMetrics): string =>
+    String.raw`${label} & ${m.n} & ${f3(m.mean)} & ${f3(m.variance)} & ${f3(m.stdDev)} & ${f3(m.median)} & ${f3(m.iqr)} & ${f3(m.skewness)} & ${f3(m.kurtosis)} & ${fpCell(m.shapiroWilk.pValue)} & ${dist(m)} \\`;
 
-\\keywords{${keywords}}
+  const justification = anyNonNormal
+    ? tr(
+      String.raw`Because the normality assumption is rejected ($p < 0.05$) in at least one phase, parametric Student's $t$-tests are invalidated. Inference therefore relies exclusively on the non-parametric Wilcoxon signed-rank and Mann-Whitney $U$ tests.`,
+      String.raw`Debido a que el supuesto de normalidad se rechaza ($p < 0.05$) en al menos una fase, las pruebas $t$ de Student paramétricas quedan invalidadas. Por tanto, la inferencia se basa exclusivamente en las pruebas no paramétricas de rangos con signo de Wilcoxon y $U$ de Mann-Whitney.`
+    )
+    : tr(
+      String.raw`Because normality is retained ($p \ge 0.05$) in both phases, parametric Student's $t$-tests are eligible; the non-parametric procedures are reported as distribution-free robustness checks.`,
+      String.raw`Debido a que la normalidad se retiene ($p \ge 0.05$) en ambas fases, las pruebas $t$ de Student paramétricas son elegibles; los procedimientos no paramétricos se reportan como verificaciones de robustez libres de distribución.`
+    );
 
-\\maketitle
+  const hypCaption = tr(
+    'Inferential summary of non-parametric hypothesis tests',
+    'Resumen inferencial de las pruebas de hipótesis no paramétricas'
+  );
+  const hypHeader = tr(
+    String.raw`Test & $N$ / $(n_1, n_2)$ & Statistic & $Z$ & $p$ & $r$ & Decision`,
+    String.raw`Prueba & $N$ / $(n_1, n_2)$ & Estadístico & $Z$ & $p$ & $r$ & Decisión`
+  );
+  const wRowLabel = tr('Paired Wilcoxon Signed-Rank (within-subject)', 'Wilcoxon de rangos con signo (intra-sujeto)');
+  const uRowLabel = tr(String.raw`Mann-Whitney $U$ (Listado 1 vs 2, $\Delta$)`, String.raw`Mann-Whitney $U$ (Listado 1 vs 2, $\Delta$)`);
 
-\\section{${escapeLatex(secIntro)}}
-Quantum computing represents a paradigm shift in computing education, requiring learners to transition from classical Boolean logic to linear algebra and quantum state mechanics (qubits, superposition, entanglement, and decoherence). Evaluating educational interventions in this domain requires robust statistical frameworks capable of handling non-normal distributions, floor effects, and potential sample attrition.
+  // ---------- 4. Student matrix ----------
+  const secMatrix = tr('Longitudinal Student Score and Validation Matrix', 'Matriz Longitudinal de Puntajes y Validación Estudiantil');
+  const matrixIntro = tr(
+    String.raw`Table~\ref{tab:student_roster} lists every reconciled participant with pretest and posttest scores, the signed gain ($\Delta = \text{Post} - \text{Pre}$) and the fuzzy identity match confidence.`,
+    String.raw`La Tabla~\ref{tab:student_roster} lista cada participante reconciliado con sus puntajes pretest y posttest, la ganancia con signo ($\Delta = \text{Post} - \text{Pre}$) y la confianza del emparejamiento difuso de identidad.`
+  );
+  const studentHeaders = tr(
+    String.raw`Student & Cohort & Pre & Post & $\Delta$ & Match`,
+    String.raw`Estudiante & Grupo & Pre & Post & $\Delta$ & Confianza`
+  );
+  const studentRows = pairedData
+    .map(s => {
+      const deltaStr = s.delta >= 0 ? `+${s.delta}` : `${s.delta}`;
+      return String.raw`${escapeLatex(s.preName)} & ${escapeLatex(s.group)} & ${s.preScore} & ${s.postScore} & ${deltaStr} & ${(s.similarity * 100).toFixed(0)}\% \\`;
+    })
+    .join('\n');
+  const matrixSection = pairedN > 0
+    ? String.raw`\section{${secMatrix}}\label{sec:matrix}
+${matrixIntro}
 
-\\section{${escapeLatex(secMethods)}}
-A quasi-experimental pretest-posttest design was conducted across two student cohorts (Listado 1 and Listado 2). Evaluation items assessed foundational knowledge on a 10-point scale. Sanitization pipelines quarantined non-conforming entries (such as code block injections) and applied normalized Levenshtein matching (\\ge 0.78 threshold) to align longitudinal participant identity across surveys.
+\begin{small}
+\begin{longtable}{@{}lccccr@{}}
+\caption{${tr('Individual pre/post-test scores, gains and match confidence', 'Puntajes individuales pre/post-test, ganancias y confianza de emparejamiento')}}\label{tab:student_roster} \\
+\toprule
+${studentHeaders} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+${studentRows}
+\end{longtable}
+\end{small}
+`
+    : '';
 
-\\section{${escapeLatex(secResults)}}
-Table~\\ref{tab:descriptive} displays distribution diagnostics, confirming severe floor effects in the pretest and ceiling effects in the posttest. Both phases reject Gaussian normality ($p < 0.001$).
+  // ---------- 5. Discussion ----------
+  const secDisc = tr('Discussion and Threats to Validity', 'Discusión y Amenazas a la Validez');
+  const absR = Math.abs(wilcoxon.effectSize);
+  const magnitude = absR >= 0.5 ? tr('large', 'grande') : absR >= 0.3 ? tr('medium', 'mediano') : absR >= 0.1 ? tr('small', 'pequeño') : tr('negligible', 'despreciable');
+  const discText = tr(
+    String.raw`Pretest skewness (${f3(preMetrics.skewness)}) and posttest skewness (${f3(postMetrics.skewness)}) indicate floor and ceiling effects that constrain score discrimination at the scale extremes. The attrition rate of ${rateStr}\% and the ${quarantineCount} quarantined submissions constitute potential selection threats, partially mitigated by the paired design ($N=${pairedN}$). The rank-biserial effect size $r=${f3(wilcoxon.effectSize)}$ corresponds to a ${magnitude} effect magnitude. The absence of a randomized control group limits causal attribution.`,
+    String.raw`La asimetría del pretest (${f3(preMetrics.skewness)}) y del posttest (${f3(postMetrics.skewness)}) indica efectos suelo y techo que limitan la discriminación de puntajes en los extremos de la escala. La tasa de deserción de ${rateStr}\% y las ${quarantineCount} entregas aisladas constituyen amenazas potenciales de selección, parcialmente mitigadas por el diseño emparejado ($N=${pairedN}$). El tamaño de efecto biserial por rangos $r=${f3(wilcoxon.effectSize)}$ corresponde a una magnitud de efecto ${magnitude}. La ausencia de un grupo control aleatorizado limita la atribución causal.`
+  );
 
-\\begin{table}[h]
-\\caption{Descriptive statistics and normality diagnostics (D'Agostino-Pearson K2)}\\label{tab:descriptive}
-\\begin{tabular*}{\\textwidth}{@{\\extracolsep{\\fill}}lcccccc@{\\extracolsep{\\fill}}}
-\\toprule
-Phase & $N$ & Mean ($\\bar{x}$) & Variance ($s^2$) & Median & D'Agostino $p$ & Distribution \\
-\\midrule
-Pretest  & ${preMetrics.n} & ${preMetrics.mean} & ${preMetrics.variance} & ${preMetrics.median} & ${preMetrics.shapiroWilk.pValue} & Non-Normal \\
-Posttest & ${postMetrics.n} & ${postMetrics.mean} & ${postMetrics.variance} & ${postMetrics.median} & ${postMetrics.shapiroWilk.pValue} & Non-Normal \\
-\\bottomrule
-\\end{tabular*}
-\\end{table}
+  // ---------- 6. Conclusion (strictly data-driven) ----------
+  const secConc = tr('Conclusion and Hypothesis Verdict', 'Conclusión y Veredicto de Hipótesis');
+  const cohortSentence = mannWhitney.isSignificant
+    ? tr(
+      String.raw`Cohort gains diverged significantly between Listado 1 and Listado 2 ($U=${f3(mannWhitney.statisticValue)}$, $p ${fp(mannWhitney.pValue)}$).`,
+      String.raw`Las ganancias divergieron significativamente entre Listado 1 y Listado 2 ($U=${f3(mannWhitney.statisticValue)}$, $p ${fp(mannWhitney.pValue)}$).`
+    )
+    : tr(
+      String.raw`Cohort gains were consistent across Listado 1 and Listado 2 ($U=${f3(mannWhitney.statisticValue)}$, $p ${fp(mannWhitney.pValue)}$).`,
+      String.raw`Las ganancias fueron consistentes entre Listado 1 y Listado 2 ($U=${f3(mannWhitney.statisticValue)}$, $p ${fp(mannWhitney.pValue)}$).`
+    );
+  const concText = hypothesisConfirmed
+    ? tr(
+      String.raw`The empirical evidence \textbf{corroborates} the research hypothesis ($H_1$): the intervention produced a statistically significant positive learning gain ($W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$, $p ${fp(wilcoxon.pValue)}$, $p < 0.05$, $r=${f3(wilcoxon.effectSize)}$). ${cohortSentence}`,
+      String.raw`La evidencia empírica \textbf{corrobora} la hipótesis de investigación ($H_1$): la intervención produjo una ganancia de aprendizaje positiva estadísticamente significativa ($W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$, $p ${fp(wilcoxon.pValue)}$, $p < 0.05$, $r=${f3(wilcoxon.effectSize)}$). ${cohortSentence}`
+    )
+    : tr(
+      String.raw`The empirical evidence \textbf{fails to corroborate} and therefore \textbf{rejects} the research hypothesis ($H_1$): with $W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$ and $p ${fp(wilcoxon.pValue)}$ ($p \ge 0.05$ or a non-positive shift), no statistically significant instructional gain was established. ${cohortSentence}`,
+      String.raw`La evidencia empírica \textbf{no logra corroborar} y por tanto \textbf{rechaza} la hipótesis de investigación ($H_1$): con $W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$ y $p ${fp(wilcoxon.pValue)}$ ($p \ge 0.05$ o un desplazamiento no positivo), no se estableció una ganancia instruccional estadísticamente significativa. ${cohortSentence}`
+    );
 
-Longitudinal knowledge gain was verified using the paired Wilcoxon signed-rank test ($W=${wilcoxon.statisticValue}$, $Z=${wilcoxon.zValue}$, $p < 0.001$, effect size $r=${wilcoxon.effectSize}$). Between-group gain divergence was evaluated via Mann-Whitney $U$ test ($U=${mannWhitney.statisticValue}$, $p=${mannWhitney.pValue}$), demonstrating consistent instructional impact across cohorts.
+  return String.raw`\documentclass[default,sn-basic]{sn-jnl}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{longtable}
 
-\\section{${escapeLatex(secDisc)}}
-The observed non-normality underscores the necessity of non-parametric procedures. While posttest ceiling effects constrain upper-bound discrimination, the high rank-biserial effect size confirms strong pedagogical efficacy.
+\jyear{2026}
 
-\\section{${escapeLatex(secConc)}}
-The empirical findings corroborate the core instructional hypothesis: the intervention produces statistically significant and robust learning gains in fundamental quantum computing literacy.
+\begin{document}
 
-\\end{document}`;
+\title[Quantum Computing Pedagogy]{${title}}
+
+\author*[1]{\fnm{Automated} \sur{Analytics System}}\email{researcher@university.edu}
+\affil*[1]{\orgname{Department of Computer Science and Educational Technology}, \orgaddress{\country{Colombia}}}
+
+\abstract{${abstract}}
+
+\keywords{${keywords}}
+
+\maketitle
+
+\section{${secIntro}}\label{sec:intro}
+${introText}
+
+\section{${secMethods}}\label{sec:methods}
+${methodsText}
+${reasonsList}
+
+${reconText}
+
+\section{${secResults}}\label{sec:results}
+${tr(String.raw`Table~\ref{tab:descriptive} reports the distribution diagnostics for both evaluation phases.`, String.raw`La Tabla~\ref{tab:descriptive} reporta los diagnósticos de distribución de ambas fases de evaluación.`)}
+
+\begin{table}[h]
+\caption{${descCaption}}\label{tab:descriptive}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccccccccc@{\extracolsep{\fill}}}
+\toprule
+${descHeader} \\
+\midrule
+${descRow('Pretest', preMetrics)}
+${descRow('Posttest', postMetrics)}
+\bottomrule
+\end{tabular*}
+\end{table}
+
+${justification}
+
+${tr(String.raw`Table~\ref{tab:hypothesis} summarizes the inferential tests.`, String.raw`La Tabla~\ref{tab:hypothesis} resume las pruebas inferenciales.`)}
+
+\begin{table}[h]
+\caption{${hypCaption}}\label{tab:hypothesis}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccccc@{\extracolsep{\fill}}}
+\toprule
+${hypHeader} \\
+\midrule
+${wRowLabel} & ${wilcoxon.n1} & $W=${f3(wilcoxon.statisticValue)}$ & ${f3(wilcoxon.zValue)} & ${fpCell(wilcoxon.pValue)} & ${f3(wilcoxon.effectSize)} & ${sig(wilcoxon)} \\
+${uRowLabel} & (${n1}, ${n2}) & $U=${f3(mannWhitney.statisticValue)}$ & ${f3(mannWhitney.zValue)} & ${fpCell(mannWhitney.pValue)} & ${f3(mannWhitney.effectSize)} & ${sig(mannWhitney)} \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+${matrixSection}
+\section{${secDisc}}\label{sec:discussion}
+${discText}
+
+\section{${secConc}}\label{sec:conclusion}
+${concText}
+
+\end{document}`;
 }

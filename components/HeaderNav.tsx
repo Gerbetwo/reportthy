@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Upload, BarChart3, Binary, Home, FileText } from 'lucide-react';
+import { Upload, Binary, Home, FileText } from 'lucide-react';
 import { useTranslation } from '@/lib/LanguageContext';
 
 export default function HeaderNav() {
@@ -12,9 +12,8 @@ export default function HeaderNav() {
   const navLinks = [
     { href: '/', label: t.nav.overview, icon: Home },
     { href: '/upload', label: t.nav.importData, icon: Upload },
-    { href: '/report', label: t.nav.results, icon: BarChart3 },
     { href: '/lab', label: t.nav.lab, icon: Binary },
-    { href: '/paper', label: t.nav.paper || '4. Paper', icon: FileText },
+    { href: '/paper', label: t.nav.paper, icon: FileText },
   ];
 
   return (

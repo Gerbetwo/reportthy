@@ -4,7 +4,6 @@ import HeaderNav from "@/components/HeaderNav";
 import {
   ArrowRight,
   Upload,
-  BarChart3,
   Binary,
   FileText,
   LucideIcon,
@@ -16,9 +15,8 @@ export default function HomePage() {
 
   const iconMap: Record<string, LucideIcon> = {
     "01": Upload,
-    "02": BarChart3,
-    "03": Binary,
-    "04": FileText,
+    "02": Binary,
+    "03": FileText,
   };
 
   return (
@@ -47,7 +45,7 @@ export default function HomePage() {
                 <ArrowRight className="w-4 h-4 text-[#F8FAFC]" />
               </Link>
               <Link
-                href="/report"
+                href="/paper"
                 className="inline-flex items-center gap-2 bg-white hover:bg-[#F8F9FA] text-[#002B49] border border-[#CBD5E1] px-5 py-2.5 rounded-md text-xs font-semibold transition"
               >
                 <span>{t.home.viewSample}</span>
@@ -56,7 +54,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 4-Step Simplified Workflow */}
+        {/* 3-Step Unified Pipeline */}
         <section className="mb-12">
           <div className="border-b border-[#D0D7DE] pb-2 mb-6">
             <h2 className="text-xl font-serif font-bold text-[#002B49]">
@@ -64,7 +62,7 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {t.home.steps.map((step) => {
               const Icon = iconMap[step.id] || Upload;
               return (

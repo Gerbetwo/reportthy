@@ -20,10 +20,10 @@ export default function DistributionChart({ preData, postData }: DistributionCha
     1
   );
 
-  const distributionTitle = t.report.distributionTitle;
-  const distributionSub = t.report.distributionSub;
-  const toggleAggregated = t.report.toggleAggregated;
-  const toggleCohorts = t.report.toggleCohorts;
+  const distributionTitle = t.chart.distributionTitle;
+  const distributionSub = t.chart.distributionSub;
+  const toggleAggregated = t.chart.toggleAggregated;
+  const toggleCohorts = t.chart.toggleCohorts;
 
   return (
     <div className="bg-white p-6 rounded-lg border border-[#D0D7DE] shadow-xs mb-8 print:border-none print:shadow-none">

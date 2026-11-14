@@ -1,0 +1,128 @@
+import { describe, it, expect } from 'vitest';
+import { generateFullPaperLatex } from '@/lib/paperLatexTemplate';
+import {
+  DescriptiveMetrics,
+  PairedParticipant,
+  HypothesisTestResult,
+  AttritionAnalysis,
+  CleanedParticipant
+} from '@/types/dataset';
+
+const pre: DescriptiveMetrics = {
+  n: 40, mean: 1.925, variance: 0.789, stdDev: 0.888, median: 2, iqr: 2, skewness: -0.541, kurtosis: -0.28,
+  shapiroWilk: { statistic: 0.8533, pValue: 0.0001, isNormal: false }
+};
+const post: DescriptiveMetrics = {
+  n: 31, mean: 8.323, variance: 4.826, stdDev: 2.197, median: 9, iqr: 2.5, skewness: -1.57, kurtosis: 1.9,
+  shapiroWilk: { statistic: 0.7689, pValue: 0.00001, isNormal: false }
+};
+
+const makeWilcoxon = (isSignificant: boolean, zValue: number, pValue: number): HypothesisTestResult => ({
+  testName: 'Wilcoxon Signed-Rank', statisticName: 'W', statisticValue: 435, zValue, pValue,
+  effectSize: 0.87, interpretation: '', isSignificant, alternative: 'greater', n1: 2
+});
+
+const mannWhitney: HypothesisTestResult = {
+  testName: 'Mann-Whitney U', statisticName: 'U', statisticValue: 98.5, zValue: 0.42, pValue: 0.672,
+  effectSize: 0.08, interpretation: '', isSignificant: false, alternative: 'two-sided', n1: 1, n2: 1
+};
+
+const paired: PairedParticipant[] = [
+  { preName: 'Alexander Yama', postName: 'Alexander Yama', similarity: 1, group: 'Listado 1', preScore: 3, postScore: 8, delta: 5 },
+  { preName: 'Darwin Meneses', postName: 'Darwin Meneses', similarity: 0.92, group: 'Listado 2', preScore: 2, postScore: 10, delta: 8 }
+];
+
+const attrition: AttritionAnalysis = {
+  masterRosterCount: 43, officialPreCount: 40, officialPostCount: 31, officialDesertionCount: 9,
+  officialDesertionRate: 22.5, unmatchedSurveysCount: 2, officialDropouts: []
+};
+
+const quarantined: CleanedParticipant[] = [
+  {
+    id: 'q1', originalName: 'def solve(): return 42', normalizedName: '', group: 'Unknown', score: 0, timestamp: '',
+    isFlaggedCorrupted: true, corruptionReason: 'Code keyword detected'
+  },
+  {
+    id: 'q2', originalName: 'import numpy', normalizedName: '', group: 'Unknown', score: 0, timestamp: '',
+    isFlaggedCorrupted: true, corruptionReason: 'Code keyword detected'
+  }
+];
+
+describe('Unified Springer Nature manuscript (lib/paperLatexTemplate.ts)', () => {
+  it('renders unified sn-jnl output with QA metrics, descriptive and hypothesis tables, and student longtable', () => {
+    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(true, 4.2, 0.00001), mannWhitney, paired, 'en', attrition, quarantined);
+
+    expect(tex).toContain('\\documentclass[default,sn-basic]{sn-jnl}');
+    ['booktabs', 'amsmath', 'longtable', 'graphicx'].forEach(pkg => expect(tex).toContain(`\\usepackage{${pkg}}`));
+    expect(tex).toContain('\\label{tab:descriptive}');
+    expect(tex).toContain('\\label{tab:hypothesis}');
+    expect(tex).toContain('\\label{tab:student_roster}');
+    expect(tex).toContain('\\begin{longtable}');
+    expect(tex).toContain('1.925');
+    expect(tex).toContain('8.323');
+    expect(tex).toContain('2.197');
+    expect(tex).toContain('Non-Normal');
+    expect(tex).toContain("Student's $t$-tests are invalidated");
+    expect(tex).toContain('Wilcoxon');
+    expect(tex).toContain('Mann-Whitney');
+    expect(tex).toContain('$U=98.500$');
+    // QA metrics
+    expect(tex).toContain('quarantined 2 anomalous submissions');
+    expect(tex).toContain('1 distinct corruption reasons');
+    expect(tex).toContain('Code keyword detected');
+    expect(tex).toContain('2 matched longitudinal pairs');
+    expect(tex).toContain('$N=43$');
+    expect(tex).toContain('22.5\\%');
+    // Student matrix
+    expect(tex).toContain('Alexander Yama');
+    expect(tex).toContain('+5');
+    expect(tex).toContain('+8');
+    expect(tex).toContain('92\\%');
+    expect(tex).toContain('\\end{document}');
+  });
+
+  it('omits the student longtable when there are no paired participants', () => {
+    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(true, 4.2, 0.00001), mannWhitney, [], 'en');
+    expect(tex).not.toContain('\\begin{longtable}');
+  });
+
+  it('concludes the hypothesis is corroborated when Wilcoxon is significant with a positive shift', () => {
+    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(true, 4.2, 0.00001), mannWhitney, paired, 'en', attrition, quarantined);
+    expect(tex).toContain('\\textbf{corroborates} the research hypothesis');
+    expect(tex).toContain('Cohort gains were consistent');
+    expect(tex).not.toContain('\\textbf{fails to corroborate}');
+  });
+
+  it('concludes the hypothesis is rejected when Wilcoxon is not significant', () => {
+    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(false, 0.8, 0.21), mannWhitney, paired, 'en', attrition, quarantined);
+    expect(tex).toContain('\\textbf{fails to corroborate}');
+    expect(tex).toContain('\\textbf{rejects}');
+    expect(tex).toContain('no statistically significant instructional gain');
+    expect(tex).not.toContain('\\textbf{corroborates}');
+  });
+
+  it('treats a significant but non-positive shift as not corroborating the hypothesis', () => {
+    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(true, -3.1, 0.002), mannWhitney, paired, 'en');
+    expect(tex).toContain('\\textbf{fails to corroborate}');
+  });
+
+  it('renders in Spanish when lang = es', () => {
+    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(true, 4.2, 0.00001), mannWhitney, paired, 'es', attrition, quarantined);
+    expect(tex).toContain('Introducción y Marco Teórico');
+    expect(tex).toContain('Materiales, Métodos y Aseguramiento de Calidad de Datos');
+    expect(tex).toContain('No Normal');
+    expect(tex).toContain('\\textbf{corrobora} la hipótesis');
+    expect(tex).toContain('Estudiante & Grupo');
+
+    const rejected = generateFullPaperLatex(pre, post, makeWilcoxon(false, 0.5, 0.3), mannWhitney, paired, 'es');
+    expect(rejected).toContain('\\textbf{no logra corroborar}');
+    expect(rejected).toContain('\\textbf{rechaza}');
+  });
+
+  it('escapes LaTeX special characters in participant names', () => {
+    const tex = generateFullPaperLatex(pre, post, makeWilcoxon(true, 4.2, 0.00001), mannWhitney, [
+      { ...paired[0], preName: 'A_B & C%' }
+    ], 'en');
+    expect(tex).toContain('A\\_B \\& C\\%');
+  });
+});

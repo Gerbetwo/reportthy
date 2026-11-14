@@ -3,10 +3,8 @@ import {
   CleanedParticipant,
   RawSurveyRow,
   PairedParticipant,
-  AttendanceRecord,
   AttritionAnalysis,
 } from "@/types/dataset";
-import * as XLSX from "xlsx";
 
 export function normalizeName(name: string): string {
   return name
@@ -56,44 +54,6 @@ export function computeNameSimilarity(nameA: string, nameB: string): number {
   // Strict Levenshtein ratio on sorted tokens to avoid substring false positives
   const dist = levenshteinDistance(sortedA, sortedB);
   return Number((1 - dist / maxLen).toFixed(2));
-}
-
-export function parseAttendanceExcel(
-  arrayBuffer: ArrayBuffer
-): AttendanceRecord[] {
-  const workbook = XLSX.read(arrayBuffer, { type: "array" });
-  const sheetName =
-    workbook.SheetNames.find((s) => s.toLowerCase().includes("asistencia")) ||
-    workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  const rawRows: Record<string, string>[] = XLSX.utils.sheet_to_json(sheet);
-
-  return rawRows.map((row) => {
-    const rawName = (row['Nombre del estudiante'] || row['Nombre'] || '').toString().trim();
-    const preAttRaw = (row['Asistencia preprueba'] || '').toString().trim();
-    const postAttRaw = (row['Asistencia postprueba'] || '').toString().trim();
-
-    const isPrePresent =
-      preAttRaw === '✓' ||
-      preAttRaw.toLowerCase() === 'v' ||
-      preAttRaw === '1';
-
-    const isPostPresent =
-      postAttRaw === '✓' ||
-      postAttRaw.toLowerCase() === 'v' ||
-      postAttRaw === '1';
-
-    const preAttendance: '✓' | 'X' = isPrePresent ? '✓' : 'X';
-    const postAttendance: '✓' | 'X' = isPostPresent ? '✓' : 'X';
-
-    return {
-      officialName: rawName,
-      normalizedName: normalizeName(rawName),
-      preAttendance,
-      postAttendance,
-      isOfficialDropout: isPrePresent && !isPostPresent,
-    };
-  });
 }
 
 export function detectCSVRole(headers: string[]): 'pre' | 'post' | 'unknown' {
@@ -180,7 +140,6 @@ export function parseSurveyCSV(
 export function pairPreAndPost(
   preClean: CleanedParticipant[],
   postClean: CleanedParticipant[],
-  attendanceRoster?: AttendanceRecord[],
   threshold = 0.85
 ): {
   paired: PairedParticipant[];
@@ -227,36 +186,11 @@ export function pairPreAndPost(
   const unmatchedPre = preClean.filter((pre) => !usedPre.has(pre.id));
   const unmatchedPost = postClean.filter((post) => !usedPost.has(post.id));
 
-  let officialDropouts: AttendanceRecord[] = [];
-  let masterRosterCount = preClean.length;
-  let officialPreCount = preClean.length;
-  let officialPostCount = postClean.length;
-
-  if (attendanceRoster && attendanceRoster.length > 0) {
-    masterRosterCount = attendanceRoster.length;
-    officialPreCount = attendanceRoster.filter(
-      (r) => r.preAttendance === "✓",
-    ).length;
-    officialPostCount = attendanceRoster.filter(
-      (r) => r.postAttendance === "✓",
-    ).length;
-    officialDropouts = attendanceRoster.filter((r) => r.isOfficialDropout);
-  } else {
-    unmatchedPre.forEach((unmatched) => {
-      officialDropouts.push({
-        officialName: unmatched.originalName,
-        normalizedName: unmatched.normalizedName,
-        preAttendance: "✓",
-        postAttendance: "X",
-        isOfficialDropout: true,
-      });
-    });
-  }
-
-  const officialDesertionCount = officialDropouts.length;
-  const officialDesertionRate =
-    officialPreCount > 0
-      ? Number(((officialDesertionCount / officialPreCount) * 100).toFixed(1))
+  // Attrition is computed strictly by contrasting Pretest vs Posttest CSVs:
+  // pretest respondents with no posttest counterpart are considered attrited.
+  const attritionRate =
+    preClean.length > 0
+      ? Number(((unmatchedPre.length / preClean.length) * 100).toFixed(1))
       : 0;
 
   return {
@@ -264,13 +198,14 @@ export function pairPreAndPost(
     unmatchedPre,
     unmatchedPost,
     attritionAnalysis: {
-      masterRosterCount,
-      officialPreCount,
-      officialPostCount,
-      officialDesertionCount,
-      officialDesertionRate,
-      unmatchedSurveysCount: unmatchedPre.length + unmatchedPost.length,
-      officialDropouts,
+      preCount: preClean.length,
+      postCount: postClean.length,
+      pairedCount: paired.length,
+      unmatchedPreCount: unmatchedPre.length,
+      unmatchedPostCount: unmatchedPost.length,
+      attritionCount: unmatchedPre.length,
+      attritionRate,
+      unmatchedPreNames: unmatchedPre.map((p) => p.originalName),
     },
   };
 }
