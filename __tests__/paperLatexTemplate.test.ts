@@ -53,7 +53,7 @@ const makeJupyterResult = (
   mannSig: boolean = false
 ): JupyterExecutionResult => ({
   executedAt: '2026-11-14T18:00:00.000Z',
-  kernelInfo: 'Python 3.11 (Pyodide) / Scipy 1.11 / Numpy 1.26',
+  kernelInfo: 'Python 3.12.0 (linux) / Scipy 1.14.1 / Numpy 2.1.1',
   alpha: 0.05,
   wilcoxonAlternative: 'greater',
   preMetrics: pre,
@@ -111,7 +111,7 @@ describe('Unified Springer Nature manuscript (lib/paperLatexTemplate.ts)', () =>
     expect(tex).toContain('producing 2 matched participants');
     expect(tex).toContain('11 pretest respondents had no posttest counterpart');
     expect(tex).toContain('27.5\\%');
-    expect(tex).toContain('Python 3.11 (Pyodide)');
+    expect(tex).toContain('Python 3.12.0');
     expect(tex).not.toMatch(/master roster|matrícula oficial|Excel|xlsx/i);
     // Student matrix
     expect(tex).toContain('Alexander Yama');

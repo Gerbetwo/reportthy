@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { en } from '@/locales/en';
 import { es } from '@/locales/es';
 import { StudyMetadata, ExperimentalDesignMode, CohortRole } from '@/types/dataset';
-import { extractUniqueGroups, inferDefaultCohortRole } from '@/lib/csvCleaner';
+import { inferDefaultCohortRole } from '@/lib/csvCleaner';
 
 describe('Study Protocol & Cohort Mapper Logic (Task Part 2/4)', () => {
   it('has identical, symmetrically matching translation keys between en and es for protocol', () => {
@@ -168,5 +168,23 @@ describe('Study Protocol & Cohort Mapper Logic (Task Part 2/4)', () => {
     };
 
     expect(updatedMapping['Taller Adicional']).toBe('Control');
+  });
+
+  it('has identical, symmetrically matching translation keys across the entire en and es dictionaries', () => {
+    function getKeysRecursively(obj: Record<string, unknown>, prefix = ''): string[] {
+      let keys: string[] = [];
+      for (const [key, value] of Object.entries(obj)) {
+        const fullKey = prefix ? (prefix + "." + key) : key;
+        keys.push(fullKey);
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          keys = keys.concat(getKeysRecursively(value as Record<string, unknown>, fullKey));
+        }
+      }
+      return keys.sort();
+    }
+
+    const enAllKeys = getKeysRecursively(en as unknown as Record<string, unknown>);
+    const esAllKeys = getKeysRecursively(es as unknown as Record<string, unknown>);
+    expect(enAllKeys).toEqual(esAllKeys);
   });
 });

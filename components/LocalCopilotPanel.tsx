@@ -337,7 +337,7 @@ export default function LocalCopilotPanel({
                             {t.copilot.suggestedModeLabel}:
                           </span>
                           <code className="text-[11px] font-mono bg-white border border-slate-200 px-1.5 py-0.5 rounded text-indigo-700">
-                            {auditResult.suggestedMode}
+                            {t.protocol.fields.designModeOptions[auditResult.suggestedMode] || auditResult.suggestedMode}
                           </code>
                           <button
                             type="button"

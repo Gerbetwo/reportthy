@@ -267,9 +267,15 @@ ${reasons.map(r => String.raw`\item ${escapeLatex(r.length > 120 ? `${r.slice(0,
     String.raw`Test & $N$ / $(n_1, n_2)$ & Statistic & $Z$ & $p$ & $r$ & Decision`,
     String.raw`Prueba & $N$ / $(n_1, n_2)$ & Estadístico & $Z$ & $p$ & $r$ & Decisión`
   );
+  const altLabelEs =
+    wilcoxonAlternative === 'greater'
+      ? 'mayor'
+      : wilcoxonAlternative === 'less'
+      ? 'menor'
+      : 'bilateral';
   const wRowLabel = tr(
     String.raw`Paired Wilcoxon Signed-Rank (${wilcoxonAlternative})`,
-    String.raw`Wilcoxon de rangos con signo (${wilcoxonAlternative})`
+    String.raw`Wilcoxon de rangos con signo (${altLabelEs})`
   );
   const uRowLabel = tr(
     String.raw`Mann-Whitney $U$ (${ctrlLabel} vs ${expLabel}, $\Delta$)`,

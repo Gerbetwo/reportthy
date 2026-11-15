@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       const errObj = execErr as { stdout?: string; stderr?: string; message?: string };
 
       let rawLog = '';
-      if (fs.existsSync(/*turbopackIgnore: true*/ logFilePath)) {
+      if (fs.existsSync(logFilePath)) {
         try {
           rawLog = fs.readFileSync(logFilePath, 'utf-8');
         } catch {
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
     const message = err instanceof Error ? err.message : 'Internal Server Error';
     return NextResponse.json({ error: message }, { status: 500 });
   } finally {
-    if (tmpDir && fs.existsSync(/*turbopackIgnore: true*/ tmpDir)) {
+    if (tmpDir && fs.existsSync(tmpDir)) {
       try {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       } catch (cleanupErr) {

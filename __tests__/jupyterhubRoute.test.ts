@@ -23,7 +23,9 @@ describe('JupyterHub Execution Bridge Route (app/api/jupyterhub/route.ts)', () =
       sessionId
     );
 
-    const mockJupyterResult: JupyterExecutionResult = {
+    const mockJupyterResult: JupyterExecutionResult & { sessionId: string } = {
+      sessionId,
+
       executedAt: '2026-11-14T19:00:00Z',
       kernelInfo: 'Python 3.11.2 (JupyterHub Singleuser)',
       alpha: 0.05,
@@ -95,11 +97,11 @@ describe('JupyterHub Execution Bridge Route (app/api/jupyterhub/route.ts)', () =
         );
       }
 
-      if (urlStr.includes('reportthy_results.json')) {
+      if (urlStr.includes('reportthy_results_test-results-json-session.json')) {
         return Promise.resolve(
           new Response(
             JSON.stringify({
-              name: 'reportthy_results.json',
+              name: 'reportthy_results_test-results-json-session.json',
               content: JSON.stringify(mockJupyterResult),
             }),
             {

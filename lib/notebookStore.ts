@@ -23,9 +23,10 @@ export interface SessionWorkspace {
 
 export type DatasetBundle = SessionWorkspace;
 
-declare global {
-  var __reportthy_sessions: Map<string, SessionWorkspace> | undefined;
-}
+// Global session map
+const globalForSessions = globalThis as unknown as {
+  __reportthy_sessions?: Map<string, SessionWorkspace>;
+};
 
 function getSessionSnapshotDir(): string {
   return path.join(os.tmpdir(), 'reportthy-sessions');
@@ -67,10 +68,10 @@ export function sanitizeSessionId(id?: string): string {
 }
 
 function getSessionMap(): Map<string, SessionWorkspace> {
-  if (!global.__reportthy_sessions) {
-    global.__reportthy_sessions = new Map<string, SessionWorkspace>();
+  if (!globalForSessions.__reportthy_sessions) {
+    globalForSessions.__reportthy_sessions = new Map<string, SessionWorkspace>();
   }
-  return global.__reportthy_sessions;
+  return globalForSessions.__reportthy_sessions;
 }
 
 export function evictExpiredWorkspaces(sessions: Map<string, SessionWorkspace>, now = Date.now()): void {

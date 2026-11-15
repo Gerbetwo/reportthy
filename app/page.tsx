@@ -102,8 +102,8 @@ export default function HomePage() {
 
       <footer className="bg-white border-t border-[#D0D7DE] py-6 text-xs text-[#57606A] print:hidden">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
-          <span>Reportthy Assessment Studio</span>
-          <span>Open Analytics Pipeline</span>
+          <span>{t.home.footerStudio}</span>
+          <span>{t.home.footerPipeline}</span>
         </div>
       </footer>
     </div>

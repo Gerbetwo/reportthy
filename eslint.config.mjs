@@ -29,7 +29,7 @@ const eslintConfig = [
       "@typescript-eslint/no-unused-expressions": "off",
       "no-unused-expressions": "off",
       "@typescript-eslint/no-unsafe-declaration-merging": "off",
-      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     },
   },
 ];

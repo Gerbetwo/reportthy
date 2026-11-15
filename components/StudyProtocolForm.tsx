@@ -189,7 +189,7 @@ export default function StudyProtocolForm() {
               </span>
               <span className="text-slate-300">•</span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                {studyMetadata.designMode}
+                {t.protocol.fields.designModeOptions[studyMetadata.designMode]}
               </span>
             </div>
             <h2 className="font-serif font-bold text-base text-[#002B49] mt-0.5">

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getServerDatasetBundle,
   saveServerDatasetBundle,
-  getServerJupyterResult,
   saveServerJupyterResult,
   extractSessionId,
   sanitizeSessionId,
@@ -234,13 +233,12 @@ export async function POST(request: NextRequest) {
 
     // Embed JupyterLab interface so researchers have full access to Run -> Run All Cells and menu bar
     const embedUrl = `${JUPYTERHUB_PUBLIC_URL}/user/${JUPYTERHUB_USER}/lab/tree/${notebookFileName}?token=${userToken}`;
-    const fullLabUrl = `${JUPYTERHUB_PUBLIC_URL}/user/${JUPYTERHUB_USER}/lab/tree/${notebookFileName}?token=${userToken}`;
 
     return NextResponse.json({
       ok: true,
       sessionId: safeSessionId,
       embedUrl,
-      fullLabUrl,
+      fullLabUrl: embedUrl,
       user: JUPYTERHUB_USER,
       serverReady: true,
     });
@@ -272,8 +270,8 @@ export async function GET(request: NextRequest) {
     let parsedResult: JupyterExecutionResult | null = null;
     let codeCellSources: string[] = [];
 
-    // 1. Inspect reportthy_results.json on disk (written immediately by Cell 6 even if user hasn't pressed Ctrl+S)
-    const resultsJsonUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/reportthy_results.json?content=1`;
+    // 1. Inspect session-scoped reportthy_results json on disk (written immediately by Cell 6 even if user hasn't pressed Ctrl+S)
+    const resultsJsonUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/reportthy_results_${safeSessionId}.json?content=1`;
     const resultsJsonRes = await fetch(resultsJsonUrl, {
       headers: authHeaders,
       cache: "no-store",
@@ -287,7 +285,7 @@ export async function GET(request: NextRequest) {
             typeof data.content === "string"
               ? JSON.parse(data.content)
               : data.content;
-          if (jsonContent && jsonContent.wilcoxon && jsonContent.preMetrics) {
+          if (jsonContent && jsonContent.wilcoxon && jsonContent.preMetrics && jsonContent.sessionId === safeSessionId) {
             parsedResult = jsonContent as JupyterExecutionResult;
           }
         } catch (e) {
@@ -350,7 +348,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (parsedResult) {
-      if (codeCellSources.length > 0 && (!parsedResult.executedCodeCells || parsedResult.executedCodeCells.length === 0 || parsedResult.executedCodeCells[0]?.includes("executed"))) {
+      if (codeCellSources.length > 0 && (!parsedResult.executedCodeCells || parsedResult.executedCodeCells.length === 0)) {
         parsedResult.executedCodeCells = codeCellSources;
       }
       saveServerJupyterResult(parsedResult, safeSessionId);
@@ -359,17 +357,6 @@ export async function GET(request: NextRequest) {
         sessionId: safeSessionId,
         results: parsedResult,
         source: "jupyterhub-contents",
-      });
-    }
-
-    // Fallback: check in-memory cache if cell posted via HTTP
-    const cached = getServerJupyterResult(safeSessionId);
-    if (cached) {
-      return NextResponse.json({
-        ok: true,
-        sessionId: safeSessionId,
-        results: cached,
-        source: "server-cache",
       });
     }
 

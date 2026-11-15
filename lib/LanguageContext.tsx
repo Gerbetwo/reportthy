@@ -21,12 +21,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem('reportthy_lang') as Language;
     if (saved === 'en' || saved === 'es') {
       setLangState(saved);
+      if (typeof document !== 'undefined') {
+        document.documentElement.lang = saved;
+      }
+    } else if (typeof document !== 'undefined') {
+      document.documentElement.lang = 'en';
     }
   }, []);
 
   const setLang = (newLang: Language) => {
     setLangState(newLang);
     localStorage.setItem('reportthy_lang', newLang);
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = newLang;
+    }
   };
 
   const t = lang === 'es' ? es : en;

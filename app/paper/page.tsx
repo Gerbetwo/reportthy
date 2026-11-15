@@ -81,7 +81,7 @@ export default function PaperPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const pdfUrlRef = useRef<string | null>(null);
-  const initialMountedRef = useRef(false);
+  const compileSeqRef = useRef(0);
 
   // Initial LaTeX generation
   const defaultLatex = useMemo(() => {
@@ -119,6 +119,7 @@ export default function PaperPage() {
     const source = customSource ?? latexSourceRef.current;
     if (!source || !source.trim()) return;
 
+    const seq = ++compileSeqRef.current;
     setIsCompiling(true);
     setCompileError(null);
 
@@ -128,6 +129,8 @@ export default function PaperPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ latexContent: source }),
       });
+
+      if (seq !== compileSeqRef.current) return;
 
       const compileTime = response.headers.get("x-compile-time-ms");
       if (compileTime) {
@@ -148,6 +151,7 @@ export default function PaperPage() {
       }
 
       const blob = await response.blob();
+      if (seq !== compileSeqRef.current) return;
       const newUrl = URL.createObjectURL(blob);
       if (pdfUrlRef.current) {
         URL.revokeObjectURL(pdfUrlRef.current);
@@ -157,6 +161,7 @@ export default function PaperPage() {
       setLastCompiledTex(source);
       setCompileError(null);
     } catch (err: unknown) {
+      if (seq !== compileSeqRef.current) return;
       const msg = err instanceof Error ? err.message : String(err);
       setCompileError({
         error: "Network / Client Error",
@@ -166,9 +171,11 @@ export default function PaperPage() {
       });
       setShowLogs(true);
     } finally {
-      setIsCompiling(false);
+      if (seq === compileSeqRef.current) {
+        setIsCompiling(false);
+      }
     }
-  }, []);
+  }, [compileSeqRef]);
 
   // Auto-compile when defaultLatex changes and editor is not dirty (including initial mount)
   useEffect(() => {
@@ -679,7 +686,7 @@ export default function PaperPage() {
               <div
                 onMouseDown={handleMouseDown}
                 className="w-1.5 hover:w-2 bg-[#D0D7DE] hover:bg-[#002B49] cursor-col-resize transition-all duration-100 flex items-center justify-center shrink-0 group relative z-10"
-                title="Drag to resize panels"
+                title={t.paper.dragResize}
               >
                 <div className="w-0.5 h-8 bg-slate-400 group-hover:bg-white rounded-full" />
               </div>
@@ -781,7 +788,7 @@ export default function PaperPage() {
                       {t.paper.compilingPdf}
                     </p>
                     <p className="text-xs text-slate-400 mt-1 font-mono">
-                      Running pdflatex typesetting passes...
+                      {t.paper.pdflatexPasses}
                     </p>
                   </div>
                 ) : compileError ? (
@@ -862,7 +869,7 @@ export default function PaperPage() {
 
                   <pre className="p-4 text-[11px] font-mono text-slate-300 leading-relaxed overflow-auto flex-1 select-text bg-slate-950">
                     {compileError?.rawLog ||
-                      "pdflatex compilation successful. No errors detected."}
+                      t.paper.compilationSuccess}
                   </pre>
                 </div>
               )}
@@ -908,7 +915,7 @@ export default function PaperPage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-[10px] uppercase font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300">
-                Verified
+                {t.paper.verifiedBadge}
               </span>
               {isAuditOpen ? (
                 <ChevronUp className="w-4 h-4 text-[#57606A]" />
@@ -928,7 +935,7 @@ export default function PaperPage() {
                 <span className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-cyan-400" />
                   {t.paper.executionTimestamp}:{" "}
-                  {new Date(executedAt).toLocaleString()}
+                  {new Date(executedAt).toLocaleString(lang === "es" ? "es-ES" : "en-US")}
                 </span>
               </div>
               <p className="text-[11px] text-emerald-400/90 mb-3 font-sans">

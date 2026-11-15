@@ -2,7 +2,6 @@
 
 import {
   StudyMetadata,
-  ExperimentalDesignMode,
   HypothesisAuditResult,
   PaperNarrativeSlotsResult,
   CopilotModelId,

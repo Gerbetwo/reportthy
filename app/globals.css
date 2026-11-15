@@ -35,14 +35,6 @@ body {
 .bg-scientific-grid { background-color: #FFFFFF; }
 
 /* Fallback Utility Classes */
-.bg-springer-navy { background-color: #002B49 !important; }
-.text-springer-navy { color: #002B49 !important; }
-.border-springer-navy { border-color: #002B49 !important; }
-.bg-springer-crimson { background-color: #C0392B !important; }
-.text-springer-crimson { color: #C0392B !important; }
-.border-springer-crimson { border-color: #C0392B !important; }
-.text-springer-muted { color: #57606A !important; }
-.border-springer-border { border-color: #D0D7DE !important; }
 
 /* Springer Nature Publication Booktabs Table */
 .table-booktabs {

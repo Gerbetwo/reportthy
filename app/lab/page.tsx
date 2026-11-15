@@ -5,10 +5,7 @@ import { useRouter } from 'next/navigation';
 import HeaderNav from '@/components/HeaderNav';
 import { useTranslation } from '@/lib/LanguageContext';
 import { useDatasetStats } from '@/lib/useDatasetStats';
-import { JupyterExecutionResult } from '@/types/dataset';
 import {
-  Download,
-  UploadCloud,
   CheckCircle2,
   XCircle,
   FileText,
@@ -22,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export default function LabPage() {
-  const { t } = useTranslation();
+  const { lang, t } = useTranslation();
   const router = useRouter();
   const {
     sessionId,
@@ -43,7 +40,6 @@ export default function LabPage() {
   const [connectionError, setConnectionError] = useState('');
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [fullLabUrl, setFullLabUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const provisioningRef = useRef(false);
 
   // Manual explicit sync results handler
@@ -174,79 +170,6 @@ export default function LabPage() {
     };
   }, [setJupyterResults, sessionId]);
 
-  // 3. Fallback parser: upload executed .ipynb file directly
-  const handleUploadExecutedIpynb = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const content = evt.target?.result as string;
-        const parsed = JSON.parse(content);
-        let foundResult: JupyterExecutionResult | null = null;
-        const codeCells: string[] = [];
-
-        for (const cell of parsed.cells || []) {
-          if (cell.cell_type === 'code') {
-            codeCells.push(Array.isArray(cell.source) ? cell.source.join('') : cell.source);
-          }
-          for (const out of cell.outputs || []) {
-            const rawText =
-              (Array.isArray(out.text) ? out.text.join('') : out.text) ||
-              (out.data && out.data['text/plain']
-                ? Array.isArray(out.data['text/plain'])
-                  ? out.data['text/plain'].join('')
-                  : out.data['text/plain']
-                : '');
-
-            if (typeof rawText === 'string') {
-              const startMarker = '__REPORTTHY_JSON_START__';
-              const endMarker = '__REPORTTHY_JSON_END__';
-              const sIdx = rawText.indexOf(startMarker);
-              const eIdx = rawText.indexOf(endMarker);
-
-              if (sIdx !== -1 && eIdx !== -1) {
-                const jsonText = rawText.slice(sIdx + startMarker.length, eIdx).trim();
-                foundResult = JSON.parse(jsonText);
-                break;
-              }
-            }
-          }
-          if (foundResult) break;
-        }
-
-        if (foundResult) {
-          if (codeCells.length > 0) {
-            foundResult.executedCodeCells = codeCells;
-          }
-          setJupyterResults(foundResult);
-          fetch('/api/notebook/results', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-reportthy-session': sessionId,
-            },
-            body: JSON.stringify({
-              sessionId,
-              payload: foundResult,
-            }),
-          }).catch(() => {});
-        } else {
-          alert(t.lab.noResultsInIpynb);
-        }
-      } catch (err) {
-        console.error('Failed to parse executed notebook:', err);
-        alert('Invalid JSON structure in .ipynb');
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleDownloadNotebook = () => {
-    window.open(`/api/notebook/ipynb?sessionId=${encodeURIComponent(sessionId)}&download=true`, '_blank');
-  };
-
   return (
     <div className="min-h-screen bg-scientific-grid text-[#1F2328]">
       <HeaderNav />
@@ -271,7 +194,7 @@ export default function LabPage() {
               onClick={() => provisionJupyterHub(true)}
               disabled={isProvisioning}
               className="bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#002B49] px-3.5 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
-              title="Reset notebook and re-push active dataset into JupyterHub workspace"
+              title={t.lab.resetTitle}
             >
               <Server className={`w-3.5 h-3.5 ${isProvisioning ? 'animate-pulse text-amber-600' : 'text-[#002B49]'}`} />
               <span>{isProvisioning ? t.lab.pushing : t.lab.resetAndPush}</span>
@@ -282,7 +205,7 @@ export default function LabPage() {
               onClick={handleSyncResults}
               disabled={isSyncing}
               className="bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#002B49] px-3.5 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
-              title="Poll JupyterHub and disk for recent execution results"
+              title={t.lab.syncTitle}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-emerald-600' : 'text-[#002B49]'}`} />
               <span>{isSyncing ? '...' : t.lab.syncResults}</span>
@@ -295,38 +218,12 @@ export default function LabPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#002B49] px-3.5 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
-                title="Open full JupyterLab workspace with multi-tab terminal & editor in new tab"
+                title={t.lab.openLabTitle}
               >
                 <ExternalLink className="w-3.5 h-3.5 text-[#002B49]" />
                 <span>{t.lab.openInNewTab}</span>
               </a>
             )}
-
-            {/* 4. Compact Download / Upload .ipynb */}
-            <div className="flex items-center border border-[#CBD5E1] rounded overflow-hidden bg-white">
-              <button
-                onClick={handleDownloadNotebook}
-                className="hover:bg-slate-50 text-[#002B49] px-2.5 py-2 text-xs font-semibold flex items-center gap-1 transition border-r border-[#CBD5E1]"
-                title={t.lab.downloadIpynb}
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>.ipynb</span>
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="hover:bg-slate-50 text-[#002B49] px-2.5 py-2 text-xs font-semibold flex items-center gap-1 transition"
-                title={t.lab.uploadExecuted}
-              >
-                <UploadCloud className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept=".ipynb,application/json"
-              className="hidden"
-              onChange={handleUploadExecutedIpynb}
-            />
 
             {/* 4. Synthesize Springer Nature Paper */}
             {jupyterResults && (
@@ -365,7 +262,7 @@ export default function LabPage() {
                   <p className="font-mono text-[11px] text-amber-700 mt-0.5">{connectionError}</p>
                 )}
                 <p className="text-[11px] text-amber-800 mt-1">
-                  Run <code className="bg-amber-100 px-1 py-0.5 rounded font-mono font-bold">docker compose up --build</code> to launch JupyterHub, or use the Download/Upload buttons above.
+                  {t.lab.dockerHint}
                 </p>
               </div>
             </div>
@@ -399,7 +296,7 @@ export default function LabPage() {
               </div>
               <div className="text-[11px] text-[#57606A] font-mono flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
-                <span>{t.lab.executedAt}: {new Date(jupyterResults.executedAt).toLocaleString()}</span>
+                <span>{t.lab.executedAt}: {new Date(jupyterResults.executedAt).toLocaleString(lang === "es" ? "es-ES" : "en-US")}</span>
               </div>
             </div>
 
@@ -494,7 +391,7 @@ export default function LabPage() {
           <div className="bg-[#002B49] px-4 py-2.5 flex items-center justify-between border-b border-slate-700">
             <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
               <span className={`w-2 h-2 rounded-full ${iframeSrc ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
-              <span>JupyterHub / JupyterLab Scientific Workstation</span>
+              <span>{t.lab.workstationTitle}</span>
             </div>
             <span className="text-[11px] text-slate-400 font-mono">
               reportthy_{sessionId}.ipynb

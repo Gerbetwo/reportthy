@@ -33,14 +33,12 @@ export default function UploadPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const {
-    sessionId,
     studyMetadata,
     updateCohortMapping,
     preClean,
     postClean,
     pairedData,
     quarantined,
-    attritionAnalysis,
     setDatasets,
     unlinkPair,
     reconcileCohorts,
@@ -99,7 +97,7 @@ export default function UploadPage() {
       const updatedMapping: Record<string, CohortRole> = { ...currentMapping };
 
       for (const group of groups) {
-        if (!updatedMapping[group] || updatedMapping[group] === 'Unassigned') {
+        if (updatedMapping[group] === undefined) {
           const inferred = inferDefaultCohortRole(group, groups);
           if (inferred !== 'Unassigned') {
             updatedMapping[group] = inferred;
@@ -166,12 +164,18 @@ export default function UploadPage() {
   };
 
   const handleClearPre = () => {
-    setDatasets({ preClean: [] });
+    setDatasets({
+      preClean: [],
+      quarantined: quarantined.filter((q) => !q.id.startsWith('pre')),
+    });
     setPreFilename('');
   };
 
   const handleClearPost = () => {
-    setDatasets({ postClean: [] });
+    setDatasets({
+      postClean: [],
+      quarantined: quarantined.filter((q) => !q.id.startsWith('post')),
+    });
     setPostFilename('');
   };
 
@@ -274,7 +278,7 @@ export default function UploadPage() {
               </span>
               <span className="text-[#CBD5E1]">•</span>
               <span className="text-[11px] font-mono text-[#57606A]">
-                HU-02 Ingestion Suite
+                {t.upload.ingestionSuite}
               </span>
             </div>
             <h1 className="font-serif font-bold text-2xl text-[#002B49]">
@@ -497,7 +501,7 @@ export default function UploadPage() {
                     >
                       <span className="truncate max-w-md">{item.originalName}</span>
                       <span className="text-[10px] text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                        {item.corruptionReason || 'Corrupted'}
+                        {item.corruptionReason || t.upload.corrupted}
                       </span>
                     </div>
                   ))}
@@ -522,10 +526,10 @@ export default function UploadPage() {
               </div>
               <div className="flex items-center gap-2 text-xs font-mono">
                 <span className="px-2 py-0.5 rounded font-semibold bg-blue-50 text-blue-800 border border-blue-200">
-                  Ctrl: {cohortRoleCounts.control}
+                  {t.upload.ctrl}: {cohortRoleCounts.control}
                 </span>
                 <span className="px-2 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  Exp: {cohortRoleCounts.experimental}
+                  {t.upload.exp}: {cohortRoleCounts.experimental}
                 </span>
               </div>
             </div>

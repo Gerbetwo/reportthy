@@ -31,11 +31,11 @@ export default function HeaderNav() {
                 Reportthy
               </span>
               <span className="text-[10px] uppercase font-semibold bg-[#F1F5F9] text-[#002B49] px-2 py-0.5 rounded border border-[#CBD5E1]">
-                Analytics Studio
+                {t.nav.analyticsStudio}
               </span>
             </div>
             <p className="text-[11px] text-[#57606A] -mt-0.5 font-sans">
-              Empirical Assessment Platform
+              {t.nav.empiricalPlatform}
             </p>
           </div>
         </Link>
