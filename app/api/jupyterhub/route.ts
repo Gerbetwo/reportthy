@@ -157,7 +157,17 @@ export async function POST(request: NextRequest) {
       userRes = await fetch(
         `${JUPYTERHUB_INTERNAL_URL}/hub/api/users/${JUPYTERHUB_USER}`,
         { headers: authHeaders },
-      );
+      ).catch(() => null);
+
+      if (!userRes || !userRes.ok) {
+        return NextResponse.json(
+          {
+            error: `Failed to retrieve user record from JupyterHub after creation (HTTP ${userRes?.status ?? 'unreachable'}).`,
+            unreachable: true,
+          },
+          { status: 502 },
+        );
+      }
     } else if (!userRes.ok) {
       return NextResponse.json(
         {
