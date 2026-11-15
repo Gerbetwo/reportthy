@@ -70,6 +70,8 @@ describe('Jupyter Notebook Generator (lib/statsEngine.ts)', () => {
     expect(cell6Source).toContain('reportthy_results');
     expect(cell6Source).toContain(`${customBaseUrl}/api/notebook/results`);
     expect(cell6Source).toContain('__REPORTTHY_JSON_START__');
+    expect(cell6Source).toContain('reportthy_results_default-workspace.json');
+    expect(cell6Source).toContain('"sessionId": "default-workspace"');
 
     // Asserts clean, standard Python without Pyodide browser hacks
     expect(ipynbStr).not.toMatch(/\bimport\s+js\b/);
@@ -141,6 +143,8 @@ describe('Jupyter Notebook Generator (lib/statsEngine.ts)', () => {
     expect(cell6Source).toContain('hypothesis_confirmed = bool((u_p < ALPHA) and (u_z > 0))');
     expect(cell6Source).toContain(`RESULTS_API_URL = "${customBaseUrl}/api/notebook/results?sessionId=session-user-xyz"`);
     expect(cell6Source).toContain('"x-reportthy-session": "session-user-xyz"');
+    expect(cell6Source).toContain('reportthy_results_session-user-xyz.json');
+    expect(cell6Source).toContain('"sessionId": "session-user-xyz"');
   });
 
   it('evaluates combined design mode requiring both Wilcoxon and Mann-Whitney significance', () => {

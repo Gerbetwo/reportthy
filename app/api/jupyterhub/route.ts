@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
     const sessionId = extractSessionId(request, body);
     const safeSessionId = sanitizeSessionId(sessionId);
     const notebookFileName = `reportthy_${safeSessionId}.ipynb`;
+    const resultsFileName = `reportthy_results_${safeSessionId}.json`;
 
     let bundle = getServerDatasetBundle(safeSessionId);
 
@@ -194,7 +195,18 @@ export async function POST(request: NextRequest) {
     let shouldUpload = true;
 
     const forceReset = Boolean(body.forceReset);
-    if (!forceReset) {
+    if (forceReset) {
+      // Remove stale execution results artifact from Jupyter workspace
+      await fetch(
+        `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/${resultsFileName}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `token ${userToken}`,
+          },
+        }
+      ).catch(() => null);
+    } else {
       const checkRes = await fetch(`${contentsUrl}?content=1`, {
         headers: {
           Authorization: `token ${userToken}`,
@@ -260,6 +272,7 @@ export async function GET(request: NextRequest) {
     const sessionId = extractSessionId(request);
     const safeSessionId = sanitizeSessionId(sessionId);
     const notebookFileName = `reportthy_${safeSessionId}.ipynb`;
+    const resultsFileName = `reportthy_results_${safeSessionId}.json`;
 
     const userToken = await mintUserToken(safeSessionId);
     const authHeaders = {
@@ -271,7 +284,7 @@ export async function GET(request: NextRequest) {
     let codeCellSources: string[] = [];
 
     // 1. Inspect session-scoped reportthy_results json on disk (written immediately by Cell 6 even if user hasn't pressed Ctrl+S)
-    const resultsJsonUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/reportthy_results_${safeSessionId}.json?content=1`;
+    const resultsJsonUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/${resultsFileName}?content=1`;
     const resultsJsonRes = await fetch(resultsJsonUrl, {
       headers: authHeaders,
       cache: "no-store",
@@ -285,7 +298,7 @@ export async function GET(request: NextRequest) {
             typeof data.content === "string"
               ? JSON.parse(data.content)
               : data.content;
-          if (jsonContent && jsonContent.wilcoxon && jsonContent.preMetrics && jsonContent.sessionId === safeSessionId) {
+          if (jsonContent && jsonContent.wilcoxon && jsonContent.preMetrics && (!jsonContent.sessionId || jsonContent.sessionId === safeSessionId)) {
             parsedResult = jsonContent as JupyterExecutionResult;
           }
         } catch (e) {

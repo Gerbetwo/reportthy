@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     const verifiedResult: JupyterExecutionResult = {
+      sessionId: resultPayload.sessionId || sessionId,
       executedAt: resultPayload.executedAt || new Date().toISOString(),
       kernelInfo: resultPayload.kernelInfo || 'Unknown Python Kernel',
       alpha: Number(resultPayload.alpha ?? 0.05),

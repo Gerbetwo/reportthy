@@ -5,6 +5,7 @@ import {
   StudyMetadata,
 } from '@/types/dataset';
 import { inferDefaultCohortRole } from '@/lib/csvCleaner';
+import { sanitizeSessionId } from '@/lib/notebookStore';
 
 export function generateIpynbJson(
   pairedData: PairedParticipant[],
@@ -90,7 +91,7 @@ export function generateIpynbJson(
       ? studyMetadata.authors.map((a) => a.fullName).filter(Boolean).join(', ')
       : 'Research Investigator Team';
 
-  const safeSessionId = sessionId || 'default-workspace';
+  const safeSessionId = sanitizeSessionId(sessionId);
   const sessionQuery = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '';
   const datasetApiUrl = `${apiBaseUrl}/api/notebook/dataset${sessionQuery}`;
   const resultsApiUrl = `${apiBaseUrl}/api/notebook/results${sessionQuery}`;
@@ -350,7 +351,7 @@ export function generateIpynbJson(
     '    ] if "In" in globals() and len(In) > 1 else [\n',
     '        "Cell 2 executed", "Cell 3 executed", "Cell 4 executed", "Cell 5 executed", "Cell 6 executed"\n',
     '    ],\n',
-    '    "sessionId": "${safeSessionId}",\n',
+    `    "sessionId": "${safeSessionId}",\n`,
     '}\n\n',
     'def sanitize_json(obj):\n',
     '    if isinstance(obj, float):\n',

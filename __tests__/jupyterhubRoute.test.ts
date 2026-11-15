@@ -23,7 +23,7 @@ describe('JupyterHub Execution Bridge Route (app/api/jupyterhub/route.ts)', () =
       sessionId
     );
 
-    const mockJupyterResult: JupyterExecutionResult & { sessionId: string } = {
+    const mockJupyterResult: JupyterExecutionResult = {
       sessionId,
 
       executedAt: '2026-11-14T19:00:00Z',
@@ -153,5 +153,112 @@ describe('JupyterHub Execution Bridge Route (app/api/jupyterhub/route.ts)', () =
     expect(data.results.wilcoxon.statisticValue).toBe(12.0);
     expect(data.results.mannWhitney.statisticValue).toBe(24.5);
     expect(data.results.hypothesisConfirmed).toBe(true);
+  });
+
+  it('does not leak or inherit results across sessions (session-b returns 404 when session-a has results)', async () => {
+    const sessionA = 'session-a';
+    const sessionB = 'session-b';
+
+    const mockResultA: JupyterExecutionResult = {
+      sessionId: sessionA,
+      executedAt: '2026-11-14T20:00:00Z',
+      kernelInfo: 'Python 3.12 (Linux)',
+      alpha: 0.05,
+      wilcoxonAlternative: 'greater',
+      preMetrics: {
+        n: 10, mean: 5.0, variance: 1.0, stdDev: 1.0, median: 5.0, iqr: 1.0, skewness: 0, kurtosis: 0,
+        shapiroWilk: { statistic: 0.96, pValue: 0.02, isNormal: false },
+      },
+      postMetrics: {
+        n: 10, mean: 8.0, variance: 1.0, stdDev: 1.0, median: 8.0, iqr: 1.0, skewness: 0, kurtosis: 0,
+        shapiroWilk: { statistic: 0.97, pValue: 0.03, isNormal: false },
+      },
+      wilcoxon: {
+        testName: 'Wilcoxon', statisticName: 'W', statisticValue: 5.0, zValue: 2.8, pValue: 0.005, effectSize: 0.7, interpretation: 'Gain', isSignificant: true, alternative: 'greater', n1: 10,
+      },
+      mannWhitney: {
+        testName: 'Mann-Whitney', statisticName: 'U', statisticValue: 12.0, zValue: 2.1, pValue: 0.03, effectSize: 0.5, interpretation: 'Gain', isSignificant: true, alternative: 'greater', n1: 5, n2: 5,
+      },
+      hypothesisConfirmed: true,
+      executedCodeCells: ['print("A executed")'],
+    };
+
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      const urlStr = String(url);
+
+      if (urlStr.includes('/hub/api/users/')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ token: 'mock-user-token-xyz' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      // session-a has results file
+      if (urlStr.includes('reportthy_results_session-a.json')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              name: 'reportthy_results_session-a.json',
+              content: JSON.stringify(mockResultA),
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }
+          )
+        );
+      }
+
+      // session-b results file is not found (404)
+      if (urlStr.includes('reportthy_results_session-b.json')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ message: 'Not found' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      // Notebook for session-b has unexecuted cells
+      if (urlStr.includes('reportthy_session-b.ipynb')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              name: 'reportthy_session-b.ipynb',
+              content: {
+                cells: [
+                  { cell_type: 'code', source: 'print("unexecuted")', outputs: [] },
+                ],
+              },
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }
+          )
+        );
+      }
+
+      return Promise.reject(new Error(`Unhandled URL: ${urlStr}`));
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    // Query session B
+    const reqB = new NextRequest(
+      `http://localhost:3000/api/jupyterhub?sessionId=${sessionB}`,
+      {
+        headers: { 'x-reportthy-session': sessionB },
+      }
+    );
+
+    const resB = await GET(reqB);
+    expect(resB.status).toBe(404);
+
+    const dataB = await resB.json();
+    expect(dataB.ok).toBe(false);
+    expect(dataB.results).toBeUndefined();
   });
 });

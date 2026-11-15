@@ -161,6 +161,7 @@ export interface HypothesisTestResult {
 }
 
 export interface JupyterExecutionResult {
+  sessionId?: string;
   executedAt: string;
   kernelInfo: string;
   alpha: number;
