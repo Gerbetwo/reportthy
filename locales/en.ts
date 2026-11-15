@@ -16,6 +16,7 @@ export const en = {
     howItWorks: 'How Reportthy Works',
     footerStudio: 'Reportthy Assessment Studio',
     footerPipeline: 'Open Analytics Pipeline',
+    aboutLink: 'About & License',
     steps: [
       { id: '01', title: 'Import & Smart Clean', desc: 'Automatically pairs pre- and post-test students, corrects typos in names, quarantines corrupt entries, and computes pre-to-post attrition.', action: 'Upload Surveys', href: '/upload' },
       { id: '02', title: 'Jupyter Analysis Lab', desc: 'Run non-parametric Wilcoxon and Mann-Whitney hypothesis tests on aligned cohorts and export the reproducible .ipynb notebook.', action: 'Open Lab', href: '/lab' },
@@ -292,7 +293,19 @@ export const en = {
     slotsAppliedSuccess: 'Academic narrative slots updated in Springer Nature LaTeX manuscript.',
     slotsError: 'Failed to synthesize academic narrative slots.',
     auditError: 'Hypothesis audit failed.',
-  }
+  },
+  about: {
+    badge: 'Platform & Authorship',
+    title: 'About Reportthy',
+    subtitle: 'An academic quasi-experimental assessment studio combining client-side data sanitization, official JupyterHub computational verification, and automated Springer Nature sn-jnl manuscript synthesis.',
+    overviewTitle: 'End-to-End Scientific Architecture',
+    overviewBody: 'Reportthy is built to enforce mathematical precision and reproducible reporting in educational interventions. The pipeline moves sequentially across three verified stages: (1) client-side dual CSV sanitization, regex quarantine, and Levenshtein fuzzy matching; (2) genuine non-parametric inferential hypothesis testing (Wilcoxon signed-rank and Mann-Whitney U) executed strictly by real SciPy/NumPy kernels in JupyterHub; and (3) dynamic synthesis of Springer Nature sn-jnl LaTeX manuscripts and live PDF compilation.',
+    authorTitle: 'Author & Maintainer',
+    authorRole: 'Software Engineer & Researcher',
+    githubLabel: 'GitHub Profile',
+    licenseTitle: 'Open-Source License (MIT)',
+    backToHome: 'Back to Overview',
+  },
 };
 
 export type Translations = typeof en;

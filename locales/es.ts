@@ -18,6 +18,7 @@ export const es: Translations = {
     howItWorks: 'Cómo Funciona Reportthy',
     footerStudio: 'Reportthy Estudio de Evaluación',
     footerPipeline: 'Pipeline de Analítica Abierta',
+    aboutLink: 'Acerca de y Licencia',
     steps: [
       { id: '01', title: 'Importar y Limpiar', desc: 'Empareja automáticamente estudiantes pre y post-test, corrige errores tipográficos, aísla entradas corruptas y calcula la deserción pre-post.', action: 'Subir Encuestas', href: '/upload' },
       { id: '02', title: 'Laboratorio de Análisis Jupyter', desc: 'Ejecuta pruebas no paramétricas de Wilcoxon y Mann-Whitney sobre cohortes alineadas y exporta el notebook .ipynb reproducible.', action: 'Abrir Lab', href: '/lab' },
@@ -294,5 +295,17 @@ export const es: Translations = {
     slotsAppliedSuccess: 'Campos narrativos académicos actualizados en el manuscrito LaTeX de Springer Nature.',
     slotsError: 'Fallo al sintetizar los campos narrativos académicos.',
     auditError: 'La auditoría de hipótesis ha fallado.',
-  }
+  },
+  about: {
+    badge: 'Plataforma y Autoría',
+    title: 'Acerca de Reportthy',
+    subtitle: 'Un estudio de evaluación cuasi-experimental académica que combina sanitización de datos del lado del cliente, verificación computacional oficial con JupyterHub y síntesis automatizada de manuscritos sn-jnl de Springer Nature.',
+    overviewTitle: 'Arquitectura Científica de Extremo a Extremo',
+    overviewBody: 'Reportthy está diseñado para garantizar precisión matemática y reportes reproducibles en intervenciones educativas. El pipeline avanza secuencialmente a través de tres etapas verificadas: (1) sanitización dual de CSV en el cliente, cuarentena regex y alineación difusa por Levenshtein; (2) pruebas de hipótesis inferenciales no paramétricas (rangos con signo de Wilcoxon y U de Mann-Whitney) ejecutadas estrictamente por kernels reales de SciPy/NumPy en JupyterHub; y (3) síntesis dinámica de manuscritos LaTeX sn-jnl de Springer Nature con compilación PDF en vivo.',
+    authorTitle: 'Autor y Mantenedor',
+    authorRole: 'Ingeniero de Software e Investigador',
+    githubLabel: 'Perfil de GitHub',
+    licenseTitle: 'Licencia de Código Abierto (MIT)',
+    backToHome: 'Volver al Resumen',
+  },
 };

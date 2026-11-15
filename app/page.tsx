@@ -101,9 +101,18 @@ export default function HomePage() {
       </main>
 
       <footer className="bg-white border-t border-[#D0D7DE] py-6 text-xs text-[#57606A] print:hidden">
-        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>{t.home.footerStudio}</span>
-          <span>{t.home.footerPipeline}</span>
+          <div className="flex items-center gap-4">
+            <span>{t.home.footerPipeline}</span>
+            <span className="text-[#D0D7DE]">•</span>
+            <Link
+              href="/about"
+              className="text-[#002B49] hover:text-[#C0392B] font-semibold transition-colors hover:underline"
+            >
+              {t.home.aboutLink}
+            </Link>
+          </div>
         </div>
       </footer>
     </div>
