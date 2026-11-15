@@ -273,14 +273,14 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const setJupyterResults = (res: JupyterExecutionResult | null) => {
+  const setJupyterResults = useCallback((res: JupyterExecutionResult | null) => {
     setJupyterResultsState(res);
     if (res) {
       localStorage.setItem('reportthy_jupyter_results', JSON.stringify(res));
     } else {
       localStorage.removeItem('reportthy_jupyter_results');
     }
-  };
+  }, []);
 
   const setDatasets: DatasetContextType['setDatasets'] = (data) => {
     const nextPre = data.preClean ?? preClean;

@@ -83,6 +83,9 @@ export default function LabPage() {
 
   // 1. Provision JupyterHub single-user server & push notebook workspace
   const provisionJupyterHub = useCallback(async (forceReset = false) => {
+    if (forceReset) {
+      setJupyterResults(null);
+    }
     setIsProvisioning(true);
     setServerUnreachable(false);
     setConnectionError('');
@@ -124,7 +127,7 @@ export default function LabPage() {
       setIsProvisioning(false);
       provisioningRef.current = false;
     }
-  }, [sessionId, studyMetadata, preClean, postClean, pairedData, quarantined, attritionAnalysis]);
+  }, [sessionId, studyMetadata, preClean, postClean, pairedData, quarantined, attritionAnalysis, setJupyterResults]);
 
   useEffect(() => {
     if (provisioningRef.current) return;

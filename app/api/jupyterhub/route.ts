@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
     const safeSessionId = sanitizeSessionId(sessionId);
     const notebookFileName = `reportthy_${safeSessionId}.ipynb`;
     const resultsFileName = `reportthy_results_${safeSessionId}.json`;
+    const forceReset = Boolean(body.forceReset);
 
     let bundle = getServerDatasetBundle(safeSessionId);
 
@@ -87,6 +88,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "No survey dataset available to provision in JupyterHub." },
         { status: 400 },
+      );
+    }
+
+    if (forceReset) {
+      bundle = saveServerDatasetBundle(
+        { ...bundle, jupyterResults: null },
+        safeSessionId,
       );
     }
 
@@ -191,7 +199,6 @@ export async function POST(request: NextRequest) {
     const userToken = await mintUserToken(safeSessionId);
 
     // Step D: Purge stale results if forceReset or no verified results exist
-    const forceReset = Boolean(body.forceReset);
     if (forceReset || !bundle.jupyterResults) {
       // Remove stale execution results artifact from Jupyter workspace
       await fetch(

@@ -2,7 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { GET, POST } from '@/app/api/jupyterhub/route';
 import { POST as POST_DATASET } from '@/app/api/notebook/dataset/route';
-import { clearSessionsForTesting, saveServerDatasetBundle, getServerDatasetBundle } from '@/lib/notebookStore';
+import {
+  clearSessionsForTesting,
+  saveServerDatasetBundle,
+  getServerDatasetBundle,
+  getServerJupyterResult,
+  saveServerJupyterResult,
+} from '@/lib/notebookStore';
 import { JupyterExecutionResult } from '@/types/dataset';
 
 describe('JupyterHub Execution Bridge Route (app/api/jupyterhub/route.ts)', () => {
@@ -416,6 +422,108 @@ describe('JupyterHub Execution Bridge Route (app/api/jupyterhub/route.ts)', () =
     expect(res.status).toBe(200);
     expect(deleteCalled).toBe(true);
     expect(deletedUrl).toContain(`reportthy_results_${sessionId}.json`);
+  });
+
+  it('POST /api/jupyterhub forceReset clears persisted results before deleting the Jupyter artifact and overwriting the notebook', async () => {
+    const sessionId = 'test-force-reset-results-session';
+    saveServerDatasetBundle(
+      {
+        sessionId,
+        preClean: [],
+        postClean: [],
+        pairedData: [],
+        quarantined: [],
+      },
+      sessionId
+    );
+    const persistedResult = {
+      executedAt: '2026-11-14T20:00:00.000Z',
+      kernelInfo: 'Python test',
+      alpha: 0.05,
+      wilcoxonAlternative: 'greater' as const,
+      preMetrics: {} as JupyterExecutionResult['preMetrics'],
+      postMetrics: {} as JupyterExecutionResult['postMetrics'],
+      wilcoxon: {} as JupyterExecutionResult['wilcoxon'],
+      mannWhitney: {} as JupyterExecutionResult['mannWhitney'],
+      hypothesisConfirmed: true,
+      executedCodeCells: [],
+    };
+    saveServerJupyterResult(persistedResult, sessionId);
+
+    const requests: Array<{ url: string; method: string }> = [];
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      const urlStr = String(url);
+      const method = opts?.method || 'GET';
+      requests.push({ url: urlStr, method });
+
+      if (urlStr.includes('/hub/api/users/') && method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ token: 'mock-user-token-xyz' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      if (urlStr.includes('/hub/api/users/')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ servers: { '': { ready: true } } }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      if (
+        urlStr.includes(`reportthy_results_${sessionId}.json`) &&
+        method === 'DELETE'
+      ) {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+
+      if (urlStr.includes(`reportthy_${sessionId}.ipynb`) && method === 'PUT') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ name: `reportthy_${sessionId}.ipynb` }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      return Promise.reject(new Error(`Unhandled URL: ${urlStr} [${method}]`));
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = new NextRequest(
+      `http://localhost:3000/api/jupyterhub?sessionId=${sessionId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-reportthy-session': sessionId,
+        },
+        body: JSON.stringify({ sessionId, forceReset: true }),
+      }
+    );
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(getServerJupyterResult(sessionId)).toBeNull();
+    expect(
+      requests.some(
+        (request) =>
+          request.method === 'DELETE' &&
+          request.url.includes(`reportthy_results_${sessionId}.json`)
+      )
+    ).toBe(true);
+    expect(
+      requests.some(
+        (request) =>
+          request.method === 'PUT' &&
+          request.url.includes(`reportthy_${sessionId}.ipynb`)
+      )
+    ).toBe(true);
   });
 
   it('POST /api/notebook/dataset with invalidateResults: true clears previously saved jupyterResults in notebookStore', async () => {
