@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { GET } from '@/app/api/jupyterhub/route';
-import { clearSessionsForTesting, saveServerDatasetBundle } from '@/lib/notebookStore';
+import { GET, POST } from '@/app/api/jupyterhub/route';
+import { POST as POST_DATASET } from '@/app/api/notebook/dataset/route';
+import { clearSessionsForTesting, saveServerDatasetBundle, getServerDatasetBundle } from '@/lib/notebookStore';
 import { JupyterExecutionResult } from '@/types/dataset';
 
 describe('JupyterHub Execution Bridge Route (app/api/jupyterhub/route.ts)', () => {
@@ -260,5 +261,224 @@ describe('JupyterHub Execution Bridge Route (app/api/jupyterhub/route.ts)', () =
     const dataB = await resB.json();
     expect(dataB.ok).toBe(false);
     expect(dataB.results).toBeUndefined();
+  });
+
+  it('POST /api/jupyterhub executes PUT to overwrite existing notebook even when __REPORTTHY_JSON_START__ appears in cell source', async () => {
+    const sessionId = 'test-overwrite-notebook-session';
+    saveServerDatasetBundle(
+      {
+        sessionId,
+        preClean: [],
+        postClean: [],
+        pairedData: [],
+        quarantined: [],
+      },
+      sessionId
+    );
+
+    let putCalled = false;
+    let putBody: { type?: string } | null = null;
+
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      const urlStr = String(url);
+      const method = opts?.method || 'GET';
+
+      if (urlStr.includes('/hub/api/users/') && method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ token: 'mock-user-token-xyz' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      if (urlStr.includes('/hub/api/users/')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ servers: { '': { ready: true } } }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      if (urlStr.includes('.ipynb') && method === 'PUT') {
+        putCalled = true;
+        putBody = opts?.body ? JSON.parse(String(opts.body)) : null;
+        return Promise.resolve(
+          new Response(JSON.stringify({ name: `reportthy_${sessionId}.ipynb` }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      return Promise.reject(new Error(`Unhandled URL: ${urlStr} [${method}]`));
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = new NextRequest(
+      `http://localhost:3000/api/jupyterhub?sessionId=${sessionId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-reportthy-session': sessionId,
+        },
+        body: JSON.stringify({
+          sessionId,
+          forceReset: false,
+        }),
+      }
+    );
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(putCalled).toBe(true);
+    expect((putBody as { type?: string } | null)?.type).toBe('notebook');
+  });
+
+  it('POST /api/jupyterhub issues DELETE for reportthy_results_<sessionId>.json when bundle.jupyterResults is null or undefined without requiring forceReset: true', async () => {
+    const sessionId = 'test-auto-delete-results-session';
+    saveServerDatasetBundle(
+      {
+        sessionId,
+        preClean: [],
+        postClean: [],
+        pairedData: [],
+        quarantined: [],
+        jupyterResults: null,
+      },
+      sessionId
+    );
+
+    let deleteCalled = false;
+    let deletedUrl = '';
+
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      const urlStr = String(url);
+      const method = opts?.method || 'GET';
+
+      if (urlStr.includes('/hub/api/users/') && method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ token: 'mock-user-token-xyz' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      if (urlStr.includes('/hub/api/users/')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ servers: { '': { ready: true } } }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      if (urlStr.includes(`reportthy_results_${sessionId}.json`) && method === 'DELETE') {
+        deleteCalled = true;
+        deletedUrl = urlStr;
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+
+      if (urlStr.includes('.ipynb') && method === 'PUT') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ name: `reportthy_${sessionId}.ipynb` }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      return Promise.reject(new Error(`Unhandled URL: ${urlStr} [${method}]`));
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = new NextRequest(
+      `http://localhost:3000/api/jupyterhub?sessionId=${sessionId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-reportthy-session': sessionId,
+        },
+        body: JSON.stringify({
+          sessionId,
+          forceReset: false,
+        }),
+      }
+    );
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(deleteCalled).toBe(true);
+    expect(deletedUrl).toContain(`reportthy_results_${sessionId}.json`);
+  });
+
+  it('POST /api/notebook/dataset with invalidateResults: true clears previously saved jupyterResults in notebookStore', async () => {
+    const sessionId = 'test-invalidate-dataset-results-session';
+    saveServerDatasetBundle(
+      {
+        sessionId,
+        preClean: [],
+        postClean: [],
+        pairedData: [],
+        quarantined: [],
+        jupyterResults: {
+          sessionId,
+          executedAt: '2026-11-14T20:00:00Z',
+          kernelInfo: 'Python 3.12 (Linux)',
+          alpha: 0.05,
+          wilcoxonAlternative: 'greater',
+          preMetrics: {
+            n: 10, mean: 5.0, variance: 1.0, stdDev: 1.0, median: 5.0, iqr: 1.0, skewness: 0, kurtosis: 0,
+            shapiroWilk: { statistic: 0.96, pValue: 0.02, isNormal: false },
+          },
+          postMetrics: {
+            n: 10, mean: 8.0, variance: 1.0, stdDev: 1.0, median: 8.0, iqr: 1.0, skewness: 0, kurtosis: 0,
+            shapiroWilk: { statistic: 0.97, pValue: 0.03, isNormal: false },
+          },
+          wilcoxon: {
+            testName: 'Wilcoxon', statisticName: 'W', statisticValue: 5.0, zValue: 2.8, pValue: 0.005, effectSize: 0.7, interpretation: 'Gain', isSignificant: true, alternative: 'greater', n1: 10,
+          },
+          mannWhitney: {
+            testName: 'Mann-Whitney', statisticName: 'U', statisticValue: 12.0, zValue: 2.1, pValue: 0.03, effectSize: 0.5, interpretation: 'Gain', isSignificant: true, alternative: 'greater', n1: 5, n2: 5,
+          },
+          hypothesisConfirmed: true,
+          executedCodeCells: [],
+        },
+      },
+      sessionId
+    );
+
+    // Verify bundle initially has results
+    const initialBundle = getServerDatasetBundle(sessionId);
+    expect(initialBundle?.jupyterResults).not.toBeNull();
+    expect(initialBundle?.jupyterResults?.wilcoxon.statisticValue).toBe(5.0);
+
+    // Send POST with invalidateResults: true
+    const req = new NextRequest(
+      `http://localhost:3000/api/notebook/dataset?sessionId=${sessionId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-reportthy-session': sessionId,
+        },
+        body: JSON.stringify({
+          sessionId,
+          invalidateResults: true,
+        }),
+      }
+    );
+
+    const res = await POST_DATASET(req);
+    expect(res.status).toBe(200);
+
+    const updatedBundle = getServerDatasetBundle(sessionId);
+    expect(updatedBundle?.jupyterResults).toBeNull();
   });
 });

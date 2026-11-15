@@ -190,12 +190,9 @@ export async function POST(request: NextRequest) {
     // Step C: Mint or acquire user access token
     const userToken = await mintUserToken(safeSessionId);
 
-    // Step D: Upload notebook via official Jupyter Server Contents API if needed
-    const contentsUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/${notebookFileName}`;
-    let shouldUpload = true;
-
+    // Step D: Purge stale results if forceReset or no verified results exist
     const forceReset = Boolean(body.forceReset);
-    if (forceReset) {
+    if (forceReset || !bundle.jupyterResults) {
       // Remove stale execution results artifact from Jupyter workspace
       await fetch(
         `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/${resultsFileName}`,
@@ -206,41 +203,27 @@ export async function POST(request: NextRequest) {
           },
         }
       ).catch(() => null);
-    } else {
-      const checkRes = await fetch(`${contentsUrl}?content=1`, {
-        headers: {
-          Authorization: `token ${userToken}`,
-        },
-      }).catch(() => null);
-
-      if (checkRes && checkRes.ok) {
-        const existingData = await checkRes.json().catch(() => null);
-        const existingStr = JSON.stringify(existingData?.content || {});
-        if (existingStr.includes("__REPORTTHY_JSON_START__")) {
-          shouldUpload = false;
-        }
-      }
     }
 
-    if (shouldUpload) {
-      const putRes = await fetch(contentsUrl, {
-        method: "PUT",
-        headers: {
-          Authorization: `token ${userToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          type: "notebook",
-          format: "json",
-          content: JSON.parse(notebookJsonStr),
-        }),
-      }).catch(() => null);
+    // Step E: Always upload the latest notebook via official Jupyter Server Contents API
+    const contentsUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/${notebookFileName}`;
+    const putRes = await fetch(contentsUrl, {
+      method: "PUT",
+      headers: {
+        Authorization: `token ${userToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        type: "notebook",
+        format: "json",
+        content: JSON.parse(notebookJsonStr),
+      }),
+    }).catch(() => null);
 
-      if (!putRes || !putRes.ok) {
-        console.warn(
-          `[JupyterHub Contents API] PUT notebook status: ${putRes?.status}`,
-        );
-      }
+    if (!putRes || !putRes.ok) {
+      console.warn(
+        `[JupyterHub Contents API] PUT notebook status: ${putRes?.status}`,
+      );
     }
 
     // Embed JupyterLab interface so researchers have full access to Run -> Run All Cells and menu bar

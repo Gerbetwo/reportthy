@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import {
   CleanedParticipant,
   PairedParticipant,
@@ -77,6 +77,30 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     useState<AttritionAnalysis | null>(null);
   const [jupyterResults, setJupyterResultsState] =
     useState<JupyterExecutionResult | null>(null);
+
+  const pendingInvalidationRef = useRef<boolean>(false);
+
+  const invalidateResults = useCallback(() => {
+    setJupyterResultsState(null);
+    pendingInvalidationRef.current = true;
+    try {
+      localStorage.removeItem('reportthy_jupyter_results');
+    } catch {}
+
+    // Purge server-side results immediately; the dataset sync effect persists
+    // the latest state after React applies the corresponding update.
+    fetch('/api/notebook/dataset', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-reportthy-session': sessionId,
+      },
+      body: JSON.stringify({
+        sessionId,
+        invalidateResults: true,
+      }),
+    }).catch(() => {});
+  }, [sessionId]);
 
   useEffect(() => {
     try {
@@ -172,6 +196,14 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.warn('Failed to save study metadata to localStorage:', e);
       }
+      if (
+        prev.designMode !== next.designMode ||
+        prev.alpha !== next.alpha ||
+        prev.wilcoxonAlternative !== next.wilcoxonAlternative ||
+        prev.mannWhitneyAlternative !== next.mannWhitneyAlternative
+      ) {
+        invalidateResults();
+      }
       return next;
     });
   };
@@ -235,10 +267,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
       });
 
       // Invalidate stale jupyterResults
-      setJupyterResultsState(null);
-      try {
-        localStorage.removeItem('reportthy_jupyter_results');
-      } catch {}
+      invalidateResults();
 
       return nextMeta;
     });
@@ -263,8 +292,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
 
     // Invalidate stale Jupyter verification whenever new survey inputs are loaded
     if (data.preClean || data.postClean) {
-      setJupyterResultsState(null);
-      localStorage.removeItem('reportthy_jupyter_results');
+      invalidateResults();
     }
 
     if ((data.preClean || data.postClean) && !data.pairedData) {
@@ -320,8 +348,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     }
 
     // When pair linkage changes, clear execution results to avoid discrepancy
-    setJupyterResultsState(null);
-    localStorage.removeItem('reportthy_jupyter_results');
+    invalidateResults();
   };
 
   const reconcileCohorts = () => {
@@ -336,14 +363,15 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
         quarantined,
         result.attritionAnalysis
       );
-      setJupyterResultsState(null);
-      localStorage.removeItem('reportthy_jupyter_results');
     }
+    invalidateResults();
   };
 
   // Automatically sync datasets and protocol settings to the server session store
   useEffect(() => {
     if (preClean.length > 0 && postClean.length > 0) {
+      const invalidate = pendingInvalidationRef.current;
+      pendingInvalidationRef.current = false;
       fetch('/api/notebook/dataset', {
         method: 'POST',
         headers: {
@@ -358,6 +386,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
           pairedData,
           quarantined,
           attritionAnalysis,
+          invalidateResults: invalidate,
         }),
       }).catch(() => {});
     }

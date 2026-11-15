@@ -13,11 +13,12 @@ export async function POST(request: NextRequest) {
       {
         sessionId,
         studyMetadata: body.studyMetadata,
-        preClean: body.preClean || [],
-        postClean: body.postClean || [],
-        pairedData: body.pairedData || [],
-        quarantined: body.quarantined || [],
-        attritionAnalysis: body.attritionAnalysis || null,
+        preClean: body.preClean,
+        postClean: body.postClean,
+        pairedData: body.pairedData,
+        quarantined: body.quarantined,
+        attritionAnalysis: body.attritionAnalysis,
+        jupyterResults: body.invalidateResults ? null : undefined,
       },
       sessionId
     );
