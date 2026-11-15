@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import HeaderNav from '@/components/HeaderNav';
 import { useTranslation } from '@/lib/LanguageContext';
 import { useDatasetStats } from '@/lib/useDatasetStats';
+import { JupyterExecutionResult } from '@/types/dataset';
 import {
   CheckCircle2,
   XCircle,
@@ -52,13 +53,20 @@ export default function LabPage() {
       const res = await fetch(`/api/notebook/results?sessionId=${encodeURIComponent(sessionId)}`, {
         headers: { 'x-reportthy-session': sessionId },
       });
+      let fallbackResults: JupyterExecutionResult | null = null;
       if (res.ok) {
         const data = await res.json();
         if (data.results) {
-          setJupyterResults(data.results);
-          setSyncFeedback(t.lab.syncSuccess);
-          setTimeout(() => setSyncFeedback(null), 3000);
-          return;
+          if (
+            Array.isArray(data.results.executedCodeCells) &&
+            data.results.executedCodeCells.length > 0
+          ) {
+            setJupyterResults(data.results);
+            setSyncFeedback(t.lab.syncSuccess);
+            setTimeout(() => setSyncFeedback(null), 3000);
+            return;
+          }
+          fallbackResults = data.results;
         }
       }
       const hubRes = await fetch(`/api/jupyterhub?sessionId=${encodeURIComponent(sessionId)}`, {
@@ -72,6 +80,12 @@ export default function LabPage() {
           setTimeout(() => setSyncFeedback(null), 3000);
           return;
         }
+      }
+      if (fallbackResults) {
+        setJupyterResults(fallbackResults);
+        setSyncFeedback(t.lab.syncSuccess);
+        setTimeout(() => setSyncFeedback(null), 3000);
+        return;
       }
       setSyncFeedback(t.lab.syncPending);
       setTimeout(() => setSyncFeedback(null), 3500);
@@ -159,17 +173,24 @@ export default function LabPage() {
         if (!isMounted || isProvisioningRef.current || pollGeneration !== resetGenerationRef.current) {
           return;
         }
+        let polledFallbackResults: JupyterExecutionResult | null = null;
         if (res.ok) {
           const data = await res.json();
           if (!isMounted || isProvisioningRef.current || pollGeneration !== resetGenerationRef.current) {
             return;
           }
           if (data.results) {
-            setJupyterResults(data.results);
-            return;
+            if (
+              Array.isArray(data.results.executedCodeCells) &&
+              data.results.executedCodeCells.length > 0
+            ) {
+              setJupyterResults(data.results);
+              return;
+            }
+            polledFallbackResults = data.results;
           }
         }
-        // Fallback to checking JupyterHub contents if notebook was saved
+        // Fallback to checking JupyterHub contents if notebook was saved or code cells need hydration
         const hubRes = await fetch(`/api/jupyterhub?sessionId=${encodeURIComponent(sessionId)}`, {
           headers: { 'x-reportthy-session': sessionId },
         });
@@ -183,7 +204,11 @@ export default function LabPage() {
           }
           if (hubData.results) {
             setJupyterResults(hubData.results);
+            return;
           }
+        }
+        if (polledFallbackResults) {
+          setJupyterResults(polledFallbackResults);
         }
       } catch {
         // Silently ignore transient network errors during background polling

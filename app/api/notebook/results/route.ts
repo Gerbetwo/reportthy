@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  getServerDatasetBundle,
   getServerJupyterResult,
   saveServerJupyterResult,
   extractSessionId,
 } from '@/lib/notebookStore';
+import { generateIpynbJson } from '@/lib/statsEngine';
 import { JupyterExecutionResult } from '@/types/dataset';
 
 export async function POST(request: NextRequest) {
@@ -23,6 +25,36 @@ export async function POST(request: NextRequest) {
         { error: 'Missing mandatory metrics in execution result payload' },
         { status: 422 }
       );
+    }
+
+    let resolvedCodeCells: string[] = Array.isArray(resultPayload.executedCodeCells)
+      ? resultPayload.executedCodeCells
+      : [];
+
+    if (resolvedCodeCells.length === 0) {
+      const bundle = getServerDatasetBundle(sessionId);
+      if (bundle) {
+        const ipynbStr = generateIpynbJson(
+          bundle.pairedData,
+          bundle.preClean,
+          bundle.postClean,
+          bundle.quarantined,
+          bundle.attritionAnalysis,
+          bundle.studyMetadata?.wilcoxonAlternative || 'greater',
+          bundle.studyMetadata?.alpha || 0.05,
+          process.env.REPORTTHY_INTERNAL_URL || 'http://localhost:3000',
+          bundle.studyMetadata,
+          sessionId
+        );
+        const parsedNotebook = JSON.parse(ipynbStr) as {
+          cells?: Array<{ cell_type: string; source: string | string[] }>;
+        };
+        if (Array.isArray(parsedNotebook.cells)) {
+          resolvedCodeCells = parsedNotebook.cells
+            .filter((c) => c.cell_type === 'code')
+            .map((c) => (Array.isArray(c.source) ? c.source.join('') : c.source));
+        }
+      }
     }
 
     const verifiedResult: JupyterExecutionResult = {
@@ -47,9 +79,7 @@ export async function POST(request: NextRequest) {
         n1: 0,
       },
       hypothesisConfirmed: Boolean(resultPayload.hypothesisConfirmed),
-      executedCodeCells: Array.isArray(resultPayload.executedCodeCells)
-        ? resultPayload.executedCodeCells
-        : [],
+      executedCodeCells: resolvedCodeCells,
       designMode: resultPayload.designMode,
       controlLabel: resultPayload.controlLabel,
       experimentalLabel: resultPayload.experimentalLabel,

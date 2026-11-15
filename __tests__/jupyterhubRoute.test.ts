@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { clearUserTokenCacheForTesting, GET, POST } from '@/app/api/jupyterhub/route';
 import { POST as POST_DATASET } from '@/app/api/notebook/dataset/route';
+import { POST as POST_RESULTS } from '@/app/api/notebook/results/route';
 import {
   clearSessionsForTesting,
   saveServerDatasetBundle,
@@ -635,5 +636,60 @@ describe('JupyterHub Execution Bridge Route (app/api/jupyterhub/route.ts)', () =
 
     const updatedBundle = getServerDatasetBundle(sessionId);
     expect(updatedBundle?.jupyterResults).toBeNull();
+  });
+
+  it('POST /api/notebook/results hydrates executedCodeCells from the session dataset bundle when omitted', async () => {
+    const sessionId = 'test-hydrate-code-cells-session';
+    saveServerDatasetBundle(
+      {
+        sessionId,
+        preClean: [],
+        postClean: [],
+        pairedData: [],
+        quarantined: [],
+      },
+      sessionId
+    );
+
+    const req = new NextRequest(
+      `http://localhost:3000/api/notebook/results?sessionId=${sessionId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-reportthy-session': sessionId,
+        },
+        body: JSON.stringify({
+          sessionId,
+          executedAt: '2026-11-14T21:00:00Z',
+          kernelInfo: 'Python 3.12 (Linux)',
+          alpha: 0.05,
+          wilcoxonAlternative: 'greater',
+          preMetrics: {
+            n: 10, mean: 5.0, variance: 1.0, stdDev: 1.0, median: 5.0, iqr: 1.0, skewness: 0, kurtosis: 0,
+            shapiroWilk: { statistic: 0.96, pValue: 0.02, isNormal: false },
+          },
+          postMetrics: {
+            n: 10, mean: 8.0, variance: 1.0, stdDev: 1.0, median: 8.0, iqr: 1.0, skewness: 0, kurtosis: 0,
+            shapiroWilk: { statistic: 0.97, pValue: 0.03, isNormal: false },
+          },
+          wilcoxon: {
+            testName: 'Wilcoxon', statisticName: 'W', statisticValue: 5.0, zValue: 2.8, pValue: 0.005, effectSize: 0.7, interpretation: 'Gain', isSignificant: true, alternative: 'greater', n1: 10,
+          },
+          mannWhitney: {
+            testName: 'Mann-Whitney', statisticName: 'U', statisticValue: 12.0, zValue: 2.1, pValue: 0.03, effectSize: 0.5, interpretation: 'Gain', isSignificant: true, alternative: 'greater', n1: 5, n2: 5,
+          },
+          hypothesisConfirmed: true,
+        }),
+      }
+    );
+
+    const res = await POST_RESULTS(req);
+    expect(res.status).toBe(200);
+
+    const data = await res.json();
+    expect(Array.isArray(data.results.executedCodeCells)).toBe(true);
+    expect(data.results.executedCodeCells.length).toBe(5);
+    expect(data.results.executedCodeCells.join('\n')).toContain('stats.wilcoxon');
   });
 });
