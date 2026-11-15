@@ -19,6 +19,18 @@ export function generateIpynbJson(
   studyMetadata?: StudyMetadata,
   sessionId?: string
 ): string {
+  const allObservedGroups = Array.from(
+    new Set(
+      [
+        ...pairedData.map((p) => p.group),
+        ...preData.map((p) => p.group),
+        ...postData.map((p) => p.group),
+      ]
+        .map((g) => (g || '').trim())
+        .filter(Boolean)
+    )
+  );
+
   const pairedRecords =
     pairedData.length > 0
       ? pairedData.map((p) => ({
@@ -26,7 +38,7 @@ export function generateIpynbJson(
           cohortRole:
             p.cohortRole ??
             (studyMetadata?.cohortMapping?.[p.group] ||
-              inferDefaultCohortRole(p.group)),
+              inferDefaultCohortRole(p.group, allObservedGroups)),
         }))
       : preData
           .slice(0, Math.min(preData.length, postData.length))
@@ -38,7 +50,7 @@ export function generateIpynbJson(
                 ? postData[idx].cohortRole
                 : pre.cohortRole ??
                   (studyMetadata?.cohortMapping?.[grp] ||
-                    inferDefaultCohortRole(grp));
+                    inferDefaultCohortRole(grp, allObservedGroups));
             return {
               preName: pre.originalName,
               postName: postData[idx]?.originalName || pre.originalName,

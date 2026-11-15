@@ -309,6 +309,36 @@ describe('Data Ingestion & Pre-flight Sanitization Engine (lib/csvCleaner.ts)', 
     expect(clean[1].cohortRole).toBe('Experimental');
     expect(clean[1].score).toBe(15);
   });
+
+  it('automatically infers Control and Experimental roles across arbitrary two-cohort CSVs without manual cohortMapping', () => {
+    const preRows: RawSurveyRow[] = [
+      { Name: 'Alice', Score: '4', Group: 'Section A' },
+      { Name: 'Bob', Score: '5', Group: 'Section B' },
+    ];
+    const postRows: RawSurveyRow[] = [
+      { Name: 'Alice', Score: '7', Group: 'Section A' },
+      { Name: 'Bob', Score: '9', Group: 'Section B' },
+    ];
+
+    const parsedPre = parseSurveyCSV(preRows, 'pre');
+    const parsedPost = parseSurveyCSV(postRows, 'post');
+    const { paired } = pairPreAndPost(parsedPre.clean, parsedPost.clean);
+
+    expect(parsedPre.clean[0].cohortRole).toBe('Control');
+    expect(parsedPre.clean[1].cohortRole).toBe('Experimental');
+    expect(paired).toHaveLength(2);
+    expect(paired[0].cohortRole).toBe('Control');
+    expect(paired[1].cohortRole).toBe('Experimental');
+
+    // Also verifies standard Control vs Treatment / asymmetric labels
+    const treatmentRows: RawSurveyRow[] = [
+      { Name: 'Student 1', Score: '6', Group: 'Control' },
+      { Name: 'Student 2', Score: '8', Group: 'Treatment' },
+    ];
+    const parsedTreatment = parseSurveyCSV(treatmentRows, 'pre');
+    expect(parsedTreatment.clean[0].cohortRole).toBe('Control');
+    expect(parsedTreatment.clean[1].cohortRole).toBe('Experimental');
+  });
 });
 
 describe('Multi-Coworker Session Isolation (lib/notebookStore.ts)', () => {

@@ -10,7 +10,7 @@ import {
   CohortRole,
   DEFAULT_STUDY_METADATA,
 } from '@/types/dataset';
-import { pairPreAndPost, inferDefaultCohortRole } from '@/lib/csvCleaner';
+import { pairPreAndPost, inferDefaultCohortRole, extractUniqueGroups } from '@/lib/csvCleaner';
 
 interface DatasetContextType {
   sessionId: string;
@@ -229,8 +229,9 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
         console.warn('Failed to save study metadata to localStorage:', e);
       }
 
+      const allGroups = extractUniqueGroups(preClean, postClean);
       const rederiveRole = (group: string): CohortRole => {
-        return nextMapping[group] ?? inferDefaultCohortRole(group);
+        return nextMapping[group] ?? inferDefaultCohortRole(group, allGroups);
       };
 
       setPreClean((prevPre) => {
@@ -283,9 +284,23 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setDatasets: DatasetContextType['setDatasets'] = (data) => {
-    const nextPre = data.preClean ?? preClean;
-    const nextPost = data.postClean ?? postClean;
+    const rawPre = data.preClean ?? preClean;
+    const rawPost = data.postClean ?? postClean;
     const nextQuar = data.quarantined ?? quarantined;
+
+    const allGroups = extractUniqueGroups(rawPre, rawPost);
+    const rederiveRole = (group: string): CohortRole => {
+      return studyMetadata.cohortMapping?.[group] ?? inferDefaultCohortRole(group, allGroups);
+    };
+
+    const nextPre =
+      data.preClean || data.postClean
+        ? rawPre.map((p) => ({ ...p, cohortRole: rederiveRole(p.group) }))
+        : rawPre;
+    const nextPost =
+      data.preClean || data.postClean
+        ? rawPost.map((p) => ({ ...p, cohortRole: rederiveRole(p.group) }))
+        : rawPost;
 
     let nextPaired = data.pairedData ?? pairedData;
     let nextAttr = data.attritionAnalysis ?? attritionAnalysis;

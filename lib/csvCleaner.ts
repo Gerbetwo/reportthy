@@ -75,7 +75,7 @@ export function inferDefaultCohortRole(
   const normalized = normalizeName(rawGroup);
 
   const controlRegex = /control|tradicional|master\s*class|pdf|guia|listado\s*1|grupo\s*1|grupo\s*a/i;
-  const experimentalRegex = /experimental|gamif|ia\b|ai\b|generativ|listado\s*2|grupo\s*2|grupo\s*b/i;
+  const experimentalRegex = /experimental|treatment|tratamiento|intervention|intervencion|gamif|ia\b|ai\b|generativ|listado\s*2|grupo\s*2|grupo\s*b/i;
 
   if (controlRegex.test(normalized)) {
     return 'Control';
@@ -87,8 +87,20 @@ export function inferDefaultCohortRole(
   if (allObservedGroups && allObservedGroups.length > 0) {
     const distinct = Array.from(
       new Set(allObservedGroups.map((g) => g.trim()).filter((g) => g.length > 0))
-    );
+    ).sort();
+
     if (distinct.length === 2) {
+      const otherGroup = distinct.find((g) => normalizeName(g) !== normalized);
+      if (otherGroup) {
+        const otherNorm = normalizeName(otherGroup);
+        if (controlRegex.test(otherNorm) && !experimentalRegex.test(otherNorm)) {
+          return 'Experimental';
+        }
+        if (experimentalRegex.test(otherNorm) && !controlRegex.test(otherNorm)) {
+          return 'Control';
+        }
+      }
+
       if (rawGroup.trim() === distinct[0] || normalized === normalizeName(distinct[0])) {
         return 'Control';
       }
@@ -145,7 +157,7 @@ export function parseSurveyCSV(
   const clean: CleanedParticipant[] = [];
   const quarantined: CleanedParticipant[] = [];
 
-  rows.forEach((row, index) => {
+  const parsedRows = rows.map((row, index) => {
     const rawName = (
       findRowValue(row, [
         "Nombre y apellido ",
@@ -197,19 +209,38 @@ export function parseSurveyCSV(
       corruptionReason = "Invalid score format";
     }
 
-    const cohortRole: CohortRole =
-      cohortMapping?.[rawGroup] ?? inferDefaultCohortRole(rawGroup);
-
-    const participant: CleanedParticipant = {
-      id: `${source}-${index + 1}`,
-      originalName: rawName,
-      normalizedName: normalizeName(rawName),
-      group: rawGroup,
-      cohortRole,
-      score: numericScore,
+    return {
+      index,
+      rawName,
+      rawGroup,
       timestamp,
+      numericScore,
       isFlaggedCorrupted: isCorrupted || isInvalidScore,
       corruptionReason,
+    };
+  });
+
+  const validGroups = parsedRows
+    .filter((r) => !r.isFlaggedCorrupted)
+    .map((r) => r.rawGroup);
+  const observedGroups = Array.from(
+    new Set((validGroups.length > 0 ? validGroups : parsedRows.map((r) => r.rawGroup)).filter(Boolean))
+  );
+
+  parsedRows.forEach((item) => {
+    const cohortRole: CohortRole =
+      cohortMapping?.[item.rawGroup] ?? inferDefaultCohortRole(item.rawGroup, observedGroups);
+
+    const participant: CleanedParticipant = {
+      id: `${source}-${item.index + 1}`,
+      originalName: item.rawName,
+      normalizedName: normalizeName(item.rawName),
+      group: item.rawGroup,
+      cohortRole,
+      score: item.numericScore,
+      timestamp: item.timestamp,
+      isFlaggedCorrupted: item.isFlaggedCorrupted,
+      corruptionReason: item.corruptionReason,
     };
 
     if (participant.isFlaggedCorrupted) {
