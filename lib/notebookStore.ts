@@ -77,8 +77,10 @@ function getSessionMap(): Map<string, SessionWorkspace> {
 export function evictExpiredWorkspaces(sessions: Map<string, SessionWorkspace>, now = Date.now()): void {
   const maxAge = 24 * 60 * 60 * 1000; // 24 hours
   for (const [key, workspace] of sessions.entries()) {
-    const updatedTime = new Date(workspace.updatedAt).getTime();
-    if (isNaN(updatedTime) || now - updatedTime > maxAge) {
+    const updatedTime = workspace.updatedAt ? new Date(workspace.updatedAt).getTime() : NaN;
+    const validUpdatedTime = isNaN(updatedTime) ? now : updatedTime;
+
+    if (now - validUpdatedTime > maxAge) {
       sessions.delete(key);
       try {
         const filePath = path.join(getSessionSnapshotDir(), `${key}.json`);
@@ -86,6 +88,9 @@ export function evictExpiredWorkspaces(sessions: Map<string, SessionWorkspace>, 
           fs.unlinkSync(filePath);
         }
       } catch {}
+    } else if (isNaN(updatedTime)) {
+      workspace.updatedAt = new Date(now).toISOString();
+      sessions.set(key, workspace);
     }
   }
 }
@@ -135,6 +140,7 @@ export function saveServerDatasetBundle(
 export function getServerDatasetBundle(sessionId?: string): SessionWorkspace | null {
   const safeId = sanitizeSessionId(sessionId);
   const sessions = getSessionMap();
+  evictExpiredWorkspaces(sessions);
   let workspace = sessions.get(safeId);
   if (!workspace) {
     workspace = loadWorkspaceFromDisk(safeId) ?? undefined;
@@ -174,6 +180,7 @@ export function saveServerJupyterResult(res: JupyterExecutionResult, sessionId?:
 export function getServerJupyterResult(sessionId?: string): JupyterExecutionResult | null {
   const safeId = sanitizeSessionId(sessionId);
   const sessions = getSessionMap();
+  evictExpiredWorkspaces(sessions);
   let workspace = sessions.get(safeId);
   if (!workspace) {
     workspace = loadWorkspaceFromDisk(safeId) ?? undefined;
