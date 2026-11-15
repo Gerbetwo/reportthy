@@ -35,6 +35,8 @@ export default function LabPage() {
   } = useDatasetStats();
 
   const [isProvisioning, setIsProvisioning] = useState(false);
+  const [isProvisioned, setIsProvisioned] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [serverUnreachable, setServerUnreachable] = useState(false);
@@ -47,15 +49,19 @@ export default function LabPage() {
 
   // Manual explicit sync results handler
   const handleSyncResults = async () => {
+    if (isProvisioningRef.current) return;
+    const syncGeneration = resetGenerationRef.current;
     setIsSyncing(true);
     setSyncFeedback(null);
     try {
       const res = await fetch(`/api/notebook/results?sessionId=${encodeURIComponent(sessionId)}`, {
         headers: { 'x-reportthy-session': sessionId },
       });
+      if (isProvisioningRef.current || syncGeneration !== resetGenerationRef.current) return;
       let fallbackResults: JupyterExecutionResult | null = null;
       if (res.ok) {
         const data = await res.json();
+        if (isProvisioningRef.current || syncGeneration !== resetGenerationRef.current) return;
         if (data.results) {
           if (
             Array.isArray(data.results.executedCodeCells) &&
@@ -72,8 +78,10 @@ export default function LabPage() {
       const hubRes = await fetch(`/api/jupyterhub?sessionId=${encodeURIComponent(sessionId)}`, {
         headers: { 'x-reportthy-session': sessionId },
       });
+      if (isProvisioningRef.current || syncGeneration !== resetGenerationRef.current) return;
       if (hubRes.ok) {
         const hubData = await hubRes.json();
+        if (isProvisioningRef.current || syncGeneration !== resetGenerationRef.current) return;
         if (hubData.results) {
           setJupyterResults(hubData.results);
           setSyncFeedback(t.lab.syncSuccess);
@@ -107,7 +115,9 @@ export default function LabPage() {
 
     if (forceReset) {
       setJupyterResults(null);
+      setIframeSrc(null);
     }
+    setIsProvisioned(false);
     setIsProvisioning(true);
     setServerUnreachable(false);
     setConnectionError('');
@@ -133,10 +143,12 @@ export default function LabPage() {
 
       const data = await res.json();
       if (res.ok && data.embedUrl) {
+        setIframeKey((k) => k + 1);
         setIframeSrc(data.embedUrl);
         if (data.fullLabUrl) {
           setFullLabUrl(data.fullLabUrl);
         }
+        setIsProvisioned(true);
         setServerUnreachable(false);
       } else {
         setServerUnreachable(true);
@@ -152,6 +164,11 @@ export default function LabPage() {
   }, [sessionId, studyMetadata, preClean, postClean, pairedData, quarantined, attritionAnalysis, setJupyterResults]);
 
   useEffect(() => {
+    setIsProvisioned(false);
+    setIframeSrc(null);
+  }, [sessionId]);
+
+  useEffect(() => {
     if (autoProvisionedSessionRef.current === sessionId) return;
     if (preClean.length > 0 || postClean.length > 0) {
       autoProvisionedSessionRef.current = sessionId;
@@ -159,9 +176,9 @@ export default function LabPage() {
     }
   }, [provisionJupyterHub, preClean.length, postClean.length, sessionId]);
 
-  // 2. Real-time polling loop to automatically detect Jupyter execution results
+  // 2. Real-time polling loop gated on completed provisioning
   useEffect(() => {
-    if (isProvisioning) return;
+    if (isProvisioning || !isProvisioned) return;
 
     let isMounted = true;
     const pollGeneration = resetGenerationRef.current;
@@ -219,7 +236,7 @@ export default function LabPage() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [isProvisioning, setJupyterResults, sessionId]);
+  }, [isProvisioning, isProvisioned, setJupyterResults, sessionId]);
 
   return (
     <div className="min-h-screen bg-scientific-grid text-[#1F2328]">
@@ -254,7 +271,7 @@ export default function LabPage() {
             {/* 2. Sync Execution Results */}
             <button
               onClick={handleSyncResults}
-              disabled={isSyncing}
+              disabled={isSyncing || isProvisioning}
               className="bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#002B49] px-3.5 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
               title={t.lab.syncTitle}
             >
@@ -451,6 +468,7 @@ export default function LabPage() {
 
           {iframeSrc ? (
             <iframe
+              key={iframeKey}
               src={iframeSrc}
               title="JupyterHub Research Environment"
               className="w-full h-[760px] border-none bg-white"

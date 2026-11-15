@@ -245,8 +245,12 @@ export async function POST(request: NextRequest) {
     }).catch(() => null);
 
     if (!putRes || !putRes.ok) {
-      console.warn(
-        `[JupyterHub Contents API] PUT notebook status: ${putRes?.status}`,
+      return NextResponse.json(
+        {
+          error: `Failed to upload notebook ${notebookFileName} to JupyterHub (HTTP ${putRes?.status ?? "unreachable"}).`,
+          unreachable: true,
+        },
+        { status: 502 },
       );
     }
 
@@ -393,6 +397,47 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to fetch notebook from JupyterHub",
+        details: String(error),
+      },
+      { status: 500 },
+    );
+  }
+}
+
+// 3. Purge stale execution results artifact from JupyterHub workspace
+export async function DELETE(request: NextRequest) {
+  try {
+    const sessionId = extractSessionId(request);
+    const safeSessionId = sanitizeSessionId(sessionId);
+    const resultsFileName = `reportthy_results_${safeSessionId}.json`;
+
+    const userToken = await mintUserToken(safeSessionId);
+    const deleteRes = await fetch(
+      `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/${resultsFileName}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `token ${userToken}`,
+        },
+      },
+    ).catch(() => null);
+
+    const deleted = Boolean(
+      deleteRes && (deleteRes.ok || deleteRes.status === 404),
+    );
+
+    return NextResponse.json(
+      {
+        ok: true,
+        sessionId: safeSessionId,
+        deleted,
+      },
+      { status: 200 },
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Failed to delete JupyterHub execution results",
         details: String(error),
       },
       { status: 500 },

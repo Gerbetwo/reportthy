@@ -100,6 +100,13 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
         invalidateResults: true,
       }),
     }).catch(() => {});
+
+    fetch(`/api/jupyterhub?sessionId=${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
+      headers: {
+        'x-reportthy-session': sessionId,
+      },
+    }).catch(() => {});
   }, [sessionId]);
 
   useEffect(() => {
@@ -416,6 +423,7 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   const resetAll = () => {
+    const previousSessionId = sessionId;
     setPreClean([]);
     setPostClean([]);
     setPairedData([]);
@@ -423,6 +431,28 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     setAttritionAnalysis(null);
     setJupyterResultsState(null);
     setStudyMetadataState(DEFAULT_STUDY_METADATA);
+    fetch('/api/notebook/dataset', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-reportthy-session': previousSessionId,
+      },
+      body: JSON.stringify({
+        sessionId: previousSessionId,
+        preClean: [],
+        postClean: [],
+        pairedData: [],
+        quarantined: [],
+        attritionAnalysis: null,
+        invalidateResults: true,
+      }),
+    }).catch(() => {});
+    fetch(`/api/jupyterhub?sessionId=${encodeURIComponent(previousSessionId)}`, {
+      method: 'DELETE',
+      headers: {
+        'x-reportthy-session': previousSessionId,
+      },
+    }).catch(() => {});
     try {
       localStorage.removeItem('reportthy_study_metadata');
       localStorage.removeItem('reportthy_pre_data');

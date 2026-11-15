@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { clearUserTokenCacheForTesting, GET, POST } from '@/app/api/jupyterhub/route';
+import { clearUserTokenCacheForTesting, DELETE, GET, POST } from '@/app/api/jupyterhub/route';
 import { POST as POST_DATASET } from '@/app/api/notebook/dataset/route';
 import { POST as POST_RESULTS } from '@/app/api/notebook/results/route';
 import {
@@ -691,5 +691,115 @@ describe('JupyterHub Execution Bridge Route (app/api/jupyterhub/route.ts)', () =
     expect(Array.isArray(data.results.executedCodeCells)).toBe(true);
     expect(data.results.executedCodeCells.length).toBe(5);
     expect(data.results.executedCodeCells.join('\n')).toContain('stats.wilcoxon');
+  });
+
+  it('returns 502 and marks JupyterHub unreachable when notebook PUT fails', async () => {
+    const sessionId = 'test-put-failure-session';
+    saveServerDatasetBundle(
+      {
+        sessionId,
+        preClean: [],
+        postClean: [],
+        pairedData: [],
+        quarantined: [],
+      },
+      sessionId
+    );
+
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      const urlStr = String(url);
+      const method = opts?.method || 'GET';
+
+      if (urlStr.includes('/hub/api/users/') && method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ token: 'mock-user-token-xyz' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      if (urlStr.includes('/hub/api/users/')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ servers: { '': { ready: true } } }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      if (urlStr.includes('.ipynb') && method === 'PUT') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ message: 'Disk full' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      return Promise.reject(new Error(`Unhandled URL: ${urlStr} [${method}]`));
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = new NextRequest(
+      `http://localhost:3000/api/jupyterhub?sessionId=${sessionId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-reportthy-session': sessionId,
+        },
+        body: JSON.stringify({ sessionId, forceReset: false }),
+      }
+    );
+
+    const res = await POST(req);
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.unreachable).toBe(true);
+  });
+
+  it('DELETE /api/jupyterhub purges reportthy_results_<sessionId>.json from JupyterHub', async () => {
+    const sessionId = 'test-delete-endpoint-session';
+    let deletedUrl = '';
+
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      const urlStr = String(url);
+      const method = opts?.method || 'GET';
+
+      if (urlStr.includes('/hub/api/users/') && method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ token: 'mock-user-token-xyz' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      if (urlStr.includes(`reportthy_results_${sessionId}.json`) && method === 'DELETE') {
+        deletedUrl = urlStr;
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+
+      return Promise.reject(new Error(`Unhandled URL: ${urlStr} [${method}]`));
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const req = new NextRequest(
+      `http://localhost:3000/api/jupyterhub?sessionId=${sessionId}`,
+      {
+        method: 'DELETE',
+        headers: { 'x-reportthy-session': sessionId },
+      }
+    );
+
+    const res = await DELETE(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.deleted).toBe(true);
+    expect(deletedUrl).toContain(`reportthy_results_${sessionId}.json`);
   });
 });
