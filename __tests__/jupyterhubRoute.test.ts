@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { GET, POST } from '@/app/api/jupyterhub/route';
+import { clearUserTokenCacheForTesting, GET, POST } from '@/app/api/jupyterhub/route';
 import { POST as POST_DATASET } from '@/app/api/notebook/dataset/route';
 import {
   clearSessionsForTesting,
@@ -14,7 +14,54 @@ import { JupyterExecutionResult } from '@/types/dataset';
 describe('JupyterHub Execution Bridge Route (app/api/jupyterhub/route.ts)', () => {
   beforeEach(() => {
     clearSessionsForTesting();
+    clearUserTokenCacheForTesting();
     vi.restoreAllMocks();
+  });
+
+  it('reuses the minted user token for repeated GET requests in the same session', async () => {
+    const sessionId = 'test-token-cache-session';
+    const tokenMintRequests: string[] = [];
+
+    const fetchMock = vi.fn().mockImplementation((url: string, opts?: RequestInit) => {
+      const urlStr = String(url);
+      const method = opts?.method || 'GET';
+
+      if (urlStr.includes('/hub/api/users/') && method === 'POST') {
+        tokenMintRequests.push(urlStr);
+        return Promise.resolve(
+          new Response(JSON.stringify({ token: 'cached-user-token' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      if (urlStr.includes('reportthy_results_') || urlStr.includes('.ipynb')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ message: 'Not found' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      return Promise.reject(new Error(`Unhandled URL: ${urlStr} [${method}]`));
+    });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const createRequest = () =>
+      new NextRequest(
+        `http://localhost:3000/api/jupyterhub?sessionId=${sessionId}`,
+        { headers: { 'x-reportthy-session': sessionId } }
+      );
+
+    const firstResponse = await GET(createRequest());
+    const secondResponse = await GET(createRequest());
+
+    expect(firstResponse.status).toBe(404);
+    expect(secondResponse.status).toBe(404);
+    expect(tokenMintRequests).toHaveLength(1);
   });
 
   it('GET reads results directly from reportthy_results.json even when notebook cells have empty outputs', async () => {

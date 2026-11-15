@@ -29,8 +29,19 @@ interface JupyterHubUserResponse {
   servers?: Record<string, JupyterHubServerInfo>;
 }
 
+const userTokenCache = new Map<string, { token: string; expiresAt: number }>();
+
+export function clearUserTokenCacheForTesting(): void {
+  userTokenCache.clear();
+}
+
 // Mint or acquire a user-scoped token from JupyterHub
 async function mintUserToken(sessionId: string): Promise<string> {
+  const cachedToken = userTokenCache.get(sessionId);
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
+    return cachedToken.token;
+  }
+
   const authHeaders = {
     Authorization: `token ${JUPYTERHUB_API_TOKEN}`,
     "Content-Type": "application/json",
@@ -49,7 +60,13 @@ async function mintUserToken(sessionId: string): Promise<string> {
     );
     if (tokenRes.ok) {
       const data = await tokenRes.json();
-      if (data?.token) return data.token;
+      if (data?.token) {
+        userTokenCache.set(sessionId, {
+          token: data.token,
+          expiresAt: Date.now() + 86400 * 1000,
+        });
+        return data.token;
+      }
     }
   } catch (err) {
     console.warn("[mintUserToken] Token mint failed, using Hub token fallback:", err);

@@ -40,7 +40,9 @@ export default function LabPage() {
   const [connectionError, setConnectionError] = useState('');
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [fullLabUrl, setFullLabUrl] = useState<string | null>(null);
-  const provisioningRef = useRef(false);
+  const isProvisioningRef = useRef(false);
+  const autoProvisionedSessionRef = useRef<string | null>(null);
+  const resetGenerationRef = useRef(0);
 
   // Manual explicit sync results handler
   const handleSyncResults = async () => {
@@ -84,6 +86,12 @@ export default function LabPage() {
   // 1. Provision JupyterHub single-user server & push notebook workspace
   const provisionJupyterHub = useCallback(async (forceReset = false) => {
     if (forceReset) {
+      resetGenerationRef.current += 1;
+    }
+    if (isProvisioningRef.current) return;
+    isProvisioningRef.current = true;
+
+    if (forceReset) {
       setJupyterResults(null);
     }
     setIsProvisioning(true);
@@ -125,29 +133,38 @@ export default function LabPage() {
       setConnectionError(String(err));
     } finally {
       setIsProvisioning(false);
-      provisioningRef.current = false;
+      isProvisioningRef.current = false;
     }
   }, [sessionId, studyMetadata, preClean, postClean, pairedData, quarantined, attritionAnalysis, setJupyterResults]);
 
   useEffect(() => {
-    if (provisioningRef.current) return;
+    if (autoProvisionedSessionRef.current === sessionId) return;
     if (preClean.length > 0 || postClean.length > 0) {
-      provisioningRef.current = true;
+      autoProvisionedSessionRef.current = sessionId;
       provisionJupyterHub(false);
     }
-  }, [provisionJupyterHub, preClean.length, postClean.length]);
+  }, [provisionJupyterHub, preClean.length, postClean.length, sessionId]);
 
   // 2. Real-time polling loop to automatically detect Jupyter execution results
   useEffect(() => {
+    if (isProvisioning) return;
+
     let isMounted = true;
+    const pollGeneration = resetGenerationRef.current;
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/notebook/results?sessionId=${encodeURIComponent(sessionId)}`, {
           headers: { 'x-reportthy-session': sessionId },
         });
+        if (!isMounted || isProvisioningRef.current || pollGeneration !== resetGenerationRef.current) {
+          return;
+        }
         if (res.ok) {
           const data = await res.json();
-          if (data.results && isMounted) {
+          if (!isMounted || isProvisioningRef.current || pollGeneration !== resetGenerationRef.current) {
+            return;
+          }
+          if (data.results) {
             setJupyterResults(data.results);
             return;
           }
@@ -156,9 +173,15 @@ export default function LabPage() {
         const hubRes = await fetch(`/api/jupyterhub?sessionId=${encodeURIComponent(sessionId)}`, {
           headers: { 'x-reportthy-session': sessionId },
         });
+        if (!isMounted || isProvisioningRef.current || pollGeneration !== resetGenerationRef.current) {
+          return;
+        }
         if (hubRes.ok) {
           const hubData = await hubRes.json();
-          if (hubData.results && isMounted) {
+          if (!isMounted || isProvisioningRef.current || pollGeneration !== resetGenerationRef.current) {
+            return;
+          }
+          if (hubData.results) {
             setJupyterResults(hubData.results);
           }
         }
@@ -171,7 +194,7 @@ export default function LabPage() {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [setJupyterResults, sessionId]);
+  }, [isProvisioning, setJupyterResults, sessionId]);
 
   return (
     <div className="min-h-screen bg-scientific-grid text-[#1F2328]">
