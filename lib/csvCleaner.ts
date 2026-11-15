@@ -184,8 +184,8 @@ export function parseSurveyCSV(
     const isTooLong = rawName.length > 80;
     const isCorrupted = isTooLong || hasCodeKeywords;
 
-    const scoreMatch = rawScore.match(/(\d+)/);
-    const numericScore = scoreMatch ? parseInt(scoreMatch[1], 10) : NaN;
+    const scoreMatch = rawScore.match(/(\d+(?:[.,]\d+)?)/);
+    const numericScore = scoreMatch ? parseFloat(scoreMatch[1].replace(',', '.')) : NaN;
     const isInvalidScore = isNaN(numericScore);
 
     let corruptionReason: string | undefined = undefined;

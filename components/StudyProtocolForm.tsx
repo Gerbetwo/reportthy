@@ -24,7 +24,8 @@ import LocalCopilotPanel from '@/components/LocalCopilotPanel';
 export default function StudyProtocolForm() {
   const { t } = useTranslation();
   const { studyMetadata, setStudyMetadata, updateCohortMapping } = useDataset();
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
 
   // Validation rules
   const validationErrors = useMemo(() => {
@@ -176,62 +177,67 @@ export default function StudyProtocolForm() {
   return (
     <section className="bg-white border border-[#D0D7DE] rounded-lg shadow-xs mb-8 overflow-hidden transition-all">
       {/* Header bar with readiness badge and collapse toggle */}
-      <div className="bg-[#FAFBFD] border-b border-[#D0D7DE] px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-[#002B49] font-bold bg-[#EBF2F7] px-2 py-0.5 rounded border border-[#CBD5E1]">
-              {t.protocol.step}
-            </span>
-            <span className="text-xs text-[#57606A] font-mono">• HU-01 Protocol</span>
+      <div className="bg-[#FAFBFD] px-6 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[#002B49] text-white flex items-center justify-center shrink-0">
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
           </div>
-          <h2 className="font-serif font-bold text-lg text-[#002B49] flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-[#002B49]" />
-            <span>{t.protocol.title}</span>
-          </h2>
-          <p className="text-xs text-[#57606A] mt-0.5 max-w-3xl font-sans">
-            {t.protocol.desc}
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase font-mono font-bold text-slate-500">
+                {t.protocol.step}
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {studyMetadata.designMode}
+              </span>
+            </div>
+            <h2 className="font-serif font-bold text-base text-[#002B49] mt-0.5">
+              {studyMetadata.studyTitle?.trim() || t.protocol.title}
+            </h2>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3 self-end md:self-center">
+        <div className="flex items-center gap-3 self-start md:self-center">
           {/* Readiness pill */}
           <div
             className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold font-mono border transition ${
               isProtocolValid
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                : 'bg-amber-50 text-amber-800 border-amber-300'
+                : 'bg-slate-50 text-slate-700 border-slate-300'
             }`}
           >
             {isProtocolValid ? (
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
             ) : (
-              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+              <AlertCircle className="w-3.5 h-3.5 text-slate-500" />
             )}
             <span>
               {isProtocolValid
-                ? t.protocol.statusReady
-                : t.protocol.statusPending}
+                ? t.protocol.protocolReadyBadge
+                : t.protocol.optionalMetaBadge}
             </span>
           </div>
 
           {/* Collapsible toggle */}
           <button
+            type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1.5 text-[#57606A] hover:text-[#002B49] hover:bg-slate-100 rounded border border-[#D0D7DE] transition"
-            aria-label={isExpanded ? t.protocol.toggleHide : t.protocol.toggleShow}
-            title={isExpanded ? t.protocol.toggleHide : t.protocol.toggleShow}
+            className="px-3 py-1.5 text-xs font-semibold text-[#002B49] hover:text-white bg-[#F1F5F9] hover:bg-[#002B49] rounded-md border border-[#CBD5E1] transition flex items-center gap-1.5 shadow-2xs"
+            aria-label={isExpanded ? t.protocol.toggleHide : t.protocol.configureProtocol}
           >
+            <span>{isExpanded ? t.protocol.toggleHide : t.protocol.configureProtocol}</span>
             {isExpanded ? (
-              <ChevronUp className="w-4 h-4" />
+              <ChevronUp className="w-3.5 h-3.5" />
             ) : (
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-3.5 h-3.5" />
             )}
           </button>
         </div>
       </div>
 
       {isExpanded && (
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 border-t border-[#D0D7DE]">
           {/* Preset Selector Bar */}
           <div className="bg-[#F8F9FA] border border-[#E2E8F0] rounded-lg p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-xs font-semibold text-[#002B49]">
@@ -254,12 +260,19 @@ export default function StudyProtocolForm() {
               >
                 {t.protocol.presets.custom}
               </button>
+              <button
+                type="button"
+                onClick={() => setShowValidationSummary(true)}
+                className="ml-auto px-2.5 py-1 text-xs font-semibold bg-[#002B49] hover:bg-[#001A2C] text-white rounded transition shadow-2xs"
+              >
+                {t.protocol.validateProtocolBtn}
+              </button>
             </div>
           </div>
 
-          {/* Validation Warnings List if incomplete */}
-          {validationErrors.length > 0 && (
-            <div className="bg-amber-50/70 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 space-y-1">
+          {/* Validation Warnings List (only shown on user request or explicit validation failure) */}
+          {showValidationSummary && validationErrors.length > 0 && (
+            <div className="bg-amber-50/80 border border-amber-300 rounded-lg p-3.5 text-xs text-amber-900 space-y-1 animate-in fade-in duration-150">
               <div className="font-semibold flex items-center gap-1.5 text-amber-800">
                 <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
                 <span>{t.protocol.statusIncomplete}:</span>
@@ -269,6 +282,13 @@ export default function StudyProtocolForm() {
                   <li key={i}>{err}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {showValidationSummary && isProtocolValid && (
+            <div className="bg-emerald-50/80 border border-emerald-300 rounded-lg p-3 text-xs text-emerald-900 font-medium flex items-center gap-2 animate-in fade-in duration-150">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>{t.protocol.validationPassed}</span>
             </div>
           )}
 

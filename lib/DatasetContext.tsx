@@ -46,15 +46,18 @@ const DatasetContext = createContext<DatasetContextType | undefined>(undefined);
 
 export function DatasetProvider({ children }: { children: React.ReactNode }) {
   const [sessionId, setSessionId] = useState<string>(() => {
-    if (typeof window !== 'undefined' && window.sessionStorage) {
+    if (typeof window !== 'undefined') {
       try {
-        let sid = window.sessionStorage.getItem('reportthy_session_id');
+        let sid =
+          localStorage.getItem('reportthy_session_id') ||
+          sessionStorage.getItem('reportthy_session_id');
         if (!sid) {
           sid =
             typeof crypto !== 'undefined' && crypto.randomUUID
               ? crypto.randomUUID()
               : `session-${Date.now()}`;
-          window.sessionStorage.setItem('reportthy_session_id', sid);
+          localStorage.setItem('reportthy_session_id', sid);
+          sessionStorage.setItem('reportthy_session_id', sid);
         }
         return sid;
       } catch {
@@ -77,13 +80,16 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      let sid = window.sessionStorage.getItem('reportthy_session_id');
+      let sid =
+        localStorage.getItem('reportthy_session_id') ||
+        sessionStorage.getItem('reportthy_session_id');
       if (!sid) {
         sid =
           typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
             : `session-${Date.now()}`;
-        window.sessionStorage.setItem('reportthy_session_id', sid);
+        localStorage.setItem('reportthy_session_id', sid);
+        sessionStorage.setItem('reportthy_session_id', sid);
       }
       setSessionId(sid);
 
@@ -335,6 +341,36 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Automatically sync datasets and protocol settings to the server session store
+  useEffect(() => {
+    if (preClean.length > 0 && postClean.length > 0) {
+      fetch('/api/notebook/dataset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-reportthy-session': sessionId,
+        },
+        body: JSON.stringify({
+          sessionId,
+          studyMetadata,
+          preClean,
+          postClean,
+          pairedData,
+          quarantined,
+          attritionAnalysis,
+        }),
+      }).catch(() => {});
+    }
+  }, [
+    preClean,
+    postClean,
+    pairedData,
+    quarantined,
+    attritionAnalysis,
+    sessionId,
+    studyMetadata,
+  ]);
+
   const resetAll = () => {
     setPreClean([]);
     setPostClean([]);
@@ -343,13 +379,26 @@ export function DatasetProvider({ children }: { children: React.ReactNode }) {
     setAttritionAnalysis(null);
     setJupyterResultsState(null);
     setStudyMetadataState(DEFAULT_STUDY_METADATA);
-    localStorage.removeItem('reportthy_study_metadata');
-    localStorage.removeItem('reportthy_pre_data');
-    localStorage.removeItem('reportthy_post_data');
-    localStorage.removeItem('reportthy_paired');
-    localStorage.removeItem('reportthy_quarantined');
-    localStorage.removeItem('reportthy_attrition');
-    localStorage.removeItem('reportthy_jupyter_results');
+    try {
+      localStorage.removeItem('reportthy_study_metadata');
+      localStorage.removeItem('reportthy_pre_data');
+      localStorage.removeItem('reportthy_post_data');
+      localStorage.removeItem('reportthy_paired');
+      localStorage.removeItem('reportthy_quarantined');
+      localStorage.removeItem('reportthy_attrition');
+      localStorage.removeItem('reportthy_jupyter_results');
+      localStorage.removeItem('reportthy_session_id');
+      sessionStorage.removeItem('reportthy_session_id');
+    } catch {}
+    const newSid =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `session-${Date.now()}`;
+    setSessionId(newSid);
+    try {
+      localStorage.setItem('reportthy_session_id', newSid);
+      sessionStorage.setItem('reportthy_session_id', newSid);
+    } catch {}
   };
 
   return (

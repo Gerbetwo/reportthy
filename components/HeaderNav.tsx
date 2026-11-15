@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Upload, Binary, Home, FileText } from 'lucide-react';
 import { useTranslation } from '@/lib/LanguageContext';
+import { useDataset } from '@/lib/DatasetContext';
 
 export default function HeaderNav() {
   const pathname = usePathname();
   const { lang, setLang, t } = useTranslation();
+  const { preClean, postClean, jupyterResults } = useDataset();
 
   const navLinks = [
     { href: '/', label: t.nav.overview, icon: Home },
@@ -55,6 +57,19 @@ export default function HeaderNav() {
                 >
                   <Icon className="w-3.5 h-3.5" />
                   <span className="hidden md:inline">{link.label}</span>
+                  {link.href === '/upload' && preClean.length > 0 && postClean.length > 0 && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                  )}
+                  {link.href === '/lab' && (
+                    jupyterResults ? (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                    ) : preClean.length > 0 && postClean.length > 0 ? (
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                    ) : null
+                  )}
+                  {link.href === '/paper' && jupyterResults && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                  )}
                 </Link>
               );
             })}

@@ -17,7 +17,8 @@ import {
   ExternalLink,
   AlertTriangle,
   Server,
-  ArrowUpRight
+  ArrowUpRight,
+  RefreshCw
 } from 'lucide-react';
 
 export default function LabPage() {
@@ -36,12 +37,53 @@ export default function LabPage() {
   } = useDatasetStats();
 
   const [isProvisioning, setIsProvisioning] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [serverUnreachable, setServerUnreachable] = useState(false);
   const [connectionError, setConnectionError] = useState('');
   const [iframeSrc, setIframeSrc] = useState<string | null>(null);
   const [fullLabUrl, setFullLabUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const provisioningRef = useRef(false);
+
+  // Manual explicit sync results handler
+  const handleSyncResults = async () => {
+    setIsSyncing(true);
+    setSyncFeedback(null);
+    try {
+      const res = await fetch(`/api/notebook/results?sessionId=${encodeURIComponent(sessionId)}`, {
+        headers: { 'x-reportthy-session': sessionId },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.results) {
+          setJupyterResults(data.results);
+          setSyncFeedback(t.lab.syncSuccess);
+          setTimeout(() => setSyncFeedback(null), 3000);
+          return;
+        }
+      }
+      const hubRes = await fetch(`/api/jupyterhub?sessionId=${encodeURIComponent(sessionId)}`, {
+        headers: { 'x-reportthy-session': sessionId },
+      });
+      if (hubRes.ok) {
+        const hubData = await hubRes.json();
+        if (hubData.results) {
+          setJupyterResults(hubData.results);
+          setSyncFeedback(t.lab.syncSuccess);
+          setTimeout(() => setSyncFeedback(null), 3000);
+          return;
+        }
+      }
+      setSyncFeedback(t.lab.syncPending);
+      setTimeout(() => setSyncFeedback(null), 3500);
+    } catch (err) {
+      setSyncFeedback(String(err));
+      setTimeout(() => setSyncFeedback(null), 3500);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // 1. Provision JupyterHub single-user server & push notebook workspace
   const provisionJupyterHub = useCallback(async (forceReset = false) => {
@@ -235,7 +277,18 @@ export default function LabPage() {
               <span>{isProvisioning ? t.lab.pushing : t.lab.resetAndPush}</span>
             </button>
 
-            {/* 2. Open in New Tab */}
+            {/* 2. Sync Execution Results */}
+            <button
+              onClick={handleSyncResults}
+              disabled={isSyncing}
+              className="bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#002B49] px-3.5 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition"
+              title="Poll JupyterHub and disk for recent execution results"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-emerald-600' : 'text-[#002B49]'}`} />
+              <span>{isSyncing ? '...' : t.lab.syncResults}</span>
+            </button>
+
+            {/* 3. Open in New Tab */}
             {(fullLabUrl || iframeSrc) && (
               <a
                 href={fullLabUrl || iframeSrc || '#'}
@@ -249,7 +302,7 @@ export default function LabPage() {
               </a>
             )}
 
-            {/* 3. Compact Download / Upload .ipynb */}
+            {/* 4. Compact Download / Upload .ipynb */}
             <div className="flex items-center border border-[#CBD5E1] rounded overflow-hidden bg-white">
               <button
                 onClick={handleDownloadNotebook}
@@ -288,6 +341,19 @@ export default function LabPage() {
           </div>
         </header>
 
+        {/* Sync Status Toast/Banner */}
+        {syncFeedback && (
+          <div className="mb-4 text-xs font-mono px-3.5 py-2.5 rounded-lg border bg-slate-900 text-slate-100 flex items-center justify-between shadow-xs">
+            <span>{syncFeedback}</span>
+            <button
+              onClick={() => setSyncFeedback(null)}
+              className="text-slate-400 hover:text-white ml-3 text-base leading-none"
+            >
+              &times;
+            </button>
+          </div>
+        )}
+
         {/* Diagnostic Banner if JupyterHub is Unreachable */}
         {serverUnreachable && (
           <div className="mb-6 bg-amber-50 border border-amber-300 rounded-lg p-4 text-xs text-amber-900 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -316,38 +382,8 @@ export default function LabPage() {
             )}
           </div>
         )}
-        {/* Embedded Real JupyterHub / JupyterLab Workstation */}
-        <div className="bg-[#001A2C] border border-slate-700 rounded-lg overflow-hidden shadow-lg">
-          <div className="bg-[#002B49] px-4 py-2.5 flex items-center justify-between border-b border-slate-700">
-            <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
-              <span className={`w-2 h-2 rounded-full ${iframeSrc ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
-              <span>JupyterHub / JupyterLab Scientific Workstation</span>
-            </div>
-            <span className="text-[11px] text-slate-400 font-mono">
-              quantum_hypothesis_verification.ipynb
-            </span>
-          </div>
 
-          {iframeSrc ? (
-            <iframe
-              src={iframeSrc}
-              title="JupyterHub Research Environment"
-              className="w-full h-[760px] border-none bg-white"
-              allow="clipboard-read; clipboard-write"
-            />
-          ) : (
-            <div className="w-full h-[760px] bg-slate-900 flex flex-col items-center justify-center text-slate-400">
-              <Server className="w-10 h-10 animate-pulse text-amber-500 mb-3" />
-              <p className="text-sm font-semibold text-slate-200">
-                {isProvisioning ? t.lab.pushing : t.lab.provisioningMsg}
-              </p>
-              <p className="text-xs text-slate-400 mt-1 font-mono">
-                {t.lab.pendingVerification}
-              </p>
-            </div>
-          )}
-        </div>
-        {/* Real Jupyter Kernel Status / Verified Execution Badge */}
+        {/* Real Jupyter Kernel Status / Verified Execution Badge (Above Workstation) */}
         {jupyterResults ? (
           <section className="mb-6 bg-white border border-[#D0D7DE] rounded-lg p-5 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E2E8F0]">
@@ -426,9 +462,9 @@ export default function LabPage() {
 
               <button
                 onClick={() => router.push('/paper')}
-                className="bg-[#002B49] hover:bg-[#001A2C] text-white px-4 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition shadow-xs self-end sm:self-auto"
+                className="bg-[#C0392B] hover:bg-[#A93226] text-white px-4 py-2 rounded text-xs font-semibold flex items-center gap-1.5 transition shadow-xs self-end sm:self-auto"
               >
-                <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                <FileText className="w-3.5 h-3.5" />
                 <span>{t.lab.generatePaper}</span>
               </button>
             </div>
@@ -452,6 +488,38 @@ export default function LabPage() {
             )}
           </div>
         )}
+
+        {/* Embedded Real JupyterHub / JupyterLab Workstation */}
+        <div className="bg-[#001A2C] border border-slate-700 rounded-lg overflow-hidden shadow-lg">
+          <div className="bg-[#002B49] px-4 py-2.5 flex items-center justify-between border-b border-slate-700">
+            <div className="flex items-center gap-2 text-xs font-mono text-slate-300">
+              <span className={`w-2 h-2 rounded-full ${iframeSrc ? 'bg-emerald-400' : 'bg-amber-400'} animate-pulse`}></span>
+              <span>JupyterHub / JupyterLab Scientific Workstation</span>
+            </div>
+            <span className="text-[11px] text-slate-400 font-mono">
+              reportthy_{sessionId}.ipynb
+            </span>
+          </div>
+
+          {iframeSrc ? (
+            <iframe
+              src={iframeSrc}
+              title="JupyterHub Research Environment"
+              className="w-full h-[760px] border-none bg-white"
+              allow="clipboard-read; clipboard-write"
+            />
+          ) : (
+            <div className="w-full h-[760px] bg-slate-900 flex flex-col items-center justify-center text-slate-400">
+              <Server className="w-10 h-10 animate-pulse text-amber-500 mb-3" />
+              <p className="text-sm font-semibold text-slate-200">
+                {isProvisioning ? t.lab.pushing : t.lab.provisioningMsg}
+              </p>
+              <p className="text-xs text-slate-400 mt-1 font-mono">
+                {t.lab.pendingVerification}
+              </p>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

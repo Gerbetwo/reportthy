@@ -120,7 +120,8 @@ export function generateFullPaperLatex(
       'the instructional intervention produces a statistically significant positive learning gain',
       'la intervención instruccional produce una ganancia de aprendizaje positiva estadísticamente significativa'
     );
-  const hypothesisStatement = escapeLatex(rawHyp);
+  const cleanHyp = rawHyp.replace(/\.+$/, '');
+  const hypothesisStatement = escapeLatex(cleanHyp);
 
   // ---------- Authorship ----------
   const authorsList =
@@ -296,7 +297,7 @@ ${reasons.map(r => String.raw`\item ${escapeLatex(r.length > 120 ? `${r.slice(0,
 ${matrixIntro}
 
 \begin{small}
-\begin{longtable}{@{}lccccr@{}}
+\begin{longtable}{@{}p{4.2cm}ccccr@{}}
 \caption{${tr('Individual pre/post-test scores, gains and match confidence', 'Puntajes individuales pre/post-test, ganancias y confianza de emparejamiento')}}\label{tab:student_roster} \\
 \toprule
 ${studentHeaders} \\
@@ -410,6 +411,7 @@ ${reconText}
 ${tr(String.raw`Table~\ref{tab:descriptive} reports the distribution diagnostics for both evaluation phases.`, String.raw`La Tabla~\ref{tab:descriptive} reporta los diagnósticos de distribución de ambas fases de evaluación.`)}
 
 \begin{table}[h]
+\footnotesize
 \caption{${descCaption}}\label{tab:descriptive}
 \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccccccccc@{\extracolsep{\fill}}}
 \toprule

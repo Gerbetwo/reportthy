@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import {
   CleanedParticipant,
   PairedParticipant,
@@ -24,6 +27,37 @@ declare global {
   var __reportthy_sessions: Map<string, SessionWorkspace> | undefined;
 }
 
+function getSessionSnapshotDir(): string {
+  return path.join(os.tmpdir(), 'reportthy-sessions');
+}
+
+export function persistWorkspaceToDisk(workspace: SessionWorkspace): void {
+  try {
+    const dir = getSessionSnapshotDir();
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const filePath = path.join(dir, `${workspace.sessionId}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(workspace), 'utf-8');
+  } catch (err) {
+    console.warn('[notebookStore] Failed to write session snapshot to disk:', err);
+  }
+}
+
+export function loadWorkspaceFromDisk(safeId: string): SessionWorkspace | null {
+  try {
+    const filePath = path.join(getSessionSnapshotDir(), `${safeId}.json`);
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, 'utf-8');
+      const parsed = JSON.parse(data) as SessionWorkspace;
+      return parsed;
+    }
+  } catch (err) {
+    console.warn('[notebookStore] Failed to load session snapshot from disk:', err);
+  }
+  return null;
+}
+
 export function sanitizeSessionId(id?: string): string {
   if (!id || typeof id !== 'string') {
     return 'default-workspace';
@@ -45,6 +79,12 @@ export function evictExpiredWorkspaces(sessions: Map<string, SessionWorkspace>, 
     const updatedTime = new Date(workspace.updatedAt).getTime();
     if (isNaN(updatedTime) || now - updatedTime > maxAge) {
       sessions.delete(key);
+      try {
+        const filePath = path.join(getSessionSnapshotDir(), `${key}.json`);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch {}
     }
   }
 }
@@ -67,7 +107,7 @@ export function saveServerDatasetBundle(
   const sessions = getSessionMap();
   evictExpiredWorkspaces(sessions);
 
-  const existing = sessions.get(safeId);
+  const existing = sessions.get(safeId) ?? loadWorkspaceFromDisk(safeId);
   const fullBundle: SessionWorkspace = {
     sessionId: safeId,
     updatedAt: new Date().toISOString(),
@@ -87,25 +127,35 @@ export function saveServerDatasetBundle(
   };
 
   sessions.set(safeId, fullBundle);
+  persistWorkspaceToDisk(fullBundle);
   return fullBundle;
 }
 
 export function getServerDatasetBundle(sessionId?: string): SessionWorkspace | null {
   const safeId = sanitizeSessionId(sessionId);
   const sessions = getSessionMap();
-  return sessions.get(safeId) ?? null;
+  let workspace = sessions.get(safeId);
+  if (!workspace) {
+    workspace = loadWorkspaceFromDisk(safeId) ?? undefined;
+    if (workspace) {
+      sessions.set(safeId, workspace);
+    }
+  }
+  return workspace ?? null;
 }
 
 export function saveServerJupyterResult(res: JupyterExecutionResult, sessionId?: string): void {
   const safeId = sanitizeSessionId(sessionId);
   const sessions = getSessionMap();
   evictExpiredWorkspaces(sessions);
-  const existing = sessions.get(safeId);
+  const existing = sessions.get(safeId) ?? loadWorkspaceFromDisk(safeId);
+  let targetWorkspace: SessionWorkspace;
   if (existing) {
     existing.jupyterResults = res;
     existing.updatedAt = new Date().toISOString();
+    targetWorkspace = existing;
   } else {
-    sessions.set(safeId, {
+    targetWorkspace = {
       sessionId: safeId,
       updatedAt: new Date().toISOString(),
       preClean: [],
@@ -114,20 +164,34 @@ export function saveServerJupyterResult(res: JupyterExecutionResult, sessionId?:
       quarantined: [],
       attritionAnalysis: null,
       jupyterResults: res,
-    });
+    };
   }
+  sessions.set(safeId, targetWorkspace);
+  persistWorkspaceToDisk(targetWorkspace);
 }
 
 export function getServerJupyterResult(sessionId?: string): JupyterExecutionResult | null {
   const safeId = sanitizeSessionId(sessionId);
   const sessions = getSessionMap();
-  const workspace = sessions.get(safeId);
+  let workspace = sessions.get(safeId);
+  if (!workspace) {
+    workspace = loadWorkspaceFromDisk(safeId) ?? undefined;
+    if (workspace) {
+      sessions.set(safeId, workspace);
+    }
+  }
   return workspace?.jupyterResults ?? null;
 }
 
 export function clearSessionsForTesting(): void {
   const sessions = getSessionMap();
   sessions.clear();
+  try {
+    const dir = getSessionSnapshotDir();
+    if (fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  } catch {}
 }
 
 export function extractSessionId(

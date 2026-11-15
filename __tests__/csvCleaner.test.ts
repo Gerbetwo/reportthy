@@ -16,6 +16,7 @@ import {
   extractSessionId,
   clearSessionsForTesting,
   evictExpiredWorkspaces,
+  loadWorkspaceFromDisk,
 } from '@/lib/notebookStore';
 import { RawSurveyRow, CleanedParticipant, JupyterExecutionResult } from '@/types/dataset';
 
@@ -50,6 +51,36 @@ describe('Data Ingestion & Pre-flight Sanitization Engine (lib/csvCleaner.ts)', 
     expect(clean[0].score).toBe(8);
     expect(clean[0].group).toBe('Listado 1');
     expect(clean[0].cohortRole).toBe('Control');
+  });
+
+  it('parses decimal scores with dots or commas from questionnaire strings', () => {
+    const rawRows: RawSurveyRow[] = [
+      {
+        Timestamp: '9/19/2026 8:54:24',
+        Score: '8.5 / 10',
+        'Nombre y apellido ': 'Student One',
+        'A que listado Pertenece': 'Listado 1',
+      },
+      {
+        Timestamp: '9/19/2026 8:55:00',
+        Score: '7,25 / 10',
+        'Nombre y apellido ': 'Student Two',
+        'A que listado Pertenece': 'Listado 1',
+      },
+      {
+        Timestamp: '9/19/2026 8:56:00',
+        Score: '9.8',
+        'Nombre y apellido ': 'Student Three',
+        'A que listado Pertenece': 'Listado 2',
+      },
+    ];
+    const { clean, quarantined } = parseSurveyCSV(rawRows, 'pre');
+
+    expect(quarantined).toHaveLength(0);
+    expect(clean).toHaveLength(3);
+    expect(clean[0].score).toBe(8.5);
+    expect(clean[1].score).toBe(7.25);
+    expect(clean[2].score).toBe(9.8);
   });
 
   it('QUARANTINE TRAP: detects and quarantines code block algorithm dumps', () => {
@@ -438,5 +469,39 @@ describe('Multi-Coworker Session Isolation (lib/notebookStore.ts)', () => {
 
     expect(sessions.has('stale-session')).toBe(false);
     expect(sessions.has('fresh-session')).toBe(true);
+  });
+
+  it('persists and hydrates session workspace snapshots from disk across simulated restarts', () => {
+    const testSessionId = 'simulated-restart-session';
+    const sampleParticipant: CleanedParticipant = {
+      id: 'p-disk-1',
+      originalName: 'Disk Persisted Student',
+      normalizedName: 'disk persisted student',
+      group: 'Grupo Experimental',
+      cohortRole: 'Experimental',
+      score: 9.5,
+      timestamp: '2026-11-14T12:00:00Z',
+      isFlaggedCorrupted: false,
+    };
+
+    saveServerDatasetBundle(
+      {
+        sessionId: testSessionId,
+        preClean: [sampleParticipant],
+        postClean: [],
+        pairedData: [],
+        quarantined: [],
+      },
+      testSessionId
+    );
+
+    // Verify snapshot was written to disk
+    const diskLoaded = loadWorkspaceFromDisk(testSessionId);
+    expect(diskLoaded).not.toBeNull();
+    expect(diskLoaded?.preClean[0].originalName).toBe('Disk Persisted Student');
+
+    // Retrieve via getServerDatasetBundle
+    const rehydrated = getServerDatasetBundle(testSessionId);
+    expect(rehydrated?.preClean[0].originalName).toBe('Disk Persisted Student');
   });
 });

@@ -75,22 +75,21 @@ export interface PaperNarrativeSlotsResult {
 }
 
 export const DEFAULT_STUDY_METADATA: StudyMetadata = {
-  studyTitle: 'Gamified Learning of Basic Linux Commands',
-  topicDomain: 'Linux Command-Line Administration',
-  controlPedagogy: 'Self-paced PDF study guide',
-  experimentalPedagogy: 'Gamified interactive challenges',
-  hypothesisStatement:
-    'Participants instructed with gamified interactive challenges demonstrate significantly superior mastery over participants utilizing self-paced PDF study guides.',
+  studyTitle: '',
+  topicDomain: '',
+  controlPedagogy: '',
+  experimentalPedagogy: '',
+  hypothesisStatement: '',
   designMode: 'within_subject',
   alpha: 0.05,
   wilcoxonAlternative: 'greater',
   mannWhitneyAlternative: 'greater',
   authors: [
     {
-      fullName: 'Lead Researcher',
-      email: 'researcher@institution.edu',
-      affiliation: 'Department of Computer Science, University',
-      country: 'United States',
+      fullName: '',
+      email: '',
+      affiliation: '',
+      country: '',
     },
   ],
   cohortMapping: {},

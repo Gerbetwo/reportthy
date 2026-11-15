@@ -30,6 +30,34 @@ interface JupyterHubUserResponse {
   servers?: Record<string, JupyterHubServerInfo>;
 }
 
+// Mint or acquire a user-scoped token from JupyterHub
+async function mintUserToken(sessionId: string): Promise<string> {
+  const authHeaders = {
+    Authorization: `token ${JUPYTERHUB_API_TOKEN}`,
+    "Content-Type": "application/json",
+  };
+  try {
+    const tokenRes = await fetch(
+      `${JUPYTERHUB_INTERNAL_URL}/hub/api/users/${JUPYTERHUB_USER}/tokens`,
+      {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({
+          expires_in: 86400,
+          note: `reportthy-${sessionId}`,
+        }),
+      },
+    );
+    if (tokenRes.ok) {
+      const data = await tokenRes.json();
+      if (data?.token) return data.token;
+    }
+  } catch (err) {
+    console.warn("[mintUserToken] Token mint failed, using Hub token fallback:", err);
+  }
+  return JUPYTERHUB_API_TOKEN;
+}
+
 // 1. Provision user server & upload notebook to JupyterLab workspace
 export async function POST(request: NextRequest) {
   try {
@@ -160,23 +188,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step C: Mint or acquire user access token
-    let userToken = JUPYTERHUB_API_TOKEN;
-    const tokenRes = await fetch(
-      `${JUPYTERHUB_INTERNAL_URL}/hub/api/users/${JUPYTERHUB_USER}/tokens`,
-      {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify({
-          expires_in: 86400,
-          note: `reportthy-${safeSessionId}`,
-        }),
-      },
-    ).catch(() => null);
-
-    if (tokenRes && tokenRes.ok) {
-      const tokenData = await tokenRes.json();
-      if (tokenData.token) userToken = tokenData.token;
-    }
+    const userToken = await mintUserToken(safeSessionId);
 
     // Step D: Upload notebook via official Jupyter Server Contents API if needed
     const contentsUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/${notebookFileName}`;
@@ -220,7 +232,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const embedUrl = `${JUPYTERHUB_PUBLIC_URL}/user/${JUPYTERHUB_USER}/doc/tree/${notebookFileName}?token=${userToken}`;
+    // Embed JupyterLab interface so researchers have full access to Run -> Run All Cells and menu bar
+    const embedUrl = `${JUPYTERHUB_PUBLIC_URL}/user/${JUPYTERHUB_USER}/lab/tree/${notebookFileName}?token=${userToken}`;
     const fullLabUrl = `${JUPYTERHUB_PUBLIC_URL}/user/${JUPYTERHUB_USER}/lab/tree/${notebookFileName}?token=${userToken}`;
 
     return NextResponse.json({
@@ -250,23 +263,49 @@ export async function GET(request: NextRequest) {
     const safeSessionId = sanitizeSessionId(sessionId);
     const notebookFileName = `reportthy_${safeSessionId}.ipynb`;
 
+    const userToken = await mintUserToken(safeSessionId);
     const authHeaders = {
-      Authorization: `token ${JUPYTERHUB_API_TOKEN}`,
+      Authorization: `token ${userToken}`,
       "Content-Type": "application/json",
     };
 
+    let parsedResult: JupyterExecutionResult | null = null;
+    let codeCellSources: string[] = [];
+
+    // 1. Inspect reportthy_results.json on disk (written immediately by Cell 6 even if user hasn't pressed Ctrl+S)
+    const resultsJsonUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/reportthy_results.json?content=1`;
+    const resultsJsonRes = await fetch(resultsJsonUrl, {
+      headers: authHeaders,
+      cache: "no-store",
+    }).catch(() => null);
+
+    if (resultsJsonRes && resultsJsonRes.ok) {
+      const data = await resultsJsonRes.json().catch(() => null);
+      if (data?.content) {
+        try {
+          const jsonContent =
+            typeof data.content === "string"
+              ? JSON.parse(data.content)
+              : data.content;
+          if (jsonContent && jsonContent.wilcoxon && jsonContent.preMetrics) {
+            parsedResult = jsonContent as JupyterExecutionResult;
+          }
+        } catch (e) {
+          console.warn("[GET /api/jupyterhub] Error parsing reportthy_results.json:", e);
+        }
+      }
+    }
+
+    // 2. Inspect notebook for cell outputs and executed cell source code
     const contentsUrl = `${JUPYTERHUB_INTERNAL_URL}/user/${JUPYTERHUB_USER}/api/contents/${notebookFileName}?content=1`;
     const res = await fetch(contentsUrl, {
       headers: authHeaders,
       cache: "no-store",
     }).catch(() => null);
 
-    let parsedResult: JupyterExecutionResult | null = null;
-    let codeCellSources: string[] = [];
-
     if (res && res.ok) {
-      const data = await res.json();
-      const notebook = data.content;
+      const data = await res.json().catch(() => null);
+      const notebook = data?.content;
 
       if (notebook && Array.isArray(notebook.cells)) {
         // Collect exact source code of code cells from the Jupyter workspace
@@ -276,40 +315,42 @@ export async function GET(request: NextRequest) {
             Array.isArray(c.source) ? c.source.join("") : c.source,
           );
 
-        // Search cell outputs for Reportthy execution delimiter
-        for (const cell of notebook.cells) {
-          if (!Array.isArray(cell.outputs)) continue;
-          for (const out of cell.outputs) {
-            const rawText =
-              (Array.isArray(out.text) ? out.text.join("") : out.text) ||
-              (out.data && out.data["text/plain"]
-                ? Array.isArray(out.data["text/plain"])
-                  ? out.data["text/plain"].join("")
-                  : out.data["text/plain"]
-                : "");
+        // Search cell outputs for Reportthy execution delimiter if not already found from disk file
+        if (!parsedResult) {
+          for (const cell of notebook.cells) {
+            if (!Array.isArray(cell.outputs)) continue;
+            for (const out of cell.outputs) {
+              const rawText =
+                (Array.isArray(out.text) ? out.text.join("") : out.text) ||
+                (out.data && out.data["text/plain"]
+                  ? Array.isArray(out.data["text/plain"])
+                    ? out.data["text/plain"].join("")
+                    : out.data["text/plain"]
+                  : "");
 
-            if (typeof rawText === "string") {
-              const startMarker = "__REPORTTHY_JSON_START__";
-              const endMarker = "__REPORTTHY_JSON_END__";
-              const sIdx = rawText.indexOf(startMarker);
-              const eIdx = rawText.indexOf(endMarker);
+              if (typeof rawText === "string") {
+                const startMarker = "__REPORTTHY_JSON_START__";
+                const endMarker = "__REPORTTHY_JSON_END__";
+                const sIdx = rawText.indexOf(startMarker);
+                const eIdx = rawText.indexOf(endMarker);
 
-              if (sIdx !== -1 && eIdx !== -1) {
-                const jsonText = rawText
-                  .slice(sIdx + startMarker.length, eIdx)
-                  .trim();
-                parsedResult = JSON.parse(jsonText);
-                break;
+                if (sIdx !== -1 && eIdx !== -1) {
+                  const jsonText = rawText
+                    .slice(sIdx + startMarker.length, eIdx)
+                    .trim();
+                  parsedResult = JSON.parse(jsonText);
+                  break;
+                }
               }
             }
+            if (parsedResult) break;
           }
-          if (parsedResult) break;
         }
       }
     }
 
     if (parsedResult) {
-      if (codeCellSources.length > 0) {
+      if (codeCellSources.length > 0 && (!parsedResult.executedCodeCells || parsedResult.executedCodeCells.length === 0 || parsedResult.executedCodeCells[0]?.includes("executed"))) {
         parsedResult.executedCodeCells = codeCellSources;
       }
       saveServerJupyterResult(parsedResult, safeSessionId);

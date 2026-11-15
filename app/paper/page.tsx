@@ -170,13 +170,12 @@ export default function PaperPage() {
     }
   }, []);
 
-  // Auto-compile once on mount if valid results exist
+  // Auto-compile when defaultLatex changes and editor is not dirty (including initial mount)
   useEffect(() => {
-    if (!initialMountedRef.current && defaultLatex) {
-      initialMountedRef.current = true;
+    if (!isDirty && defaultLatex) {
       handleCompile(defaultLatex);
     }
-  }, [defaultLatex, handleCompile]);
+  }, [defaultLatex, isDirty, handleCompile]);
 
   // Revoke object URL on unmount
   useEffect(() => {
@@ -390,26 +389,98 @@ export default function PaperPage() {
           </div>
         </header>
 
-        {/* Local AI Copilot Panel */}
-        <div className="mb-6">
-          <LocalCopilotPanel
-            mode="paper"
-            studyMetadata={studyMetadata}
-            onApplyNarrativeSlots={(slots: PaperNarrativeSlotsResult) => {
-              setStudyMetadata((prev) => ({
-                ...prev,
-                aiNarrativeSlots: {
-                  ...prev.aiNarrativeSlots,
-                  manuscriptTitle: slots.manuscriptTitle,
-                  theoreticalContext: slots.theoreticalContext,
-                  pedagogicalComparisonNote: slots.pedagogicalComparisonNote,
-                  keywords: slots.keywords,
-                },
-              }));
-              setIsDirty(false);
-            }}
-          />
-        </div>
+        {/* Quality Assurance & Hypothesis Verdict Summary Banner (Top Priority) */}
+        <section className="mb-6">
+          <h2 className="text-sm font-serif font-bold text-[#002B49] mb-3">
+            {t.paper.qaTitle}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white border border-[#D0D7DE] rounded-lg p-4 shadow-xs">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#002B49] uppercase font-mono">
+                <ShieldCheck className="w-4 h-4" />
+                <span>{t.paper.integrityTitle}</span>
+              </div>
+              <ul className="mt-3 space-y-1 text-xs text-[#1F2328]">
+                <li>
+                  <strong className="font-mono">{quarantined.length}</strong>{" "}
+                  {t.paper.anomaliesIsolated}
+                </li>
+                <li>
+                  {t.paper.attritionRate}:{" "}
+                  <strong className="font-mono">
+                    {attritionRate.toFixed(1)}%
+                  </strong>
+                </li>
+                <li>
+                  {t.paper.pairedN}:{" "}
+                  <strong className="font-mono">{pairedData.length}</strong>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-white border border-[#D0D7DE] rounded-lg p-4 shadow-xs">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#002B49] uppercase font-mono">
+                <Activity className="w-4 h-4" />
+                <span>{t.paper.normalityTitle}</span>
+              </div>
+              <span
+                className={
+                  isNonNormal
+                    ? "inline-block mt-3 text-xs font-bold px-2 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-300"
+                    : "inline-block mt-3 text-xs font-bold px-2 py-0.5 rounded border bg-sky-50 text-sky-800 border-sky-300"
+                }
+              >
+                {isNonNormal ? t.paper.nonNormal : t.paper.normal}
+              </span>
+              <p className="mt-2 text-[11px] text-[#57606A] leading-relaxed">
+                {isNonNormal
+                  ? t.paper.nonParametricDirective
+                  : t.paper.parametricEligible}
+              </p>
+            </div>
+
+            <div
+              className={
+                hypothesisConfirmed
+                  ? "rounded-lg p-4 shadow-xs border bg-emerald-50 border-emerald-300"
+                  : "rounded-lg p-4 shadow-xs border bg-rose-50 border-[#C0392B]/40"
+              }
+            >
+              <div className="text-xs font-semibold text-[#002B49] uppercase font-mono">
+                {t.paper.verdictTitle}
+              </div>
+              <div
+                className={
+                  hypothesisConfirmed
+                    ? "mt-3 flex items-center gap-2 text-sm font-bold text-emerald-700"
+                    : "mt-3 flex items-center gap-2 text-sm font-bold text-[#C0392B]"
+                }
+              >
+                {hypothesisConfirmed ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                ) : (
+                  <XCircle className="w-4 h-4 shrink-0" />
+                )}
+                <span>
+                  {hypothesisConfirmed
+                    ? t.paper.corroborated
+                    : t.paper.rejected}
+                </span>
+              </div>
+              <ul className="mt-2 space-y-0.5 text-[11px] font-mono text-[#1F2328]">
+                <li>
+                  {t.paper.wilcoxonP}: {formatP(wilcoxon.pValue)}
+                </li>
+                <li>
+                  {t.paper.effectSize}: {wilcoxon.effectSize.toFixed(3)}
+                </li>
+                <li>
+                  {t.paper.mannWhitneyP}: {formatP(mannWhitney.pValue)}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
 
         {/* Dual-Pane LaTeX Workbench */}
         <section className="bg-white border border-[#D0D7DE] rounded-xl overflow-hidden shadow-md">
@@ -798,98 +869,27 @@ export default function PaperPage() {
             </div>
           </div>
         </section>
-        {/* Quality Assurance & Hypothesis Verdict Summary Banner */}
-        <section className="mb-6">
-          <h2 className="text-sm font-serif font-bold text-[#002B49] mb-3">
-            {t.paper.qaTitle}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white border border-[#D0D7DE] rounded-lg p-4 shadow-xs">
-              <div className="flex items-center gap-2 text-xs font-semibold text-[#002B49] uppercase font-mono">
-                <ShieldCheck className="w-4 h-4" />
-                <span>{t.paper.integrityTitle}</span>
-              </div>
-              <ul className="mt-3 space-y-1 text-xs text-[#1F2328]">
-                <li>
-                  <strong className="font-mono">{quarantined.length}</strong>{" "}
-                  {t.paper.anomaliesIsolated}
-                </li>
-                <li>
-                  {t.paper.attritionRate}:{" "}
-                  <strong className="font-mono">
-                    {attritionRate.toFixed(1)}%
-                  </strong>
-                </li>
-                <li>
-                  {t.paper.pairedN}:{" "}
-                  <strong className="font-mono">{pairedData.length}</strong>
-                </li>
-              </ul>
-            </div>
 
-            <div className="bg-white border border-[#D0D7DE] rounded-lg p-4 shadow-xs">
-              <div className="flex items-center gap-2 text-xs font-semibold text-[#002B49] uppercase font-mono">
-                <Activity className="w-4 h-4" />
-                <span>{t.paper.normalityTitle}</span>
-              </div>
-              <span
-                className={
-                  isNonNormal
-                    ? "inline-block mt-3 text-xs font-bold px-2 py-0.5 rounded border bg-amber-50 text-amber-800 border-amber-300"
-                    : "inline-block mt-3 text-xs font-bold px-2 py-0.5 rounded border bg-sky-50 text-sky-800 border-sky-300"
-                }
-              >
-                {isNonNormal ? t.paper.nonNormal : t.paper.normal}
-              </span>
-              <p className="mt-2 text-[11px] text-[#57606A] leading-relaxed">
-                {isNonNormal
-                  ? t.paper.nonParametricDirective
-                  : t.paper.parametricEligible}
-              </p>
-            </div>
-
-            <div
-              className={
-                hypothesisConfirmed
-                  ? "rounded-lg p-4 shadow-xs border bg-emerald-50 border-emerald-300"
-                  : "rounded-lg p-4 shadow-xs border bg-rose-50 border-[#C0392B]/40"
-              }
-            >
-              <div className="text-xs font-semibold text-[#002B49] uppercase font-mono">
-                {t.paper.verdictTitle}
-              </div>
-              <div
-                className={
-                  hypothesisConfirmed
-                    ? "mt-3 flex items-center gap-2 text-sm font-bold text-emerald-700"
-                    : "mt-3 flex items-center gap-2 text-sm font-bold text-[#C0392B]"
-                }
-              >
-                {hypothesisConfirmed ? (
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                ) : (
-                  <XCircle className="w-4 h-4 shrink-0" />
-                )}
-                <span>
-                  {hypothesisConfirmed
-                    ? t.paper.corroborated
-                    : t.paper.rejected}
-                </span>
-              </div>
-              <ul className="mt-2 space-y-0.5 text-[11px] font-mono text-[#1F2328]">
-                <li>
-                  {t.paper.wilcoxonP}: {formatP(wilcoxon.pValue)}
-                </li>
-                <li>
-                  {t.paper.effectSize}: {wilcoxon.effectSize.toFixed(3)}
-                </li>
-                <li>
-                  {t.paper.mannWhitneyP}: {formatP(mannWhitney.pValue)}
-                </li>
-              </ul>
-            </div>
-          </div>
-        </section>
+        {/* Local AI Copilot Panel */}
+        <div className="mt-6 mb-6">
+          <LocalCopilotPanel
+            mode="paper"
+            studyMetadata={studyMetadata}
+            onApplyNarrativeSlots={(slots: PaperNarrativeSlotsResult) => {
+              setStudyMetadata((prev) => ({
+                ...prev,
+                aiNarrativeSlots: {
+                  ...prev.aiNarrativeSlots,
+                  manuscriptTitle: slots.manuscriptTitle,
+                  theoreticalContext: slots.theoreticalContext,
+                  pedagogicalComparisonNote: slots.pedagogicalComparisonNote,
+                  keywords: slots.keywords,
+                },
+              }));
+              setIsDirty(false);
+            }}
+          />
+        </div>
 
         {/* Collapsible Audit Drawer: Executed Python Cells */}
         <div className="bg-white border border-[#D0D7DE] rounded-lg mb-6 shadow-xs overflow-hidden">
