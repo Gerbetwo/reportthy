@@ -492,13 +492,17 @@ export default function StudyProtocolForm() {
                 <select
                   value={studyMetadata.wilcoxonAlternative}
                   onChange={(e) =>
-                    setStudyMetadata((prev) => ({
-                      ...prev,
-                      wilcoxonAlternative: e.target.value as
+                    setStudyMetadata((prev) => {
+                      const alternative = e.target.value as
                         | 'greater'
                         | 'less'
-                        | 'two-sided',
-                    }))
+                        | 'two-sided';
+                      return {
+                        ...prev,
+                        wilcoxonAlternative: alternative,
+                        mannWhitneyAlternative: alternative,
+                      };
+                    })
                   }
                   className="w-full bg-white border border-[#D0D7DE] rounded px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-[#002B49]"
                 >

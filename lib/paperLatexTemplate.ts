@@ -339,6 +339,17 @@ ${studentRows}
     );
 
   const designMode = studyMetadata?.designMode ?? jupyterResults.designMode ?? 'within_subject';
+  const nonCorroboratedWilcoxonDirection = wilcoxonAlternative === 'greater'
+    ? tr('or a non-positive shift', 'o un desplazamiento no positivo')
+    : wilcoxonAlternative === 'less'
+    ? tr('or a non-negative shift', 'o un desplazamiento no negativo')
+    : '';
+  const nonCorroboratedThreshold = nonCorroboratedWilcoxonDirection
+    ? tr(
+        String.raw`$p \ge ${alpha}$ ${nonCorroboratedWilcoxonDirection}`,
+        String.raw`$p \ge ${alpha}$ ${nonCorroboratedWilcoxonDirection}`
+      )
+    : String.raw`$p \ge ${alpha}$`;
 
   let verdictDetails = '';
   if (designMode === 'within_subject') {
@@ -348,8 +359,8 @@ ${studentRows}
           String.raw`la intervención produjo una ganancia de aprendizaje positiva estadísticamente significativa ($W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$, $p ${fp(wilcoxon.pValue)}$, $p < ${alpha}$, $r=${f3(wilcoxon.effectSize)}$). ${cohortSentence}`
         )
       : tr(
-          String.raw`with $W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$ and $p ${fp(wilcoxon.pValue)}$ ($p \ge ${alpha}$ or a non-positive shift), no statistically significant instructional gain was established. ${cohortSentence}`,
-          String.raw`con $W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$ y $p ${fp(wilcoxon.pValue)}$ ($p \ge ${alpha}$ o un desplazamiento no positivo), no se estableció una ganancia instruccional estadísticamente significativa. ${cohortSentence}`
+          String.raw`with $W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$ and $p ${fp(wilcoxon.pValue)}$ (${nonCorroboratedThreshold}), no statistically significant instructional gain was established. ${cohortSentence}`,
+          String.raw`con $W=${f3(wilcoxon.statisticValue)}$, $Z=${f3(wilcoxon.zValue)}$ y $p ${fp(wilcoxon.pValue)}$ (${nonCorroboratedThreshold}), no se estableció una ganancia instruccional estadísticamente significativa. ${cohortSentence}`
         );
   } else if (designMode === 'between_group') {
     verdictDetails = hypothesisConfirmed

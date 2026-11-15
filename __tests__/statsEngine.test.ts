@@ -59,6 +59,8 @@ describe('Jupyter Notebook Generator (lib/statsEngine.ts)', () => {
     expect(cell4Source).toContain('stats.wilcoxon');
     expect(cell4Source).toContain('ALPHA = 0.05');
     expect(cell4Source).toContain("WILCOXON_ALTERNATIVE = 'greater'");
+    expect(cell4Source).toContain('w_plus = float(np.sum(ranks[non_zero_deltas > 0]))');
+    expect(cell4Source).toContain('w_direction_confirmed = confirms_direction(w_p, w_z, WILCOXON_ALTERNATIVE)');
 
     const cell5Source = parsed.cells[4].source.join('');
     expect(cell5Source).toContain('stats.mannwhitneyu');
@@ -67,6 +69,7 @@ describe('Jupyter Notebook Generator (lib/statsEngine.ts)', () => {
 
     const cell6Source = parsed.cells[5].source.join('');
     expect(cell6Source).toContain('hypothesis_confirmed');
+    expect(cell6Source).toContain('hypothesis_confirmed = w_direction_confirmed');
     expect(cell6Source).toContain('reportthy_results');
     expect(cell6Source).toContain(`${customBaseUrl}/api/notebook/results`);
     expect(cell6Source).toContain('__REPORTTHY_JSON_START__');
@@ -140,7 +143,7 @@ describe('Jupyter Notebook Generator (lib/statsEngine.ts)', () => {
     // Cell 6: between_group hypothesis logic and session-scoped results API
     const cell6Source = parsed.cells[5].source.join('');
     expect(cell6Source).toContain('DESIGN_MODE = "between_group"');
-    expect(cell6Source).toContain('hypothesis_confirmed = bool((u_p < ALPHA) and (u_z > 0))');
+    expect(cell6Source).toContain('hypothesis_confirmed = u_direction_confirmed');
     expect(cell6Source).toContain(`RESULTS_API_URL = "${customBaseUrl}/api/notebook/results?sessionId=session-user-xyz"`);
     expect(cell6Source).toContain('"x-reportthy-session": "session-user-xyz"');
     expect(cell6Source).toContain('reportthy_results_session-user-xyz.json');
@@ -177,6 +180,54 @@ describe('Jupyter Notebook Generator (lib/statsEngine.ts)', () => {
 
     const cell6Source = parsed.cells[5].source.join('');
     expect(cell6Source).toContain('DESIGN_MODE = "combined"');
-    expect(cell6Source).toContain('hypothesis_confirmed = bool((w_p < ALPHA) and (w_z > 0) and (u_p < ALPHA) and (u_z > 0))');
+    expect(cell6Source).toContain('hypothesis_confirmed = bool(w_direction_confirmed and u_direction_confirmed)');
+  });
+
+  it.each([
+    ['greater', 'within_subject', 'w_direction_confirmed'],
+    ['less', 'within_subject', 'w_direction_confirmed'],
+    ['two-sided', 'within_subject', 'w_direction_confirmed'],
+    ['greater', 'between_group', 'u_direction_confirmed'],
+    ['less', 'between_group', 'u_direction_confirmed'],
+    ['two-sided', 'between_group', 'u_direction_confirmed'],
+    ['greater', 'combined', 'bool(w_direction_confirmed and u_direction_confirmed)'],
+    ['less', 'combined', 'bool(w_direction_confirmed and u_direction_confirmed)'],
+    ['two-sided', 'combined', 'bool(w_direction_confirmed and u_direction_confirmed)'],
+  ] as const)('generates direction-aware %s confirmation for %s design mode', (alternative, designMode, expectedPredicate) => {
+    const studyMetadata: StudyMetadata = {
+      studyTitle: 'Direction Test',
+      topicDomain: 'Statistics',
+      controlPedagogy: 'Control',
+      experimentalPedagogy: 'Experimental',
+      hypothesisStatement: 'Directional hypothesis.',
+      designMode,
+      alpha: 0.05,
+      wilcoxonAlternative: alternative,
+      mannWhitneyAlternative: alternative,
+      authors: [],
+      cohortMapping: { 'Listado 1': 'Control', 'Listado 2': 'Experimental' },
+    };
+    const parsed = JSON.parse(generateIpynbJson(
+      paired,
+      preClean,
+      postClean,
+      quarantined,
+      attrition,
+      alternative,
+      0.05,
+      'http://localhost:3000',
+      studyMetadata,
+    ));
+    const cell4Source = parsed.cells[3].source.join('');
+    const cell5Source = parsed.cells[4].source.join('');
+    const cell6Source = parsed.cells[5].source.join('');
+
+    expect(cell4Source).toContain(`WILCOXON_ALTERNATIVE = '${alternative}'`);
+    expect(cell5Source).toContain(`MANN_WHITNEY_ALTERNATIVE = '${alternative}'`);
+    expect(cell4Source).toContain('if alternative == "greater":');
+    expect(cell4Source).toContain('if alternative == "less":');
+    expect(cell4Source).toContain('return bool((p_value < ALPHA) and (z_value != 0))');
+    expect(cell5Source).toContain('u_direction_confirmed = confirms_direction(u_p, u_z, MANN_WHITNEY_ALTERNATIVE)');
+    expect(cell6Source).toContain(`hypothesis_confirmed = ${expectedPredicate}`);
   });
 });
