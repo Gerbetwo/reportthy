@@ -252,10 +252,14 @@ export default function UploadPage() {
 
   // Filter pairs
   const filteredPairs = useMemo(() => {
-    if (!filterQuery.trim()) return pairedData;
+    const indexed = pairedData.map((pair, originalIndex) => ({
+      pair,
+      originalIndex,
+    }));
+    if (!filterQuery.trim()) return indexed;
     const q = filterQuery.toLowerCase();
-    return pairedData.filter(
-      (p) =>
+    return indexed.filter(
+      ({ pair: p }) =>
         p.preName.toLowerCase().includes(q) ||
         p.postName.toLowerCase().includes(q) ||
         p.group.toLowerCase().includes(q) ||
@@ -720,8 +724,8 @@ export default function UploadPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {visiblePairs.map((p, idx) => (
-                      <tr key={idx}>
+                    {visiblePairs.map(({ pair: p, originalIndex }) => (
+                      <tr key={`${p.preName}-${p.postName}-${originalIndex}`}>
                         <td className="font-medium text-slate-800">{p.preName}</td>
                         <td className="text-slate-600">{p.postName}</td>
                         <td>
@@ -753,7 +757,7 @@ export default function UploadPage() {
                         </td>
                         <td>
                           <button
-                            onClick={() => unlinkPair(idx)}
+                            onClick={() => unlinkPair(originalIndex)}
                             className="text-rose-600 hover:text-rose-800 font-mono text-[11px] flex items-center gap-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded transition"
                             title="Unlink pair"
                           >
